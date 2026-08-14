@@ -93,6 +93,7 @@ function Desempenho() {
                   stroke="var(--primary)"
                   strokeWidth={2}
                   fill="url(#g)"
+                  isAnimationActive={false}
                 />
               </AreaChart>
             </ResponsiveContainer>
