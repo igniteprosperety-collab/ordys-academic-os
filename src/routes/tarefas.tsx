@@ -60,7 +60,7 @@ function filterTasks(active: string) {
 function Tarefas() {
   const [active, setActive] = useState("Todas");
   const list = filterTasks(active);
-  const [open, setOpen] = useState(tasks[1].id);
+  const [open, setOpen] = useState(tasks[1]!.id);
   const selected = tasks.find((t) => t.id === open)!;
 
   return (

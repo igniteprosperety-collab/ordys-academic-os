@@ -41,8 +41,8 @@ const groups = [
 
 function Home() {
   const [active, setActive] = useState("Hoje");
-  const nextTask = tasks[0];
-  const nextExam = exams[0];
+  const nextExamIndex = 0;
+  const nextExam = exams[nextExamIndex]!;
   const late = tasks.filter((t) => t.status === "atrasada").length;
 
   return (

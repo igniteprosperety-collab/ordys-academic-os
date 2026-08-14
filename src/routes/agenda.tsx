@@ -93,7 +93,7 @@ function Agenda() {
             <div key={h} className="col-span-8 grid grid-cols-[52px_repeat(7,1fr)] border-t border-border">
               <div className="num py-2 pr-2 text-right text-muted-foreground">{h}:00</div>
               {weekDays.map((d, di) => {
-                const block = today[(hi + di) % today.length];
+                const block = today[(hi + di) % today.length]!;
                 const show = (hi + di) % 3 === 0 && hi < 10;
                 const s = subjectByKey(block.subject);
                 const exam = di === 2 && hi === 3;

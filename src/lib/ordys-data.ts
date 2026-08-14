@@ -80,7 +80,7 @@ export const subjects: {
 ];
 
 export const subjectByKey = (key: SubjectKey) =>
-  subjects.find((s) => s.key === key) ?? subjects[0];
+  (subjects.find((s) => s.key === key) ?? subjects[0])!;
 
 export type ClassBlock = {
   start: string;

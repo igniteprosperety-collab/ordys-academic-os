@@ -31,7 +31,7 @@ const tabs = ["Visão geral", "Conteúdos", "Tarefas", "Avaliações", "Materiai
 
 function Disciplinas() {
   const [active, setActive] = useState("Todas");
-  const [selected, setSelected] = useState(subjects[0].key);
+  const [selected, setSelected] = useState(subjects[0]!.key);
   const [tab, setTab] = useState(tabs[0]);
   const s = subjects.find((x) => x.key === selected)!;
 
