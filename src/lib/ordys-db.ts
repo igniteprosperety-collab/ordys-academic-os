@@ -211,11 +211,14 @@ export function useOrdysMutations() {
   const { userId } = useAuth();
   const refresh = () => client.invalidateQueries();
 
-  async function insert<T extends TableName>(table: T, values: Record<string, unknown>) {
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  const anyDb = () => supabase as any;
+
+  async function insert(table: TableName, values: Record<string, unknown>) {
     if (!userId) throw new Error("Sem sessão");
-    const res = await supabase
+    const res = await anyDb()
       .from(table)
-      .insert({ ...values, user_id: userId } as never)
+      .insert({ ...values, user_id: userId })
       .select()
       .single();
     const row = unwrap(res);
@@ -223,23 +226,20 @@ export function useOrdysMutations() {
     return row;
   }
 
-  async function update<T extends TableName>(table: T, id: string, values: Record<string, unknown>) {
-    const res = await supabase
-      .from(table)
-      .update(values as never)
-      .eq("id", id)
-      .select()
-      .single();
+  async function update(table: TableName, id: string, values: Record<string, unknown>) {
+    const res = await anyDb().from(table).update(values).eq("id", id).select().single();
     const row = unwrap(res);
     refresh();
     return row;
   }
 
-  async function remove<T extends TableName>(table: T, id: string) {
-    const { error } = await supabase.from(table).delete().eq("id", id);
+  async function remove(table: TableName, id: string) {
+    const { error } = await anyDb().from(table).delete().eq("id", id);
     if (error) throw new Error(error.message);
     refresh();
   }
+  /* eslint-enable @typescript-eslint/no-explicit-any */
+
 
   async function upsertProfile(values: TablesUpdate<"profiles">) {
     if (!userId) throw new Error("Sem sessão");
