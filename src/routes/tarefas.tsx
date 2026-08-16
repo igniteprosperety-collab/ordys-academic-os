@@ -1,9 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { Shell } from "@/components/ordys/shell";
-import { Bar, Chip, Dot, Panel, PanelHeader, PageTitle, Stat } from "@/components/ordys/primitives";
-import { subjectByKey, tasks, type Task } from "@/lib/ordys-data";
+import { Chip, Dot, Panel, PanelHeader, PageTitle, Stat } from "@/components/ordys/primitives";
+import { Button, Field, Modal, Select, TextArea, TextInput } from "@/components/ordys/form";
+import {
+  useOrdysMutations,
+  useSubjects,
+  useTasks,
+  useTopics,
+  type Task,
+} from "@/lib/ordys-db";
+import { daysUntil, formatDateTime } from "@/lib/ordys-engine";
 
 export const Route = createFileRoute("/tarefas")({
   head: () => ({
@@ -12,56 +21,88 @@ export const Route = createFileRoute("/tarefas")({
       {
         name: "description",
         content:
-          "Gerencie tarefas acadêmicas com prazo, prioridade, subtarefas, anexos e estados: não iniciada, em andamento, concluída ou atrasada.",
+          "Gerencie tarefas acadêmicas com prazos, prioridades, disciplina, conteúdo e estimativa de tempo — tudo salvo na sua conta ORDYS.",
       },
       { property: "og:title", content: "Tarefas — ORDYS" },
       {
         property: "og:description",
-        content: "Hoje, esta semana, próximas, atrasadas e concluídas — sem esforço para entender.",
+        content: "Prazos, prioridades e status reais, integrados ao plano de estudos.",
       },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: Tarefas,
+  component: Tarefas;
 });
 
-const groups = [
-  { items: ["Todas", "Hoje", "Esta semana", "Próximas", "Atrasadas", "Concluídas"] },
-  { label: "Por prioridade", items: ["Alta", "Média", "Baixa"] },
+const groups = [{ items: ["Todas", "Hoje", "Semana", "Atrasadas", "Concluídas"] }];
+
+const priorities = [
+  { key: "alta", label: "Alta" },
+  { key: "media", label: "Média" },
+  { key: "baixa", label: "Baixa" },
 ];
 
-const statusLabel: Record<Task["status"], string> = {
-  nao_iniciada: "Não iniciada",
-  em_andamento: "Em andamento",
-  concluida: "Concluída",
-  atrasada: "Atrasada",
-};
-
-function filterTasks(active: string) {
-  switch (active) {
-    case "Hoje":
-      return tasks.filter((t) => t.bucket === "hoje");
-    case "Esta semana":
-      return tasks.filter((t) => t.bucket === "hoje" || t.bucket === "semana");
-    case "Próximas":
-      return tasks.filter((t) => t.bucket === "proximas");
-    case "Atrasadas":
-      return tasks.filter((t) => t.status === "atrasada");
-    case "Concluídas":
-      return tasks.filter((t) => t.status === "concluida");
-    case "Alta":
-    case "Média":
-    case "Baixa":
-      return tasks.filter((t) => t.priority === active.toLowerCase().replace("é", "é"));
-    default:
-      return tasks;
-  }
+function bucketOf(task: Task) {
+  if (task.status === "concluida") return "Concluídas";
+  const left = daysUntil(task.due_at);
+  if (left === null) return "Todas";
+  if (left < 0) return "Atrasadas";
+  if (left === 0) return "Hoje";
+  if (left <= 7) return "Semana";
+  return "Todas";
 }
 
 function Tarefas() {
   const [active, setActive] = useState("Todas");
-  const list = filterTasks(active);
-  const [open, setOpen] = useState(tasks[1]!.id);
-  const selected = tasks.find((t) => t.id === open)!;
+  const { data: tasks = [] } = useTasks();
+  const { data: subjects = [] } = useSubjects();
+  const { insert, update, remove } = useOrdysMutations();
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({
+    title: "",
+    subject_id: "",
+    topic_id: "",
+    due_at: "",
+    priority: "media",
+    estimated_minutes: "",
+    description: "",
+  });
+  const { data: topics = [] } = useTopics(form.subject_id || null);
+
+  const visible = tasks.filter((t) =>
+    active === "Todas" ? t.status !== "concluida" : bucketOf(t) === active,
+  );
+  const late = tasks.filter((t) => bucketOf(t) === "Atrasadas").length;
+  const open = tasks.filter((t) => t.status !== "concluida").length;
+  const doneWeek = tasks.filter((t) => t.status === "concluida").length;
+
+  async function save() {
+    try {
+      await insert("tasks", {
+        title: form.title.trim(),
+        subject_id: form.subject_id || null,
+        topic_id: form.topic_id || null,
+        due_at: form.due_at ? new Date(form.due_at).toISOString() : null,
+        priority: form.priority,
+        estimated_minutes: form.estimated_minutes ? Number(form.estimated_minutes) : null,
+        description: form.description || null,
+      });
+      setForm({ title: "", subject_id: "", topic_id: "", due_at: "", priority: "media", estimated_minutes: "", description: "" });
+      setModal(false);
+      toast.success("Tarefa criada");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao criar tarefa");
+    }
+  }
+
+  async function toggle(task: Task) {
+    const done = task.status === "concluida";
+    await update("tasks", task.id, {
+      status: done ? "em_andamento" : "concluida",
+      completed_at: done ? null : new Date().toISOString(),
+    });
+  }
 
   return (
     <Shell
@@ -71,128 +112,140 @@ function Tarefas() {
       onSelect={setActive}
       breadcrumb={["Tarefas", active]}
     >
-      <PageTitle
-        title="Tarefas"
-        subtitle="6 abertas · 2 atrasadas · 12 concluídas neste período"
-        action={
-          <button className="flex items-center gap-2 rounded-lg bg-primary px-3.5 py-2 text-[12.5px] font-medium text-primary-foreground transition-colors hover:bg-primary/90">
-            <Plus className="size-[13px]" strokeWidth={2} /> Nova tarefa
-          </button>
-        }
-      />
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <PageTitle title="Tarefas" subtitle={`${open} abertas · ${late} atrasadas`} />
+        <Button onClick={() => setModal(true)}>
+          <Plus className="size-[13px]" strokeWidth={2} /> Nova tarefa
+        </Button>
+      </div>
 
       <div className="mt-5 grid gap-3 sm:grid-cols-4">
-        <Stat label="Hoje" value="1" sub="vence às 22:00" accent="primary" />
-        <Stat label="Esta semana" value="2" sub="História e Matemática" />
-        <Stat label="Atrasadas" value="2" sub="Física e Literatura" accent="warning" />
-        <Stat label="No prazo" value="72%" sub="+8% no mês" accent="success" />
+        <Stat label="Abertas" value={String(open)} sub="em todas as disciplinas" />
+        <Stat label="Atrasadas" value={String(late)} sub="precisam de atenção" accent="warning" />
+        <Stat label="Concluídas" value={String(doneWeek)} sub="histórico total" accent="success" />
+        <Stat
+          label="Carga estimada"
+          value={`${tasks
+            .filter((t) => t.status !== "concluida")
+            .reduce((acc, t) => acc + (t.estimated_minutes ?? 0), 0)} min`}
+          sub="tarefas pendentes"
+        />
       </div>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-        <Panel>
-          <PanelHeader title={active} hint={`${list.length} tarefas`} />
-          <div className="border-t border-border">
-            {list.map((t) => {
-              const s = subjectByKey(t.subject);
+      <Panel className="mt-4">
+        <PanelHeader title={active} hint={`${visible.length} tarefas`} />
+        <div className="border-t border-border">
+          {visible.length ? (
+            visible.map((t) => {
+              const subject = subjects.find((s) => s.id === t.subject_id);
+              const left = daysUntil(t.due_at);
               return (
-                <button
-                  key={t.id}
-                  onClick={() => setOpen(t.id)}
-                  className={`flex w-full items-center gap-3 px-5 py-3 text-left transition-colors hover:bg-secondary/40 ${
-                    open === t.id ? "bg-secondary/50" : ""
-                  }`}
-                >
-                  <span
-                    className={`grid size-4 shrink-0 place-items-center rounded-[5px] border ${
-                      t.status === "concluida"
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border-strong"
+                <div key={t.id} className="flex items-start gap-3 px-5 py-3">
+                  <button
+                    onClick={() => toggle(t)}
+                    className={`mt-[3px] size-3.5 shrink-0 rounded-[4px] border transition-colors ${
+                      t.status === "concluida" ? "border-success bg-success/40" : "border-border-strong hover:border-primary"
                     }`}
-                  >
-                    {t.status === "concluida" ? <span className="text-[9px]">✓</span> : null}
-                  </span>
+                    aria-label="Concluir tarefa"
+                  />
                   <div className="min-w-0 flex-1">
-                    <p
-                      className={`truncate text-[13px] ${
-                        t.status === "concluida" ? "text-muted-foreground line-through" : ""
-                      }`}
-                    >
+                    <p className={`text-[12.5px] ${t.status === "concluida" ? "text-muted-foreground line-through" : ""}`}>
                       {t.title}
                     </p>
-                    <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                      <Dot color={s.color} /> {s.name} · {t.due} · {t.subtasks[0]}/{t.subtasks[1]}{" "}
-                      subtarefas
+                    <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+                      {subject ? (
+                        <>
+                          <Dot color={subject.color} /> {subject.name} ·{" "}
+                        </>
+                      ) : null}
+                      {formatDateTime(t.due_at)}
+                      {t.estimated_minutes ? ` · ${t.estimated_minutes} min` : ""}
                     </p>
                   </div>
-                  <Chip
-                    tone={
-                      t.status === "atrasada"
-                        ? "danger"
-                        : t.status === "concluida"
-                          ? "success"
-                          : t.priority === "alta"
-                            ? "gold"
-                            : "muted"
-                    }
-                  >
-                    {statusLabel[t.status]}
+                  <Chip tone={t.priority === "alta" ? "danger" : t.priority === "baixa" ? undefined : "primary"}>
+                    {t.priority}
                   </Chip>
-                </button>
+                  {left !== null && left < 0 && t.status !== "concluida" ? (
+                    <Chip tone="danger">atrasada</Chip>
+                  ) : null}
+                  <button
+                    className="mt-0.5 text-muted-foreground hover:text-destructive"
+                    onClick={() => remove("tasks", t.id)}
+                  >
+                    <Trash2 className="size-[13px]" strokeWidth={1.7} />
+                  </button>
+                </div>
               );
-            })}
-          </div>
-        </Panel>
+            })
+          ) : (
+            <p className="px-5 py-6 text-[12px] text-muted-foreground">Nenhuma tarefa nesta visão.</p>
+          )}
+        </div>
+      </Panel>
 
-        <Panel>
-          <PanelHeader title="Detalhes" hint={subjectByKey(selected.subject).name} />
-          <div className="border-t border-border px-5 py-4">
-            <p className="text-[14px] font-medium">{selected.title}</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Chip tone="primary">{selected.due}</Chip>
-              <Chip tone="gold">prioridade {selected.priority}</Chip>
-              <Chip>{statusLabel[selected.status]}</Chip>
-            </div>
-            <p className="mt-4 text-[12px] leading-relaxed text-muted-foreground">
-              Produzir análise das causas e consequências da Revolução Industrial, com fontes citadas
-              e conclusão pessoal. Entrega digital pela plataforma da escola.
-            </p>
-
-            <div className="mt-5">
-              <div className="mb-2 flex items-center justify-between text-[11.5px] text-muted-foreground">
-                <span>Subtarefas</span>
-                <span className="num">
-                  {selected.subtasks[0]}/{selected.subtasks[1]}
-                </span>
-              </div>
-              <Bar value={(selected.subtasks[0] / selected.subtasks[1]) * 100} />
-              <div className="mt-3 space-y-2">
-                {["Levantar fontes", "Fichamento", "Estrutura do texto", "Redação final"].map(
-                  (st, i) => (
-                    <div key={st} className="flex items-center gap-2.5 text-[12.5px]">
-                      <span
-                        className={`grid size-3.5 place-items-center rounded-[4px] border ${
-                          i < selected.subtasks[0]
-                            ? "border-primary bg-primary text-primary-foreground"
-                            : "border-border-strong"
-                        }`}
-                      >
-                        {i < selected.subtasks[0] ? <span className="text-[8px]">✓</span> : null}
-                      </span>
-                      <span className={i < selected.subtasks[0] ? "text-muted-foreground" : ""}>
-                        {st}
-                      </span>
-                    </div>
-                  ),
-                )}
-              </div>
-            </div>
-
-            <div className="mt-5 border-t border-border pt-3 text-[11.5px] text-muted-foreground">
-              2 anexos · 1 anotação vinculada · sem recorrência
-            </div>
-          </div>
-        </Panel>
-      </div>
+      <Modal open={modal} onClose={() => setModal(false)} title="Nova tarefa">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Título" className="sm:col-span-2">
+            <TextInput value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+          </Field>
+          <Field label="Disciplina">
+            <Select
+              value={form.subject_id}
+              onChange={(e) => setForm({ ...form, subject_id: e.target.value, topic_id: "" })}
+            >
+              <option value="">Sem disciplina</option>
+              {subjects.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Conteúdo">
+            <Select value={form.topic_id} onChange={(e) => setForm({ ...form, topic_id: e.target.value })}>
+              <option value="">Sem conteúdo</option>
+              {topics.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.title}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Prazo">
+            <TextInput
+              type="datetime-local"
+              value={form.due_at}
+              onChange={(e) => setForm({ ...form, due_at: e.target.value })}
+            />
+          </Field>
+          <Field label="Prioridade">
+            <Select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>
+              {priorities.map((p) => (
+                <option key={p.key} value={p.key}>
+                  {p.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Estimativa (min)">
+            <TextInput
+              value={form.estimated_minutes}
+              onChange={(e) => setForm({ ...form, estimated_minutes: e.target.value })}
+            />
+          </Field>
+          <Field label="Detalhes" className="sm:col-span-2">
+            <TextArea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+          </Field>
+        </div>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button variant="ghost" onClick={() => setModal(false)}>
+            Cancelar
+          </Button>
+          <Button onClick={save} disabled={!form.title.trim()}>
+            Criar tarefa
+          </Button>
+        </div>
+      </Modal>
     </Shell>
   );
 }
