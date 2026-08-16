@@ -32,7 +32,7 @@ export const Route = createFileRoute("/tarefas")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: Tarefas;
+  component: Tarefas,
 });
 
 const groups = [{ items: ["Todas", "Hoje", "Semana", "Atrasadas", "Concluídas"] }];
