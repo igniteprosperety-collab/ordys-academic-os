@@ -162,7 +162,7 @@ function Tarefas() {
                       {t.estimated_minutes ? ` · ${t.estimated_minutes} min` : ""}
                     </p>
                   </div>
-                  <Chip tone={t.priority === "alta" ? "danger" : t.priority === "baixa" ? undefined : "primary"}>
+                  <Chip tone={t.priority === "alta" ? "danger" : t.priority === "baixa" ? "muted" : "primary"}>
                     {t.priority}
                   </Chip>
                   {left !== null && left < 0 && t.status !== "concluida" ? (
