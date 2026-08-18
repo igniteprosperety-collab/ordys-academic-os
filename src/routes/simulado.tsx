@@ -42,7 +42,7 @@ function Simulado() {
   const [active, setActive] = useState("Novo simulado");
   const { data: subjects = [] } = useSubjects();
   const { data: attempts = [] } = useQuizAttempts();
-  const { insert, userId, refresh } = useOrdysMutations();
+  const { userId, refresh } = useOrdysMutations();
   const runGenerate = useServerFn(generateQuiz);
 
   const [subjectId, setSubjectId] = useState("");
@@ -86,12 +86,6 @@ function Simulado() {
   async function finish() {
     setFinished(true);
     if (!userId || !subject) return;
-    try {
-      const attempt = (await insert("focus_sessions" as never, {})) as never;
-      void attempt;
-    } catch {
-      /* ignore */
-    }
     try {
       const { data: created, error } = await supabase
         .from("quiz_attempts")
