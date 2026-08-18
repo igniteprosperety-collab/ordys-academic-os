@@ -6,6 +6,7 @@ import {
   BookOpen,
   CalendarDays,
   CheckSquare,
+  FileQuestion,
   GraduationCap,
   LayoutDashboard,
   LineChart,
@@ -26,6 +27,7 @@ const modules = [
   { to: "/agenda", label: "Agenda", icon: CalendarDays },
   { to: "/tarefas", label: "Tarefas", icon: CheckSquare },
   { to: "/estudos", label: "Estudos", icon: GraduationCap },
+  { to: "/simulado", label: "Simulados", icon: FileQuestion },
   { to: "/desempenho", label: "Desempenho", icon: LineChart },
 ] as const;
 
