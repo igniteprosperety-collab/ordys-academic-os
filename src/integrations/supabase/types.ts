@@ -31,7 +31,7 @@ export type Database = {
           note?: string | null
           status?: string
           subject_id: string
-          user_id: string
+          user_id?: string
         }
         Update: {
           class_date?: string
@@ -69,7 +69,7 @@ export type Database = {
           last_sync_at?: string | null
           provider: string
           status?: string
-          user_id: string
+          user_id?: string
         }
         Update: {
           account_email?: string | null
@@ -107,7 +107,7 @@ export type Database = {
           starts_at: string
           subject_id?: string | null
           title: string
-          user_id: string
+          user_id?: string
         }
         Update: {
           created_at?: string
@@ -153,7 +153,7 @@ export type Database = {
           id?: string
           pending_note?: string | null
           studied_minutes?: number | null
-          user_id: string
+          user_id?: string
         }
         Update: {
           checkin_date?: string
@@ -185,7 +185,7 @@ export type Database = {
         Insert: {
           exam_id: string
           topic_id: string
-          user_id: string
+          user_id?: string
         }
         Update: {
           exam_id?: string
@@ -231,7 +231,7 @@ export type Database = {
           subject_id?: string | null
           title: string
           updated_at?: string
-          user_id: string
+          user_id?: string
           weight?: string | null
         }
         Update: {
@@ -281,7 +281,7 @@ export type Database = {
           status?: string
           subject_id?: string | null
           topic_id?: string | null
-          user_id: string
+          user_id?: string
         }
         Update: {
           actual_minutes?: number | null
@@ -336,7 +336,7 @@ export type Database = {
           target: number
           title: string
           updated_at?: string
-          user_id: string
+          user_id?: string
         }
         Update: {
           active?: boolean
@@ -384,7 +384,7 @@ export type Database = {
           subject_id: string
           term?: string | null
           title: string
-          user_id: string
+          user_id?: string
           weight?: number
         }
         Update: {
@@ -447,7 +447,7 @@ export type Database = {
           study_sessions?: boolean
           tasks?: boolean
           updated_at?: string
-          user_id: string
+          user_id?: string
           weekly_summary?: boolean
         }
         Update: {
@@ -491,7 +491,7 @@ export type Database = {
           link?: string | null
           read_at?: string | null
           title: string
-          user_id: string
+          user_id?: string
         }
         Update: {
           body?: string | null
@@ -542,7 +542,7 @@ export type Database = {
           task_id?: string | null
           topic_id?: string | null
           updated_at?: string
-          user_id: string
+          user_id?: string
         }
         Update: {
           created_at?: string
@@ -614,7 +614,7 @@ export type Database = {
           full_name?: string | null
           grade_pass?: number
           grade_scale_max?: number
-          id: string
+          id?: string
           stage?: string
           timezone?: string
           updated_at?: string
@@ -652,7 +652,7 @@ export type Database = {
           id?: string
           p256dh: string
           user_agent?: string | null
-          user_id: string
+          user_id?: string
         }
         Update: {
           auth?: string
@@ -692,7 +692,7 @@ export type Database = {
           question: string
           seconds_spent?: number | null
           topic_id?: string | null
-          user_id: string
+          user_id?: string
         }
         Update: {
           attempt_id?: string
@@ -748,7 +748,7 @@ export type Database = {
           question_count?: number
           status?: string
           subject_id?: string | null
-          user_id: string
+          user_id?: string
         }
         Update: {
           correct_count?: number | null
@@ -793,7 +793,7 @@ export type Database = {
           source?: string
           status?: string
           topic_id: string
-          user_id: string
+          user_id?: string
         }
         Update: {
           completed_at?: string | null
@@ -834,7 +834,7 @@ export type Database = {
           room?: string | null
           start_time: string
           subject_id: string
-          user_id: string
+          user_id?: string
           weekday: number
         }
         Update: {
@@ -887,7 +887,7 @@ export type Database = {
           teacher?: string | null
           term?: string | null
           updated_at?: string
-          user_id: string
+          user_id?: string
           weekly_hours?: number | null
         }
         Update: {
@@ -923,7 +923,7 @@ export type Database = {
           id?: string
           task_id: string
           title: string
-          user_id: string
+          user_id?: string
         }
         Update: {
           created_at?: string
@@ -972,7 +972,7 @@ export type Database = {
           title: string
           topic_id?: string | null
           updated_at?: string
-          user_id: string
+          user_id?: string
         }
         Update: {
           completed_at?: string | null
@@ -1033,7 +1033,7 @@ export type Database = {
           subject_id: string
           title: string
           updated_at?: string
-          user_id: string
+          user_id?: string
         }
         Update: {
           created_at?: string
@@ -1059,12 +1059,33 @@ export type Database = {
           },
         ]
       }
+      usage_events: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      delete_own_data: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never
