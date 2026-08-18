@@ -6,6 +6,7 @@ import {
   BookOpen,
   CalendarDays,
   CheckSquare,
+  FileQuestion,
   GraduationCap,
   LayoutDashboard,
   LineChart,
