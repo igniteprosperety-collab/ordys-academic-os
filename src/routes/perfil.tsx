@@ -109,7 +109,7 @@ function Perfil() {
     }
   }
 
-  async function togglePref(key: string, value: boolean) {
+  async function togglePref(key: string, value: boolean | string) {
     await upsertNotificationPrefs({ [key]: value } as never);
   }
 
@@ -244,14 +244,14 @@ function Perfil() {
                   <TextInput
                     type="time"
                     defaultValue={(prefs?.quiet_start ?? "22:00:00").slice(0, 5)}
-                    onBlur={(e) => togglePref("quiet_start", e.target.value as unknown as boolean)}
+                    onBlur={(e) => togglePref("quiet_start", e.target.value)}
                   />
                 </Field>
                 <Field label="Fim">
                   <TextInput
                     type="time"
                     defaultValue={(prefs?.quiet_end ?? "07:00:00").slice(0, 5)}
-                    onBlur={(e) => togglePref("quiet_end", e.target.value as unknown as boolean)}
+                    onBlur={(e) => togglePref("quiet_end", e.target.value)}
                   />
                 </Field>
               </div>
