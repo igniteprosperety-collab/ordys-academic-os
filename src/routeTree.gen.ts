@@ -16,6 +16,7 @@ import { Route as DesempenhoRouteImport } from './routes/desempenho'
 import { Route as DisciplinasRouteImport } from './routes/disciplinas'
 import { Route as EstudosRouteImport } from './routes/estudos'
 import { Route as PerfilRouteImport } from './routes/perfil'
+import { Route as SimuladoRouteImport } from './routes/simulado'
 import { Route as TarefasRouteImport } from './routes/tarefas'
 
 const IndexRoute = IndexRouteImport.update({
@@ -53,6 +54,11 @@ const PerfilRoute = PerfilRouteImport.update({
   path: '/perfil',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SimuladoRoute = SimuladoRouteImport.update({
+  id: '/simulado',
+  path: '/simulado',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TarefasRoute = TarefasRouteImport.update({
   id: '/tarefas',
   path: '/tarefas',
@@ -67,6 +73,7 @@ export interface FileRoutesByFullPath {
   '/disciplinas': typeof DisciplinasRoute
   '/estudos': typeof EstudosRoute
   '/perfil': typeof PerfilRoute
+  '/simulado': typeof SimuladoRoute
   '/tarefas': typeof TarefasRoute
 }
 export interface FileRoutesByTo {
@@ -77,6 +84,7 @@ export interface FileRoutesByTo {
   '/disciplinas': typeof DisciplinasRoute
   '/estudos': typeof EstudosRoute
   '/perfil': typeof PerfilRoute
+  '/simulado': typeof SimuladoRoute
   '/tarefas': typeof TarefasRoute
 }
 export interface FileRoutesById {
@@ -88,6 +96,7 @@ export interface FileRoutesById {
   '/disciplinas': typeof DisciplinasRoute
   '/estudos': typeof EstudosRoute
   '/perfil': typeof PerfilRoute
+  '/simulado': typeof SimuladoRoute
   '/tarefas': typeof TarefasRoute
 }
 export interface FileRouteTypes {
@@ -100,6 +109,7 @@ export interface FileRouteTypes {
     | '/disciplinas'
     | '/estudos'
     | '/perfil'
+    | '/simulado'
     | '/tarefas'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -110,6 +120,7 @@ export interface FileRouteTypes {
     | '/disciplinas'
     | '/estudos'
     | '/perfil'
+    | '/simulado'
     | '/tarefas'
   id:
     | '__root__'
@@ -120,6 +131,7 @@ export interface FileRouteTypes {
     | '/disciplinas'
     | '/estudos'
     | '/perfil'
+    | '/simulado'
     | '/tarefas'
   fileRoutesById: FileRoutesById
 }
@@ -131,6 +143,7 @@ export interface RootRouteChildren {
   DisciplinasRoute: typeof DisciplinasRoute
   EstudosRoute: typeof EstudosRoute
   PerfilRoute: typeof PerfilRoute
+  SimuladoRoute: typeof SimuladoRoute
   TarefasRoute: typeof TarefasRoute
 }
 
@@ -185,6 +198,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PerfilRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/simulado': {
+      id: '/simulado'
+      path: '/simulado'
+      fullPath: '/simulado'
+      preLoaderRoute: typeof SimuladoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/tarefas': {
       id: '/tarefas'
       path: '/tarefas'
@@ -203,6 +223,7 @@ const rootRouteChildren: RootRouteChildren = {
   DisciplinasRoute: DisciplinasRoute,
   EstudosRoute: EstudosRoute,
   PerfilRoute: PerfilRoute,
+  SimuladoRoute: SimuladoRoute,
   TarefasRoute: TarefasRoute,
 }
 export const routeTree = rootRouteImport
