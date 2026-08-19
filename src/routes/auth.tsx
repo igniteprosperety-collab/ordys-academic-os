@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
@@ -27,6 +27,10 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
+// Client-side throttle (o backend de autenticação também aplica limites).
+const MAX_ATTEMPTS = 5;
+const COOLDOWN_MS = 60_000;
+
 function AuthPage() {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
@@ -35,36 +39,76 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
+  const attempts = useRef(0);
+  const blockedUntil = useRef(0);
 
   useEffect(() => {
     if (!loading && user) navigate({ to: "/", replace: true });
   }, [loading, user, navigate]);
 
+  function throttled() {
+    if (Date.now() < blockedUntil.current) {
+      const secs = Math.ceil((blockedUntil.current - Date.now()) / 1000);
+      toast.error(`Muitas tentativas. Aguarde ${secs}s.`);
+      return true;
+    }
+    return false;
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (throttled()) return;
     setBusy(true);
     try {
       if (mode === "criar") {
+        if (password.length < 8) {
+          toast.error("Use uma senha com pelo menos 8 caracteres");
+          return;
+        }
         const { error } = await supabase.auth.signUp({
           email,
           password,
           options: {
             emailRedirectTo: window.location.origin,
-            data: { full_name: name },
+            data: { full_name: name.trim().slice(0, 80) },
           },
         });
         if (error) throw error;
-        toast.success("Conta criada. Você já pode usar o ORDYS.");
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        toast.success("Conta criada. Verifique seu e-mail para confirmar o acesso.");
+        return;
       }
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        attempts.current += 1;
+        if (attempts.current >= MAX_ATTEMPTS) {
+          blockedUntil.current = Date.now() + COOLDOWN_MS;
+          attempts.current = 0;
+        }
+        // Mensagem genérica: não revela se o e-mail existe.
+        toast.error("E-mail ou senha inválidos");
+        return;
+      }
+      attempts.current = 0;
       navigate({ to: "/", replace: true });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Não foi possível continuar");
+    } catch {
+      toast.error("Não foi possível continuar. Tente novamente.");
     } finally {
       setBusy(false);
     }
+  }
+
+  async function forgotPassword() {
+    if (!email) {
+      toast.error("Informe seu e-mail primeiro");
+      return;
+    }
+    if (throttled()) return;
+    blockedUntil.current = Date.now() + 30_000;
+    await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    // Sempre a mesma resposta, exista ou não a conta.
+    toast.success("Se existir uma conta com este e-mail, o link de redefinição foi enviado.");
   }
 
   async function google() {
@@ -109,7 +153,7 @@ function AuthPage() {
             <TextInput
               type="password"
               required
-              minLength={6}
+              minLength={8}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
@@ -121,6 +165,15 @@ function AuthPage() {
           <Button type="button" variant="ghost" onClick={google} className="w-full py-2.5">
             Continuar com Google
           </Button>
+          {mode === "entrar" ? (
+            <button
+              type="button"
+              onClick={forgotPassword}
+              className="text-center text-[11.5px] text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Esqueci minha senha
+            </button>
+          ) : null}
         </form>
 
         <button

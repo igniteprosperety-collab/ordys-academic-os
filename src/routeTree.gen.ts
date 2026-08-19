@@ -16,6 +16,7 @@ import { Route as DesempenhoRouteImport } from './routes/desempenho'
 import { Route as DisciplinasRouteImport } from './routes/disciplinas'
 import { Route as EstudosRouteImport } from './routes/estudos'
 import { Route as PerfilRouteImport } from './routes/perfil'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SimuladoRouteImport } from './routes/simulado'
 import { Route as TarefasRouteImport } from './routes/tarefas'
 
@@ -54,6 +55,11 @@ const PerfilRoute = PerfilRouteImport.update({
   path: '/perfil',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SimuladoRoute = SimuladoRouteImport.update({
   id: '/simulado',
   path: '/simulado',
@@ -73,6 +79,7 @@ export interface FileRoutesByFullPath {
   '/disciplinas': typeof DisciplinasRoute
   '/estudos': typeof EstudosRoute
   '/perfil': typeof PerfilRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/simulado': typeof SimuladoRoute
   '/tarefas': typeof TarefasRoute
 }
@@ -84,6 +91,7 @@ export interface FileRoutesByTo {
   '/disciplinas': typeof DisciplinasRoute
   '/estudos': typeof EstudosRoute
   '/perfil': typeof PerfilRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/simulado': typeof SimuladoRoute
   '/tarefas': typeof TarefasRoute
 }
@@ -96,6 +104,7 @@ export interface FileRoutesById {
   '/disciplinas': typeof DisciplinasRoute
   '/estudos': typeof EstudosRoute
   '/perfil': typeof PerfilRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/simulado': typeof SimuladoRoute
   '/tarefas': typeof TarefasRoute
 }
@@ -109,6 +118,7 @@ export interface FileRouteTypes {
     | '/disciplinas'
     | '/estudos'
     | '/perfil'
+    | '/reset-password'
     | '/simulado'
     | '/tarefas'
   fileRoutesByTo: FileRoutesByTo
@@ -120,6 +130,7 @@ export interface FileRouteTypes {
     | '/disciplinas'
     | '/estudos'
     | '/perfil'
+    | '/reset-password'
     | '/simulado'
     | '/tarefas'
   id:
@@ -131,6 +142,7 @@ export interface FileRouteTypes {
     | '/disciplinas'
     | '/estudos'
     | '/perfil'
+    | '/reset-password'
     | '/simulado'
     | '/tarefas'
   fileRoutesById: FileRoutesById
@@ -143,6 +155,7 @@ export interface RootRouteChildren {
   DisciplinasRoute: typeof DisciplinasRoute
   EstudosRoute: typeof EstudosRoute
   PerfilRoute: typeof PerfilRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   SimuladoRoute: typeof SimuladoRoute
   TarefasRoute: typeof TarefasRoute
 }
@@ -198,6 +211,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PerfilRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/simulado': {
       id: '/simulado'
       path: '/simulado'
@@ -223,6 +243,7 @@ const rootRouteChildren: RootRouteChildren = {
   DisciplinasRoute: DisciplinasRoute,
   EstudosRoute: EstudosRoute,
   PerfilRoute: PerfilRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   SimuladoRoute: SimuladoRoute,
   TarefasRoute: TarefasRoute,
 }
