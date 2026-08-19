@@ -153,7 +153,7 @@ function AuthPage() {
             <TextInput
               type="password"
               required
-              minLength={6}
+              minLength={8}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
@@ -165,6 +165,15 @@ function AuthPage() {
           <Button type="button" variant="ghost" onClick={google} className="w-full py-2.5">
             Continuar com Google
           </Button>
+          {mode === "entrar" ? (
+            <button
+              type="button"
+              onClick={forgotPassword}
+              className="text-center text-[11.5px] text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Esqueci minha senha
+            </button>
+          ) : null}
         </form>
 
         <button
