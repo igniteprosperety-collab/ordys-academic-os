@@ -57,8 +57,38 @@ function Perfil() {
   const { data: prefs } = useNotificationPrefs();
   const { data: subjects = [] } = useSubjects();
   const { data: connections = [] } = useCalendarConnections();
-  const { upsertProfile, upsertNotificationPrefs } = useOrdysMutations();
+  const { upsertProfile, upsertNotificationPrefs, refresh } = useOrdysMutations();
   const [permission, setPermission] = useState<string>("default");
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  async function secureSignOut() {
+    await queryClient.cancelQueries();
+    queryClient.clear();
+    await supabase.auth.signOut();
+    navigate({ to: "/auth", replace: true });
+  }
+
+  async function disconnect(id: string) {
+    const { error } = await supabase.from("calendar_connections").delete().eq("id", id);
+    if (error) {
+      toast.error("Não foi possível desconectar agora");
+      return;
+    }
+    refresh();
+    toast.success("Integração desconectada e credenciais removidas");
+  }
+
+  async function deleteAccountData() {
+    if (!window.confirm("Excluir permanentemente todos os seus dados do ORDYS? Isso não pode ser desfeito.")) return;
+    const { error } = await supabase.rpc("delete_own_data");
+    if (error) {
+      toast.error("Não foi possível excluir os dados agora");
+      return;
+    }
+    toast.success("Seus dados foram excluídos");
+    await secureSignOut();
+  }
 
   const [form, setForm] = useState({
     full_name: "",
