@@ -25,7 +25,38 @@ const csrfMiddleware = createCsrfMiddleware({
   filter: (ctx) => ctx.handlerType === "serverFn",
 });
 
+const CSP = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'self' https://*.lovable.app https://*.lovable.dev",
+  "form-action 'self'",
+  "img-src 'self' data: blob: https:",
+  "font-src 'self' data: https:",
+  "style-src 'self' 'unsafe-inline'",
+  // Vite/React SSR hydration and the Lovable preview require inline/eval scripts.
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  "connect-src 'self' https: wss:",
+].join("; ");
+
+// Security headers for every document/API response served by the app.
+const securityHeadersMiddleware = createMiddleware().server(async ({ next }) => {
+  const result = await next();
+  const response = (result as { response?: Response }).response;
+  const headers = response?.headers;
+  if (headers) {
+    headers.set("Content-Security-Policy", CSP);
+    headers.set("X-Content-Type-Options", "nosniff");
+    headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+    headers.set("X-Frame-Options", "SAMEORIGIN");
+    headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+    headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+    headers.set("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+  }
+  return result;
+});
+
 export const startInstance = createStart(() => ({
   functionMiddleware: [attachSupabaseAuth],
-  requestMiddleware: [errorMiddleware, csrfMiddleware],
+  requestMiddleware: [errorMiddleware, csrfMiddleware, securityHeadersMiddleware],
 }));
