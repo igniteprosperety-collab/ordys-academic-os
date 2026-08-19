@@ -279,7 +279,8 @@ function Perfil() {
           <PanelHeader title="Integrações de agenda" hint="eventos externos" />
           <div className="border-t border-border px-5 py-4">
             <p className="text-[12px] text-muted-foreground">
-              Eventos importados aparecem na agenda junto das aulas, provas e sessões de estudo. Conexões registradas:
+              Eventos importados aparecem na agenda junto das aulas, provas e sessões de estudo. Tokens de acesso ficam
+              apenas no servidor e nunca são exibidos aqui. Ao desconectar, as credenciais guardadas são removidas.
             </p>
             <div className="mt-3 space-y-2">
               {connections.length ? (
@@ -288,12 +289,30 @@ function Perfil() {
                     <span className="flex-1">{c.provider}</span>
                     <span className="text-muted-foreground">{c.account_email ?? "—"}</span>
                     <Chip tone={c.status === "conectado" ? "success" : "muted"}>{c.status}</Chip>
+                    <Button variant="ghost" onClick={() => disconnect(c.id)}>
+                      Desconectar
+                    </Button>
                   </div>
                 ))
               ) : (
                 <p className="text-[12px] text-muted-foreground">Nenhuma conexão ativa.</p>
               )}
             </div>
+          </div>
+        </Panel>
+      ) : null}
+
+      {active === "Conta" ? (
+        <Panel className="mt-4">
+          <PanelHeader title="Privacidade e dados" hint="apenas você" />
+          <div className="space-y-3 border-t border-border px-5 py-4">
+            <p className="text-[12px] text-muted-foreground">
+              Todos os seus dados acadêmicos (notas, frequência, anotações, simulados e hábitos de estudo) são privados e
+              acessíveis somente pela sua conta autenticada.
+            </p>
+            <Button variant="ghost" onClick={deleteAccountData}>
+              Excluir todos os meus dados
+            </Button>
           </div>
         </Panel>
       ) : null}
