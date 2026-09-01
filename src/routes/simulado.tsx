@@ -65,8 +65,7 @@ function Simulado() {
     try {
       const res = await runGenerate({
         data: {
-          subjectName: subject.name,
-          topics: topics.map((t) => t.title).slice(0, 12),
+          subjectId: subject.id,
           difficulty,
           questionCount: Number(count),
         },

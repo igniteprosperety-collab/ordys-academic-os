@@ -171,12 +171,7 @@ function Perfil() {
     >
       <div className="flex flex-wrap items-end justify-between gap-3">
         <PageTitle title="Perfil e preferências" subtitle={user?.email ?? ""} />
-        <Button
-          variant="ghost"
-          onClick={async () => {
-            await supabase.auth.signOut();
-          }}
-        >
+        <Button variant="ghost" onClick={secureSignOut}>
           <LogOut className="size-[13px]" strokeWidth={1.8} /> Sair
         </Button>
       </div>
