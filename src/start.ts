@@ -32,8 +32,9 @@ const CSP = [
   "frame-ancestors 'self' https://*.lovable.app https://*.lovable.dev",
   "form-action 'self'",
   "img-src 'self' data: blob: https:",
-  "font-src 'self' data: https:",
-  "style-src 'self' 'unsafe-inline'",
+  "font-src 'self' data: https: https://fonts.gstatic.com",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+
   // Vite/React SSR hydration and the Lovable preview require inline/eval scripts.
   "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
   "connect-src 'self' https: wss:",

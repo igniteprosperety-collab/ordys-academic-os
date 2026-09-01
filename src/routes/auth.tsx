@@ -79,6 +79,15 @@ function AuthPage() {
       }
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
+        const msg = error.message?.toLowerCase() ?? "";
+        if (msg.includes("failed to fetch") || msg.includes("network") || error.status === 503) {
+          toast.error("Servidor indisponível agora. Tente novamente em alguns instantes.");
+          return;
+        }
+        if (msg.includes("not confirmed")) {
+          toast.error("Confirme seu e-mail pelo link que enviamos antes de entrar.");
+          return;
+        }
         attempts.current += 1;
         if (attempts.current >= MAX_ATTEMPTS) {
           blockedUntil.current = Date.now() + COOLDOWN_MS;
@@ -90,6 +99,7 @@ function AuthPage() {
       }
       attempts.current = 0;
       navigate({ to: "/", replace: true });
+
     } catch {
       toast.error("Não foi possível continuar. Tente novamente.");
     } finally {
