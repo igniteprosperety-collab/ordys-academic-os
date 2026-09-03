@@ -212,7 +212,7 @@ function Estudos() {
                       <button
                         className="text-muted-foreground hover:text-destructive"
                         aria-label="Pular sessão"
-                        onClick={() => update("plan_sessions", s.id, { status: "pulada" })}
+                        onClick={() => update("plan_sessions", s.id, { status: "cancelada" })}
                       >
                         <X className="size-[14px]" strokeWidth={1.8} />
                       </button>
