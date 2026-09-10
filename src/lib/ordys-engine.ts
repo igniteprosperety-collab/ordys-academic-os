@@ -51,6 +51,22 @@ export const daysUntil = (iso: string | null) => {
 
 export const weekdayShort = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
 
+export const weekdayLong = [
+  "Segunda-feira",
+  "Terça-feira",
+  "Quarta-feira",
+  "Quinta-feira",
+  "Sexta-feira",
+  "Sábado",
+  "Domingo",
+];
+
+export const priorityLabel = (value: string | null) =>
+  value === "alta" ? "Alta" : value === "baixa" ? "Baixa" : "Média";
+
+export const difficultyLabel = (value: string | null) =>
+  value === "facil" ? "Fácil" : value === "dificil" ? "Difícil" : "Média";
+
 export const formatDateTime = (iso: string | null) =>
   iso
     ? new Date(iso).toLocaleString("pt-BR", {

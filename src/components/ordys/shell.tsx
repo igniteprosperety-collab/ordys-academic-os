@@ -11,7 +11,6 @@ import {
   LayoutDashboard,
   LineChart,
   LogOut,
-  Search,
   Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -24,12 +23,14 @@ import { Button } from "@/components/ordys/form";
 const modules = [
   { to: "/", label: "Início", icon: LayoutDashboard },
   { to: "/disciplinas", label: "Disciplinas", icon: BookOpen },
-  { to: "/agenda", label: "Agenda", icon: CalendarDays },
+  { to: "/agenda", label: "Calendário", icon: CalendarDays },
   { to: "/tarefas", label: "Tarefas", icon: CheckSquare },
   { to: "/estudos", label: "Estudos", icon: GraduationCap },
   { to: "/simulado", label: "Simulados", icon: FileQuestion },
   { to: "/desempenho", label: "Desempenho", icon: LineChart },
 ] as const;
+
+const isActive = (path: string, to: string) => (to === "/" ? path === "/" : path.startsWith(to));
 
 export function Rail() {
   const path = useRouterState({ select: (s) => s.location.pathname });
@@ -41,19 +42,24 @@ export function Rail() {
     .join("");
 
   return (
-    <nav className="flex w-[60px] shrink-0 flex-col items-center gap-1 border-r border-border bg-background py-4">
-      <Link to="/" className="mb-4 flex size-8 items-center justify-center">
+    <nav
+      aria-label="Navegação principal"
+      className="hidden w-[60px] shrink-0 flex-col items-center gap-1 border-r border-border bg-background py-4 md:flex"
+    >
+      <Link to="/" className="mb-4 flex size-8 items-center justify-center" aria-label="ORDYS — Início">
         <span className="text-[13px] font-semibold tracking-[0.14em] text-primary">O</span>
       </Link>
       {modules.map((m) => {
-        const active = m.to === "/" ? path === "/" : path.startsWith(m.to);
+        const active = isActive(path, m.to);
         return (
           <Link
             key={m.to}
             to={m.to}
             title={m.label}
+            aria-label={m.label}
+            aria-current={active ? "page" : undefined}
             className={cn(
-              "group relative flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors",
+              "group relative flex size-10 items-center justify-center rounded-lg text-muted-foreground transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
               active ? "bg-primary-soft text-primary" : "hover:bg-secondary hover:text-foreground",
             )}
           >
@@ -67,17 +73,50 @@ export function Rail() {
       <div className="mt-auto flex flex-col items-center gap-2">
         <Link
           to="/perfil"
-          className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-          title="Perfil e configurações"
+          className="flex size-10 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          title="Configurações"
+          aria-label="Configurações"
         >
           <Settings className="size-[17px]" strokeWidth={1.6} />
         </Link>
         <Link
           to="/perfil"
+          aria-label="Seu perfil"
           className="grid size-8 place-items-center rounded-full bg-secondary text-[11px] font-semibold ring-1 ring-border"
         >
           {initials || "O"}
         </Link>
+      </div>
+    </nav>
+  );
+}
+
+function MobileNav() {
+  const path = useRouterState({ select: (s) => s.location.pathname });
+  return (
+    <nav
+      aria-label="Navegação principal"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur md:hidden"
+      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+    >
+      <div className="flex snap-x gap-1 overflow-x-auto px-2 py-1.5">
+        {[...modules, { to: "/perfil", label: "Configurações", icon: Settings } as const].map((m) => {
+          const active = isActive(path, m.to);
+          return (
+            <Link
+              key={m.to}
+              to={m.to}
+              aria-current={active ? "page" : undefined}
+              className={cn(
+                "flex min-h-11 min-w-[68px] shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-[10.5px] transition-colors",
+                active ? "bg-primary-soft text-primary" : "text-muted-foreground",
+              )}
+            >
+              <m.icon className="size-[18px]" strokeWidth={1.7} />
+              <span className="leading-none">{m.label}</span>
+            </Link>
+          );
+        })}
       </div>
     </nav>
   );
@@ -115,8 +154,9 @@ export function ContextMenu({
               <button
                 key={item}
                 onClick={() => onSelect(item)}
+                aria-pressed={active === item}
                 className={cn(
-                  "rounded-md px-2.5 py-[7px] text-left text-[13px] transition-colors",
+                  "rounded-md px-2.5 py-2 text-left text-[13px] transition-colors",
                   active === item
                     ? "bg-secondary text-foreground"
                     : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground",
@@ -133,10 +173,43 @@ export function ContextMenu({
   );
 }
 
+/** Mesmos filtros da coluna lateral, acessíveis em telas pequenas. */
+function ContextTabs({
+  groups,
+  active,
+  onSelect,
+}: {
+  groups: ContextGroup[];
+  active: string;
+  onSelect: (item: string) => void;
+}) {
+  const items = groups.flatMap((g) => g.items);
+  if (!items.length) return null;
+  return (
+    <div className="flex gap-1.5 overflow-x-auto border-b border-border px-4 py-2 lg:hidden">
+      {items.map((item) => (
+        <button
+          key={item}
+          onClick={() => onSelect(item)}
+          aria-pressed={active === item}
+          className={cn(
+            "min-h-9 shrink-0 rounded-lg border px-3 text-[12.5px] transition-colors",
+            active === item
+              ? "border-primary/40 bg-primary-soft text-foreground"
+              : "border-border bg-surface text-muted-foreground",
+          )}
+        >
+          {item}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 const categories = [
   { key: "todas", label: "Todas" },
   { key: "tarefas", label: "Tarefas" },
-  { key: "agenda", label: "Agenda" },
+  { key: "agenda", label: "Calendário" },
   { key: "estudos", label: "Estudos" },
   { key: "desempenho", label: "Desempenho" },
 ];
@@ -155,17 +228,17 @@ function NotificationsButton() {
     <div className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="relative grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-        aria-label="Notificações"
+        className="relative grid size-9 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+        aria-label={unread ? `Alertas (${unread} não lidos)` : "Alertas"}
       >
         <Bell className="size-[16px]" strokeWidth={1.6} />
         {unread ? <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-primary" /> : null}
       </button>
       {open ? (
-        <div className="panel absolute right-0 z-30 mt-2 w-[330px] p-1.5">
-          <div className="flex items-center justify-between px-2.5 py-2">
+        <div className="panel fixed inset-x-3 z-30 mt-2 p-1.5 sm:absolute sm:inset-x-auto sm:right-0 sm:w-[330px]">
+          <div className="flex items-center justify-between gap-3 px-2.5 py-2">
             <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
-              Notificações
+              Centro de alertas
             </p>
             {unread ? (
               <button
@@ -176,17 +249,18 @@ function NotificationsButton() {
                 }
                 className="text-[11px] text-primary"
               >
-                marcar todas como lidas
+                Marcar todas como lidas
               </button>
             ) : null}
           </div>
-          <div className="flex gap-1 px-1.5 pb-2">
+          <div className="flex gap-1 overflow-x-auto px-1.5 pb-2">
             {categories.map((c) => (
               <button
                 key={c.key}
                 onClick={() => setCat(c.key)}
+                aria-pressed={cat === c.key}
                 className={cn(
-                  "rounded-md px-2 py-1 text-[11px] transition-colors",
+                  "min-h-8 shrink-0 rounded-md px-2 text-[11px] transition-colors",
                   cat === c.key ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground",
                 )}
               >
@@ -210,7 +284,7 @@ function NotificationsButton() {
                       {n.body ? (
                         <p className="mt-0.5 text-[11px] text-muted-foreground">{n.body}</p>
                       ) : null}
-                      <div className="mt-1.5 flex gap-3 text-[10.5px] text-muted-foreground">
+                      <div className="mt-1.5 flex flex-wrap gap-3 text-[10.5px] text-muted-foreground">
                         {n.link ? (
                           <button
                             className="text-primary"
@@ -220,18 +294,18 @@ function NotificationsButton() {
                               navigate({ to: n.link! });
                             }}
                           >
-                            abrir
+                            Abrir
                           </button>
                         ) : null}
                         {!n.read_at ? (
                           <button onClick={() => update("notifications", n.id, { read_at: new Date().toISOString() })}>
-                            marcar como lida
+                            Marcar como lida
                           </button>
                         ) : null}
                         <button
                           onClick={() => update("notifications", n.id, { dismissed_at: new Date().toISOString() })}
                         >
-                          dispensar
+                          Dispensar
                         </button>
                       </div>
                     </div>
@@ -239,7 +313,9 @@ function NotificationsButton() {
                 </div>
               ))
             ) : (
-              <p className="px-2.5 py-4 text-[12px] text-muted-foreground">Nada por aqui.</p>
+              <p className="px-2.5 py-4 text-[12px] text-muted-foreground">
+                Nenhum alerta por aqui. Assim que houver prazos, provas ou revisões próximas, eles aparecem aqui.
+              </p>
             )}
           </div>
         </div>
@@ -260,37 +336,35 @@ export function TopBar({ breadcrumb }: { breadcrumb: string[] }) {
   }
 
   return (
-    <header className="flex h-13 shrink-0 items-center gap-4 border-b border-border px-6 py-3">
-      <div className="flex items-center gap-2 text-[12.5px]">
-        <span className="font-semibold tracking-[0.1em]">ORDYS</span>
+    <header className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-2.5 sm:px-6">
+      <div className="flex min-w-0 items-center gap-2 text-[12.5px]">
+        <span className="shrink-0 font-semibold tracking-[0.1em]">ORDYS</span>
         {breadcrumb.map((b, i) => (
-          <span key={b} className="flex items-center gap-2 text-muted-foreground">
+          <span key={b} className="flex min-w-0 items-center gap-2 text-muted-foreground">
             <span className="text-border-strong">/</span>
-            <span className={i === breadcrumb.length - 1 ? "text-foreground" : ""}>{b}</span>
+            <span className={cn("truncate", i === breadcrumb.length - 1 && "text-foreground")}>{b}</span>
           </span>
         ))}
       </div>
-      <div className="ml-auto hidden items-center gap-2 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-muted-foreground md:flex">
-        <Search className="size-[14px]" strokeWidth={1.6} />
-        <span className="text-[12px]">Buscar disciplinas, tarefas, notas…</span>
-        <span className="num ml-4 rounded border border-border px-1.5 text-[10px]">⌘K</span>
+      <div className="ml-auto flex items-center gap-1.5">
+        <QuickCapture />
+        <NotificationsButton />
+        <button
+          onClick={signOut}
+          title="Sair da conta"
+          aria-label="Sair da conta"
+          className="grid size-9 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+        >
+          <LogOut className="size-[15px]" strokeWidth={1.6} />
+        </button>
       </div>
-      <QuickCapture />
-      <NotificationsButton />
-      <button
-        onClick={signOut}
-        title="Sair da conta"
-        className="grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-      >
-        <LogOut className="size-[15px]" strokeWidth={1.6} />
-      </button>
     </header>
   );
 }
 
 function AuthWall() {
   return (
-    <div className="dark flex h-screen w-full items-center justify-center bg-background px-6 text-foreground">
+    <div className="dark flex min-h-screen w-full items-center justify-center bg-background px-6 text-foreground">
       <div className="max-w-[360px] text-center">
         <p className="text-[13px] font-semibold tracking-[0.16em] text-primary">ORDYS</p>
         <h1 className="mt-3 text-[20px] font-semibold tracking-tight">Entre para continuar</h1>
@@ -341,10 +415,12 @@ export function Shell({
       />
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar breadcrumb={breadcrumb} />
-        <main className="flex-1 overflow-y-auto px-6 py-6 lg:px-8">
-          <div className="mx-auto w-full max-w-[1180px] pb-10">{children}</div>
+        <ContextTabs groups={groups} active={active} onSelect={onSelect} />
+        <main className="flex-1 overflow-x-hidden overflow-y-auto px-4 py-5 sm:px-6 lg:px-8">
+          <div className="mx-auto w-full max-w-[1180px] pb-24 md:pb-10">{children}</div>
         </main>
       </div>
+      <MobileNav />
     </div>
   );
 }
