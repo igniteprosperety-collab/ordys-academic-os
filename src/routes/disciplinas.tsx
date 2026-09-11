@@ -23,7 +23,7 @@ import {
   type Subject,
   type Topic,
 } from "@/lib/ordys-db";
-import { dateKey, formatDateTime, weekdayShort } from "@/lib/ordys-engine";
+import { dateKey, formatDateTime, weekdayLong, weekdayShort } from "@/lib/ordys-engine";
 
 export const Route = createFileRoute("/disciplinas")({
   head: () => ({
