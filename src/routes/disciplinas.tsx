@@ -614,7 +614,7 @@ function Disciplinas() {
           </Field>
           <Field label="Dia da aula">
             <Select value={form.weekday} onChange={(e) => setForm({ ...form, weekday: e.target.value })}>
-              {weekdayShort.map((w, i) => (
+              {weekdayLong.map((w, i) => (
                 <option key={w} value={i}>
                   {w}
                 </option>

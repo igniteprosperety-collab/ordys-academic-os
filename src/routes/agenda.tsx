@@ -11,7 +11,14 @@ import {
   useSubjects,
   useTasks,
 } from "@/lib/ordys-db";
-import { addDays, dateKey, formatDateTime, startOfWeek, weekdayShort } from "@/lib/ordys-engine";
+import {
+  addDays,
+  dateKey,
+  formatDateTime,
+  startOfWeek,
+  weekdayLong,
+  weekdayShort,
+} from "@/lib/ordys-engine";
 
 export const Route = createFileRoute("/agenda")({
   head: () => ({
