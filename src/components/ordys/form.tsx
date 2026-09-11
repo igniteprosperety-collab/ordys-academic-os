@@ -53,7 +53,7 @@ export function Button({
     <button
       {...props}
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-[12.5px] font-medium transition-colors disabled:opacity-50",
+        "inline-flex min-h-9 items-center justify-center gap-2 rounded-lg px-3 py-2 text-[12.5px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50",
         variant === "primary" && "bg-primary text-primary-foreground hover:bg-primary/90",
         variant === "ghost" &&
           "border border-border bg-surface text-muted-foreground hover:text-foreground",
@@ -83,7 +83,12 @@ export function Modal({
 }) {
   if (!open) return null;
   return (
-    <div className="dark fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/70 px-4 py-10 backdrop-blur-sm">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+      className="dark fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/70 px-3 py-6 backdrop-blur-sm sm:px-4 sm:py-10"
+    >
       <div className="panel w-full" style={{ maxWidth: width }}>
         <header className="flex items-start justify-between gap-4 border-b border-border px-5 py-3.5">
           <div>
@@ -102,6 +107,66 @@ export function Modal({
         </header>
         <div className="px-5 py-4">{children}</div>
       </div>
+    </div>
+  );
+}
+
+/** Confirmação obrigatória para ações destrutivas. */
+export function ConfirmDialog({
+  open,
+  title,
+  description,
+  confirmLabel = "Excluir",
+  onConfirm,
+  onClose,
+  loading,
+}: {
+  open: boolean;
+  title: string;
+  description: string;
+  confirmLabel?: string;
+  onConfirm: () => void;
+  onClose: () => void;
+  loading?: boolean;
+}) {
+  return (
+    <Modal open={open} onClose={onClose} title={title} width={420}>
+      <p className="text-[12.5px] leading-relaxed text-muted-foreground">{description}</p>
+      <div className="mt-5 flex justify-end gap-2">
+        <Button variant="ghost" onClick={onClose}>
+          Cancelar
+        </Button>
+        <Button variant="danger" onClick={onConfirm} disabled={loading}>
+          {loading ? "Removendo…" : confirmLabel}
+        </Button>
+      </div>
+    </Modal>
+  );
+}
+
+/** Estado vazio com orientação e, quando faz sentido, uma ação. */
+export function EmptyState({
+  title,
+  description,
+  actionLabel,
+  onAction,
+}: {
+  title: string;
+  description: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
+  return (
+    <div className="px-5 py-8 text-center">
+      <p className="text-[13px] font-medium">{title}</p>
+      <p className="mx-auto mt-1.5 max-w-[420px] text-[12px] leading-relaxed text-muted-foreground">
+        {description}
+      </p>
+      {actionLabel && onAction ? (
+        <div className="mt-4 flex justify-center">
+          <Button onClick={onAction}>{actionLabel}</Button>
+        </div>
+      ) : null}
     </div>
   );
 }
