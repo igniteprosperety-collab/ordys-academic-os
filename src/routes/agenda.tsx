@@ -11,7 +11,14 @@ import {
   useSubjects,
   useTasks,
 } from "@/lib/ordys-db";
-import { addDays, dateKey, formatDateTime, startOfWeek, weekdayShort } from "@/lib/ordys-engine";
+import {
+  addDays,
+  dateKey,
+  formatDateTime,
+  startOfWeek,
+  weekdayLong,
+  weekdayShort,
+} from "@/lib/ordys-engine";
 
 export const Route = createFileRoute("/agenda")({
   head: () => ({
@@ -127,18 +134,18 @@ function Agenda() {
 
   return (
     <Shell
-      contextTitle="Agenda"
+      contextTitle="Calendário"
       groups={groups}
       active={active}
       onSelect={setActive}
-      breadcrumb={["Agenda", active]}
+      breadcrumb={["Calendário", active]}
     >
       <div className="flex flex-wrap items-end justify-between gap-3">
         <PageTitle
-          title="Agenda"
+          title="Calendário"
           subtitle={`${from.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} – ${addDays(from, 6).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}`}
         />
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="ghost" onClick={() => setOffset(offset - 1)}>
             Semana anterior
           </Button>
@@ -151,7 +158,7 @@ function Agenda() {
         </div>
       </div>
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-4">
+      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat label="Aulas na semana" value={String(schedules.length)} sub="horários cadastrados" accent="primary" />
         <Stat label="Provas futuras" value={String(upcomingExams.length)} sub="incluindo simulados" accent="warning" />
         <Stat label="Prazos abertos" value={String(upcomingTasks.length)} sub="tarefas com data" />
@@ -159,44 +166,87 @@ function Agenda() {
       </div>
 
       {active === "Semana" ? (
-        <Panel className="mt-4 overflow-x-auto">
-          <div className="grid min-w-[900px] grid-cols-7 gap-px bg-border">
+        <>
+          {/* Desktop: semana completa de segunda a domingo */}
+          <Panel className="mt-4 hidden overflow-x-auto lg:block">
+            <div className="grid min-w-[900px] grid-cols-7 gap-px bg-border">
+              {days.map((day, i) => {
+                const key = dateKey(day);
+                const items = itemsFor(day);
+                return (
+                  <div key={key} className="min-h-[320px] bg-surface">
+                    <div
+                      className={`flex items-center gap-2 border-b border-border px-3 py-2 ${
+                        key === todayKey ? "bg-primary-soft" : ""
+                      }`}
+                    >
+                      <span className="text-[11px] tracking-[0.1em] text-muted-foreground uppercase">
+                        {weekdayShort[i]}
+                      </span>
+                      <span className="num ml-auto text-[12px] font-semibold">{day.getDate()}</span>
+                    </div>
+                    <div className="flex flex-col gap-1.5 p-2">
+                      {items.length ? (
+                        items.map((it) => (
+                          <div key={it.key} className="rounded-md border border-border bg-background/40 px-2 py-1.5">
+                            <div className="flex items-center gap-1.5">
+                              <span className="h-3 w-[2px] rounded-full" style={{ background: it.color }} />
+                              <span className="num text-[10.5px] text-muted-foreground">{it.time}</span>
+                            </div>
+                            <p className="mt-0.5 truncate text-[11.5px] font-medium">{it.label}</p>
+                            <p className="truncate text-[10.5px] text-muted-foreground">{it.meta}</p>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="px-1 py-2 text-[10.5px] text-muted-foreground">Sem atividades</p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Panel>
+
+          {/* Telas pequenas: mesma semana, um dia por bloco, sem rolagem lateral */}
+          <div className="mt-4 flex flex-col gap-3 lg:hidden">
             {days.map((day, i) => {
               const key = dateKey(day);
               const items = itemsFor(day);
               return (
-                <div key={key} className="min-h-[320px] bg-surface">
+                <Panel key={key}>
                   <div
-                    className={`flex items-center gap-2 border-b border-border px-3 py-2 ${
+                    className={`flex items-center gap-2 border-b border-border px-4 py-2.5 ${
                       key === todayKey ? "bg-primary-soft" : ""
                     }`}
                   >
-                    <span className="text-[11px] tracking-[0.1em] text-muted-foreground uppercase">
-                      {weekdayShort[i]}
+                    <span className="text-[12px] font-medium">{weekdayLong[i]}</span>
+                    <span className="num ml-auto text-[12px] text-muted-foreground">
+                      {day.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
                     </span>
-                    <span className="num ml-auto text-[12px] font-semibold">{day.getDate()}</span>
                   </div>
-                  <div className="flex flex-col gap-1.5 p-2">
+                  <div className="flex flex-col gap-1.5 p-3">
                     {items.length ? (
                       items.map((it) => (
-                        <div key={it.key} className="rounded-md border border-border bg-background/40 px-2 py-1.5">
-                          <div className="flex items-center gap-1.5">
-                            <span className="h-3 w-[2px] rounded-full" style={{ background: it.color }} />
-                            <span className="num text-[10.5px] text-muted-foreground">{it.time}</span>
+                        <div key={it.key} className="flex items-center gap-2.5 rounded-md border border-border bg-background/40 px-3 py-2">
+                          <span className="h-6 w-[2px] shrink-0 rounded-full" style={{ background: it.color }} />
+                          <span className="num shrink-0 text-[11px] text-muted-foreground">{it.time}</span>
+                          <div className="min-w-0">
+                            <p className="truncate text-[12px] font-medium">{it.label}</p>
+                            <p className="truncate text-[10.5px] text-muted-foreground">{it.meta}</p>
                           </div>
-                          <p className="mt-0.5 truncate text-[11.5px] font-medium">{it.label}</p>
-                          <p className="truncate text-[10.5px] text-muted-foreground">{it.meta}</p>
                         </div>
                       ))
                     ) : (
-                      <p className="px-1 py-2 text-[10.5px] text-muted-foreground">livre</p>
+                      <p className="py-1 text-[11.5px] text-muted-foreground">
+                        Nenhuma aula, prova, prazo ou sessão programada para este dia.
+                      </p>
                     )}
                   </div>
-                </div>
+                </Panel>
               );
             })}
           </div>
-        </Panel>
+        </>
       ) : null}
 
       {active === "Provas" ? (

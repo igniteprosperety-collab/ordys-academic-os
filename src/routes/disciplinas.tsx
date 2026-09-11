@@ -23,7 +23,7 @@ import {
   type Subject,
   type Topic,
 } from "@/lib/ordys-db";
-import { dateKey, formatDateTime, weekdayShort } from "@/lib/ordys-engine";
+import { dateKey, formatDateTime, weekdayLong, weekdayShort } from "@/lib/ordys-engine";
 
 export const Route = createFileRoute("/disciplinas")({
   head: () => ({
@@ -614,7 +614,7 @@ function Disciplinas() {
           </Field>
           <Field label="Dia da aula">
             <Select value={form.weekday} onChange={(e) => setForm({ ...form, weekday: e.target.value })}>
-              {weekdayShort.map((w, i) => (
+              {weekdayLong.map((w, i) => (
                 <option key={w} value={i}>
                   {w}
                 </option>

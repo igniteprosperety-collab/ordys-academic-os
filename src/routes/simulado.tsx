@@ -1,3 +1,4 @@
+import { difficultyLabel } from "@/lib/ordys-engine";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -290,7 +291,7 @@ function Simulado() {
                   <span className="min-w-0 flex-1 truncate">
                     {subjects.find((s) => s.id === a.subject_id)?.name ?? "Disciplina"}
                   </span>
-                  <Chip>{a.difficulty}</Chip>
+                  <Chip>{difficultyLabel(a.difficulty)}</Chip>
                   <span className="num text-muted-foreground">
                     {a.correct_count ?? 0}/{a.question_count}
                   </span>

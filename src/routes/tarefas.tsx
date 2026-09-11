@@ -1,10 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Shell } from "@/components/ordys/shell";
 import { Chip, Dot, Panel, PanelHeader, PageTitle, Stat } from "@/components/ordys/primitives";
-import { Button, Field, Modal, Select, TextArea, TextInput } from "@/components/ordys/form";
+import {
+  Button,
+  ConfirmDialog,
+  EmptyState,
+  Field,
+  Modal,
+  Select,
+  TextArea,
+  TextInput,
+} from "@/components/ordys/form";
 import {
   useOrdysMutations,
   useSubjects,
@@ -12,7 +21,7 @@ import {
   useTopics,
   type Task,
 } from "@/lib/ordys-db";
-import { daysUntil, formatDateTime } from "@/lib/ordys-engine";
+import { daysUntil, formatDateTime, priorityLabel } from "@/lib/ordys-engine";
 
 export const Route = createFileRoute("/tarefas")({
   head: () => ({
@@ -35,7 +44,7 @@ export const Route = createFileRoute("/tarefas")({
   component: Tarefas,
 });
 
-const groups = [{ items: ["Todas", "Hoje", "Semana", "Atrasadas", "Concluídas"] }];
+const groups = [{ items: ["Abertas", "Hoje", "Esta semana", "Atrasadas", "Concluídas", "Todas"] }];
 
 const priorities = [
   { key: "alta", label: "Alta" },
@@ -43,66 +52,160 @@ const priorities = [
   { key: "baixa", label: "Baixa" },
 ];
 
-function bucketOf(task: Task) {
-  if (task.status === "concluida") return "Concluídas";
+const emptyForm = {
+  title: "",
+  subject_id: "",
+  topic_id: "",
+  due_at: "",
+  priority: "media",
+  estimated_minutes: "",
+  description: "",
+};
+
+const emptyCopy: Record<string, { title: string; description: string }> = {
+  Abertas: {
+    title: "Nenhuma tarefa aberta",
+    description: "Tudo em dia por aqui. Crie uma tarefa quando receber um trabalho, leitura ou exercício.",
+  },
+  Hoje: {
+    title: "Nada com prazo para hoje",
+    description: "Aproveite para adiantar uma tarefa da semana ou abrir uma sessão de estudo.",
+  },
+  "Esta semana": {
+    title: "Nenhum prazo nos próximos 7 dias",
+    description: "Cadastre os prazos das suas disciplinas para o ORDYS avisar com antecedência.",
+  },
+  Atrasadas: {
+    title: "Nenhuma tarefa atrasada",
+    description: "Continue assim: prazos em dia é o que mantém o plano de estudos realista.",
+  },
+  Concluídas: {
+    title: "Nenhuma tarefa concluída ainda",
+    description: "Ao marcar uma tarefa como concluída ela fica registrada aqui e no seu desempenho.",
+  },
+  Todas: {
+    title: "Você ainda não tem tarefas",
+    description: "Crie a primeira tarefa com prazo e prioridade para começar a organizar a rotina.",
+  },
+};
+
+/** Converte um ISO em valor aceito por <input type="datetime-local"> no fuso local. */
+function toLocalInput(iso: string | null) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function matchesBucket(task: Task, bucket: string) {
+  const done = task.status === "concluida";
+  if (bucket === "Todas") return true;
+  if (bucket === "Concluídas") return done;
+  if (done) return false;
+  if (bucket === "Abertas") return true;
   const left = daysUntil(task.due_at);
-  if (left === null) return "Todas";
-  if (left < 0) return "Atrasadas";
-  if (left === 0) return "Hoje";
-  if (left <= 7) return "Semana";
-  return "Todas";
+  if (left === null) return false;
+  if (bucket === "Atrasadas") return left < 0;
+  if (bucket === "Hoje") return left === 0;
+  if (bucket === "Esta semana") return left >= 0 && left <= 7;
+  return false;
 }
 
 function Tarefas() {
-  const [active, setActive] = useState("Todas");
+  const [active, setActive] = useState("Abertas");
   const { data: tasks = [] } = useTasks();
   const { data: subjects = [] } = useSubjects();
   const { insert, update, remove } = useOrdysMutations();
-  const [modal, setModal] = useState(false);
-  const [form, setForm] = useState({
-    title: "",
-    subject_id: "",
-    topic_id: "",
-    due_at: "",
-    priority: "media",
-    estimated_minutes: "",
-    description: "",
-  });
+  const [modal, setModal] = useState<{ open: boolean; editing?: Task }>({ open: false });
+  const [confirm, setConfirm] = useState<Task | null>(null);
+  const [removing, setRemoving] = useState(false);
+  const [form, setForm] = useState(emptyForm);
   const { data: topics = [] } = useTopics(form.subject_id || null);
 
-  const visible = tasks.filter((t) =>
-    active === "Todas" ? t.status !== "concluida" : bucketOf(t) === active,
-  );
-  const late = tasks.filter((t) => bucketOf(t) === "Atrasadas").length;
+  const visible = tasks.filter((t) => matchesBucket(t, active));
+  const late = tasks.filter((t) => matchesBucket(t, "Atrasadas")).length;
   const open = tasks.filter((t) => t.status !== "concluida").length;
-  const doneWeek = tasks.filter((t) => t.status === "concluida").length;
+  const done = tasks.filter((t) => t.status === "concluida").length;
+
+  function openCreate() {
+    setForm(emptyForm);
+    setModal({ open: true });
+  }
+
+  function openEdit(task: Task) {
+    setForm({
+      title: task.title,
+      subject_id: task.subject_id ?? "",
+      topic_id: task.topic_id ?? "",
+      due_at: toLocalInput(task.due_at),
+      priority: task.priority ?? "media",
+      estimated_minutes: task.estimated_minutes ? String(task.estimated_minutes) : "",
+      description: task.description ?? "",
+    });
+    setModal({ open: true, editing: task });
+  }
+
+  const minutesInvalid =
+    form.estimated_minutes !== "" &&
+    (!Number.isFinite(Number(form.estimated_minutes)) || Number(form.estimated_minutes) < 0);
 
   async function save() {
+    if (!form.title.trim()) {
+      toast.error("Dê um título para a tarefa");
+      return;
+    }
+    if (minutesInvalid) {
+      toast.error("A estimativa deve ser um número de minutos");
+      return;
+    }
+    const payload = {
+      title: form.title.trim(),
+      subject_id: form.subject_id || null,
+      topic_id: form.topic_id || null,
+      due_at: form.due_at ? new Date(form.due_at).toISOString() : null,
+      priority: form.priority,
+      estimated_minutes: form.estimated_minutes ? Number(form.estimated_minutes) : null,
+      description: form.description.trim() || null,
+    };
     try {
-      await insert("tasks", {
-        title: form.title.trim(),
-        subject_id: form.subject_id || null,
-        topic_id: form.topic_id || null,
-        due_at: form.due_at ? new Date(form.due_at).toISOString() : null,
-        priority: form.priority,
-        estimated_minutes: form.estimated_minutes ? Number(form.estimated_minutes) : null,
-        description: form.description || null,
-      });
-      setForm({ title: "", subject_id: "", topic_id: "", due_at: "", priority: "media", estimated_minutes: "", description: "" });
-      setModal(false);
-      toast.success("Tarefa criada");
+      if (modal.editing) await update("tasks", modal.editing.id, payload);
+      else await insert("tasks", payload);
+      setForm(emptyForm);
+      setModal({ open: false });
+      toast.success(modal.editing ? "Tarefa atualizada" : "Tarefa criada");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao criar tarefa");
+      toast.error(err instanceof Error ? err.message : "Não foi possível salvar a tarefa");
     }
   }
 
   async function toggle(task: Task) {
-    const done = task.status === "concluida";
-    await update("tasks", task.id, {
-      status: done ? "em_andamento" : "concluida",
-      completed_at: done ? null : new Date().toISOString(),
-    });
+    const isDone = task.status === "concluida";
+    try {
+      await update("tasks", task.id, {
+        status: isDone ? "em_andamento" : "concluida",
+        completed_at: isDone ? null : new Date().toISOString(),
+      });
+      toast.success(isDone ? "Tarefa reaberta" : "Tarefa concluída");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Não foi possível atualizar a tarefa");
+    }
   }
+
+  async function confirmRemove() {
+    if (!confirm) return;
+    setRemoving(true);
+    try {
+      await remove("tasks", confirm.id);
+      toast.success("Tarefa excluída");
+      setConfirm(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Não foi possível excluir a tarefa");
+    } finally {
+      setRemoving(false);
+    }
+  }
+
+  const copy = emptyCopy[active] ?? emptyCopy["Todas"]!;
 
   return (
     <Shell
@@ -114,15 +217,15 @@ function Tarefas() {
     >
       <div className="flex flex-wrap items-end justify-between gap-3">
         <PageTitle title="Tarefas" subtitle={`${open} abertas · ${late} atrasadas`} />
-        <Button onClick={() => setModal(true)}>
+        <Button onClick={openCreate}>
           <Plus className="size-[13px]" strokeWidth={2} /> Nova tarefa
         </Button>
       </div>
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-4">
+      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat label="Abertas" value={String(open)} sub="em todas as disciplinas" />
         <Stat label="Atrasadas" value={String(late)} sub="precisam de atenção" accent="warning" />
-        <Stat label="Concluídas" value={String(doneWeek)} sub="histórico total" accent="success" />
+        <Stat label="Concluídas" value={String(done)} sub="histórico total" accent="success" />
         <Stat
           label="Carga estimada"
           value={`${tasks
@@ -133,23 +236,27 @@ function Tarefas() {
       </div>
 
       <Panel className="mt-4">
-        <PanelHeader title={active} hint={`${visible.length} tarefas`} />
+        <PanelHeader
+          title={active}
+          hint={`${visible.length} ${visible.length === 1 ? "tarefa" : "tarefas"}`}
+        />
         <div className="border-t border-border">
           {visible.length ? (
             visible.map((t) => {
               const subject = subjects.find((s) => s.id === t.subject_id);
               const left = daysUntil(t.due_at);
+              const isDone = t.status === "concluida";
               return (
-                <div key={t.id} className="flex items-start gap-3 px-5 py-3">
+                <div key={t.id} className="flex items-start gap-3 border-b border-border px-4 py-3 last:border-0 sm:px-5">
                   <button
                     onClick={() => toggle(t)}
-                    className={`mt-[3px] size-3.5 shrink-0 rounded-[4px] border transition-colors ${
-                      t.status === "concluida" ? "border-success bg-success/40" : "border-border-strong hover:border-primary"
+                    className={`mt-[3px] size-4 shrink-0 rounded-[4px] border transition-colors ${
+                      isDone ? "border-success bg-success/40" : "border-border-strong hover:border-primary"
                     }`}
-                    aria-label="Concluir tarefa"
+                    aria-label={isDone ? `Reabrir ${t.title}` : `Concluir ${t.title}`}
                   />
                   <div className="min-w-0 flex-1">
-                    <p className={`text-[12.5px] ${t.status === "concluida" ? "text-muted-foreground line-through" : ""}`}>
+                    <p className={`text-[12.5px] ${isDone ? "text-muted-foreground line-through" : ""}`}>
                       {t.title}
                     </p>
                     <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
@@ -158,35 +265,59 @@ function Tarefas() {
                           <Dot color={subject.color} /> {subject.name} ·{" "}
                         </>
                       ) : null}
-                      {formatDateTime(t.due_at)}
+                      {t.due_at ? formatDateTime(t.due_at) : "Sem prazo definido"}
                       {t.estimated_minutes ? ` · ${t.estimated_minutes} min` : ""}
                     </p>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                      <Chip tone={t.priority === "alta" ? "danger" : t.priority === "baixa" ? "muted" : "primary"}>
+                        {`Prioridade ${priorityLabel(t.priority)}`}
+                      </Chip>
+                      {left !== null && left < 0 && !isDone ? <Chip tone="danger">Atrasada</Chip> : null}
+                    </div>
                   </div>
-                  <Chip tone={t.priority === "alta" ? "danger" : t.priority === "baixa" ? "muted" : "primary"}>
-                    {t.priority}
-                  </Chip>
-                  {left !== null && left < 0 && t.status !== "concluida" ? (
-                    <Chip tone="danger">atrasada</Chip>
-                  ) : null}
-                  <button
-                    className="mt-0.5 text-muted-foreground hover:text-destructive"
-                    onClick={() => remove("tasks", t.id)}
-                  >
-                    <Trash2 className="size-[13px]" strokeWidth={1.7} />
-                  </button>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <button
+                      className="grid size-9 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground"
+                      onClick={() => openEdit(t)}
+                      aria-label={`Editar ${t.title}`}
+                    >
+                      <Pencil className="size-[14px]" strokeWidth={1.7} />
+                    </button>
+                    <button
+                      className="grid size-9 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-destructive"
+                      onClick={() => setConfirm(t)}
+                      aria-label={`Excluir ${t.title}`}
+                    >
+                      <Trash2 className="size-[14px]" strokeWidth={1.7} />
+                    </button>
+                  </div>
                 </div>
               );
             })
           ) : (
-            <p className="px-5 py-6 text-[12px] text-muted-foreground">Nenhuma tarefa nesta visão.</p>
+            <EmptyState
+              title={copy.title}
+              description={copy.description}
+              actionLabel="Nova tarefa"
+              onAction={openCreate}
+            />
           )}
         </div>
       </Panel>
 
-      <Modal open={modal} onClose={() => setModal(false)} title="Nova tarefa">
+      <Modal
+        open={modal.open}
+        onClose={() => setModal({ open: false })}
+        title={modal.editing ? "Editar tarefa" : "Nova tarefa"}
+        subtitle="Prazo e prioridade alimentam a agenda, o plano de estudos e os alertas"
+      >
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Título" className="sm:col-span-2">
-            <TextInput value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+            <TextInput
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              placeholder="Ex.: Lista de exercícios de Cálculo"
+            />
           </Field>
           <Field label="Disciplina">
             <Select
@@ -201,8 +332,12 @@ function Tarefas() {
               ))}
             </Select>
           </Field>
-          <Field label="Conteúdo">
-            <Select value={form.topic_id} onChange={(e) => setForm({ ...form, topic_id: e.target.value })}>
+          <Field label="Conteúdo" hint={form.subject_id ? undefined : "Escolha uma disciplina para listar conteúdos"}>
+            <Select
+              value={form.topic_id}
+              onChange={(e) => setForm({ ...form, topic_id: e.target.value })}
+              disabled={!form.subject_id}
+            >
               <option value="">Sem conteúdo</option>
               {topics.map((t) => (
                 <option key={t.id} value={t.id}>
@@ -211,7 +346,7 @@ function Tarefas() {
               ))}
             </Select>
           </Field>
-          <Field label="Prazo">
+          <Field label="Prazo" hint="Opcional — sem prazo a tarefa não aparece nas visões por data">
             <TextInput
               type="datetime-local"
               value={form.due_at}
@@ -227,25 +362,45 @@ function Tarefas() {
               ))}
             </Select>
           </Field>
-          <Field label="Estimativa (min)">
+          <Field
+            label="Estimativa (minutos)"
+            hint={minutesInvalid ? "Informe apenas números, em minutos" : undefined}
+          >
             <TextInput
+              type="number"
+              min={0}
+              inputMode="numeric"
               value={form.estimated_minutes}
               onChange={(e) => setForm({ ...form, estimated_minutes: e.target.value })}
+              placeholder="60"
             />
           </Field>
           <Field label="Detalhes" className="sm:col-span-2">
-            <TextArea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+            <TextArea
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              placeholder="Páginas, critérios de entrega, links…"
+            />
           </Field>
         </div>
-        <div className="mt-5 flex justify-end gap-2">
-          <Button variant="ghost" onClick={() => setModal(false)}>
+        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button variant="ghost" onClick={() => setModal({ open: false })}>
             Cancelar
           </Button>
-          <Button onClick={save} disabled={!form.title.trim()}>
-            Criar tarefa
+          <Button onClick={save} disabled={!form.title.trim() || minutesInvalid}>
+            {modal.editing ? "Salvar alterações" : "Criar tarefa"}
           </Button>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        open={!!confirm}
+        title="Excluir tarefa"
+        description={`“${confirm?.title ?? ""}” será removida definitivamente da sua conta. Essa ação não pode ser desfeita.`}
+        onConfirm={confirmRemove}
+        onClose={() => setConfirm(null)}
+        loading={removing}
+      />
     </Shell>
   );
 }
