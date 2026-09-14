@@ -95,6 +95,32 @@
   --chart-4: oklch(0.68 0.13 300);
   --chart-5: oklch(0.7 0.13 220);
 
+  /* Paleta acadêmica: ampla, sóbria e estável para disciplinas. */
+  --subject-graphite: oklch(0.48 0.018 265);
+  --subject-slate: oklch(0.56 0.035 248);
+  --subject-steel: oklch(0.58 0.055 235);
+  --subject-blue: oklch(0.58 0.18 263);
+  --subject-azure: oklch(0.63 0.15 245);
+  --subject-cobalt: oklch(0.51 0.19 270);
+  --subject-indigo: oklch(0.55 0.16 285);
+  --subject-purple: oklch(0.59 0.15 305);
+  --subject-violet: oklch(0.61 0.17 292);
+  --subject-magenta: oklch(0.61 0.16 332);
+  --subject-pink: oklch(0.65 0.15 350);
+  --subject-rose: oklch(0.61 0.16 12);
+  --subject-red: oklch(0.58 0.18 25);
+  --subject-coral: oklch(0.66 0.15 38);
+  --subject-orange: oklch(0.67 0.14 52);
+  --subject-amber: oklch(0.72 0.13 75);
+  --subject-gold: oklch(0.65 0.12 84);
+  --subject-yellow: oklch(0.77 0.12 96);
+  --subject-lime: oklch(0.68 0.12 125);
+  --subject-green: oklch(0.61 0.14 150);
+  --subject-emerald: oklch(0.64 0.13 165);
+  --subject-teal: oklch(0.62 0.11 183);
+  --subject-cyan: oklch(0.66 0.11 205);
+  --subject-petrol: oklch(0.55 0.09 215);
+
   --shadow-panel: 0 1px 0 0 oklch(1 0 0 / 6%) inset;
   --shadow-card: 0 12px 30px -22px oklch(0 0 0 / 80%);
 }
@@ -117,7 +143,8 @@
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
-    letter-spacing: -0.01em;
+    letter-spacing: 0;
+    overscroll-behavior: none;
   }
 
   ::selection {
