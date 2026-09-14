@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Shell } from "@/components/ordys/shell";
 import { Bar, Chip, Dot, Panel, PanelHeader, PageTitle, Stat } from "@/components/ordys/primitives";
 import { Button, Field, Modal, Select, TextArea, TextInput } from "@/components/ordys/form";
+import { ColorSelector } from "@/components/ordys/color-selector";
 import {
   SUBJECT_COLORS,
   TOPIC_STATUS,
@@ -597,20 +598,8 @@ function Disciplinas() {
           <Field label="Meta de nota">
             <TextInput value={form.grade_goal} onChange={(e) => setForm({ ...form, grade_goal: e.target.value })} />
           </Field>
-          <Field label="Identificador visual">
-            <div className="flex gap-1.5 pt-1">
-              {SUBJECT_COLORS.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setForm({ ...form, color: c })}
-                  className={`size-6 rounded-full ring-2 transition-all ${
-                    form.color === c ? "ring-primary" : "ring-transparent"
-                  }`}
-                  style={{ background: c }}
-                  aria-label="cor"
-                />
-              ))}
-            </div>
+          <Field label="Cor da disciplina" className="sm:col-span-2" hint="Usada em cartões, horários, eventos e indicadores">
+            <ColorSelector value={form.color} onChange={(color) => setForm({ ...form, color })} />
           </Field>
           <Field label="Dia da aula">
             <Select value={form.weekday} onChange={(e) => setForm({ ...form, weekday: e.target.value })}>
