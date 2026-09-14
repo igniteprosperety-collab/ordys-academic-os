@@ -79,19 +79,24 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "ORDYS — Disciplina • Aprendizagem • Praticidade" },
+      { title: "ORDYS ACADEMY — A clareza por trás da sua rotina" },
       {
         name: "description",
         content:
-          "ORDYS é o sistema operacional pessoal da vida acadêmica: agenda, tarefas, estudos, notas, frequência e desempenho em um só lugar.",
+          "ORDYS ACADEMY organiza disciplinas, horários, tarefas, estudos e desempenho para tornar sua rotina acadêmica mais clara.",
       },
-      { property: "og:title", content: "ORDYS" },
+      { property: "og:title", content: "ORDYS ACADEMY" },
       {
         property: "og:description",
-        content: "Discipline your day. Learn with purpose.",
+        content: "A clareza por trás da sua rotina.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "theme-color", content: "#0A1128" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "apple-mobile-web-app-title", content: "ORDYS" },
     ],
     links: [
       {
@@ -105,6 +110,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap",
       },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
     ],
   }),
   shellComponent: RootShell,
@@ -115,7 +121,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="pt-BR">
       <head>
         <HeadContent />
       </head>

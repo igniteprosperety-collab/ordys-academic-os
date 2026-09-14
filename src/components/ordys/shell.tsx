@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   LineChart,
   LogOut,
+  Menu,
   Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -19,6 +20,15 @@ import { useAuth } from "@/hooks/use-auth";
 import { useNotifications, useOrdysMutations, useProfile } from "@/lib/ordys-db";
 import { QuickCapture } from "@/components/ordys/quick-capture";
 import { Button } from "@/components/ordys/form";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 const modules = [
   { to: "/", label: "Início", icon: LayoutDashboard },
@@ -91,34 +101,45 @@ export function Rail() {
   );
 }
 
-function MobileNav() {
+function MobileMenu() {
   const path = useRouterState({ select: (s) => s.location.pathname });
   return (
-    <nav
-      aria-label="Navegação principal"
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur md:hidden"
-      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
-    >
-      <div className="flex snap-x gap-1 overflow-x-auto px-2 py-1.5">
+    <Sheet>
+      <SheetTrigger asChild>
+        <button
+          className="grid size-11 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground md:hidden"
+          aria-label="Abrir navegação"
+        >
+          <Menu className="size-5" strokeWidth={1.7} />
+        </button>
+      </SheetTrigger>
+      <SheetContent side="left" className="dark w-[min(88vw,320px)] overflow-y-auto p-0 text-foreground">
+        <SheetHeader className="border-b border-border px-5 py-5 text-left">
+          <SheetTitle className="text-[15px] tracking-[0.12em] text-primary">ORDYS ACADEMY</SheetTitle>
+          <SheetDescription>A clareza por trás da sua rotina.</SheetDescription>
+        </SheetHeader>
+        <nav aria-label="Navegação principal" className="grid gap-1 p-3">
         {[...modules, { to: "/perfil", label: "Configurações", icon: Settings } as const].map((m) => {
           const active = isActive(path, m.to);
           return (
-            <Link
-              key={m.to}
-              to={m.to}
-              aria-current={active ? "page" : undefined}
-              className={cn(
-                "flex min-h-11 min-w-[68px] shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-[10.5px] transition-colors",
-                active ? "bg-primary-soft text-primary" : "text-muted-foreground",
-              )}
-            >
-              <m.icon className="size-[18px]" strokeWidth={1.7} />
-              <span className="leading-none">{m.label}</span>
-            </Link>
+            <SheetClose key={m.to} asChild>
+              <Link
+                to={m.to}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "flex min-h-12 items-center gap-3 rounded-lg px-3 text-[13px] transition-colors",
+                  active ? "bg-primary-soft text-primary" : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+                )}
+              >
+                <m.icon className="size-[18px] shrink-0" strokeWidth={1.7} />
+                <span>{m.label}</span>
+              </Link>
+            </SheetClose>
           );
         })}
-      </div>
-    </nav>
+        </nav>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -193,7 +214,7 @@ function ContextTabs({
           onClick={() => onSelect(item)}
           aria-pressed={active === item}
           className={cn(
-            "min-h-9 shrink-0 rounded-lg border px-3 text-[12.5px] transition-colors",
+            "min-h-11 shrink-0 rounded-lg border px-3 text-[12.5px] transition-colors",
             active === item
               ? "border-primary/40 bg-primary-soft text-foreground"
               : "border-border bg-surface text-muted-foreground",
@@ -260,7 +281,7 @@ function NotificationsButton() {
                 onClick={() => setCat(c.key)}
                 aria-pressed={cat === c.key}
                 className={cn(
-                  "min-h-8 shrink-0 rounded-md px-2 text-[11px] transition-colors",
+                  "min-h-11 shrink-0 rounded-md px-2 text-[11px] transition-colors",
                   cat === c.key ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground",
                 )}
               >
@@ -337,6 +358,7 @@ export function TopBar({ breadcrumb }: { breadcrumb: string[] }) {
 
   return (
     <header className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-2.5 sm:px-6">
+      <MobileMenu />
       <div className="flex min-w-0 items-center gap-2 text-[12.5px]">
         <span className="shrink-0 font-semibold tracking-[0.1em]">ORDYS</span>
         {breadcrumb.map((b, i) => (
@@ -420,7 +442,6 @@ export function Shell({
           <div className="mx-auto w-full max-w-[1180px] pb-24 md:pb-10">{children}</div>
         </main>
       </div>
-      <MobileNav />
     </div>
   );
 }

@@ -39,12 +39,30 @@ export const TOPIC_STATUS = [
 ] as const;
 
 export const SUBJECT_COLORS = [
-  "var(--chart-1)",
-  "var(--chart-2)",
-  "var(--chart-3)",
-  "var(--chart-4)",
-  "var(--chart-5)",
-  "var(--gold)",
+  "var(--subject-graphite)",
+  "var(--subject-slate)",
+  "var(--subject-steel)",
+  "var(--subject-blue)",
+  "var(--subject-azure)",
+  "var(--subject-cobalt)",
+  "var(--subject-indigo)",
+  "var(--subject-purple)",
+  "var(--subject-violet)",
+  "var(--subject-magenta)",
+  "var(--subject-pink)",
+  "var(--subject-rose)",
+  "var(--subject-red)",
+  "var(--subject-coral)",
+  "var(--subject-orange)",
+  "var(--subject-amber)",
+  "var(--subject-gold)",
+  "var(--subject-yellow)",
+  "var(--subject-lime)",
+  "var(--subject-green)",
+  "var(--subject-emerald)",
+  "var(--subject-teal)",
+  "var(--subject-cyan)",
+  "var(--subject-petrol)",
 ];
 
 /* ------------------------------------------------------------------ reads */

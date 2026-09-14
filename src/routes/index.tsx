@@ -37,13 +37,13 @@ import {
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "ORDYS — Sistema operacional da sua vida acadêmica" },
+      { title: "ORDYS ACADEMY — Sua rotina acadêmica com clareza" },
       {
         name: "description",
         content:
-          "ORDYS reúne agenda, tarefas, estudos, notas e desempenho em um único painel premium para estudantes do ensino médio e da universidade.",
+          "Organize disciplinas, horários, tarefas, estudos e desempenho para enxergar sua rotina acadêmica com clareza.",
       },
-      { property: "og:title", content: "ORDYS — Discipline your day. Learn with purpose." },
+      { property: "og:title", content: "ORDYS ACADEMY — A clareza por trás da sua rotina" },
       {
         property: "og:description",
         content:
@@ -164,14 +164,14 @@ function Home() {
   if (late.length)
     attention.push({
       tone: "destructive",
-      text: `${late.length} tarefa(s) atrasada(s).`,
+      text: `${late.length} ${late.length === 1 ? "tarefa atrasada" : "tarefas atrasadas"}.`,
       meta: late.slice(0, 2).map((t) => t.title).join(" · "),
     });
   if (nextExam) {
     const left = daysUntil(nextExam.exam_at) ?? 0;
     attention.push({
       tone: "primary",
-      text: `Prova de ${subjects.find((s) => s.id === nextExam.subject_id)?.name ?? "disciplina"} em ${left} dia(s).`,
+      text: `Prova de ${subjects.find((s) => s.id === nextExam.subject_id)?.name ?? "disciplina"} em ${left} ${left === 1 ? "dia" : "dias"}.`,
       meta: nextExam.content ?? nextExam.title,
     });
   }
@@ -189,7 +189,7 @@ function Home() {
   if (pendingReviews.length)
     attention.push({
       tone: "warning",
-      text: `${pendingReviews.length} revisão(ões) para hoje.`,
+      text: `${pendingReviews.length} ${pendingReviews.length === 1 ? "revisão" : "revisões"} para hoje.`,
       meta: "Geradas automaticamente pelo seu nível de domínio",
     });
 
@@ -257,7 +257,7 @@ function Home() {
 
       {empty ? (
         <Panel className="mt-6 px-5 py-8 text-center">
-          <p className="text-[13px] font-medium">Bem-vindo ao ORDYS.</p>
+          <p className="text-[13px] font-medium">Bem-vindo ao ORDYS ACADEMY.</p>
           <p className="mt-1 text-[12px] text-muted-foreground">
             Comece criando suas disciplinas — a partir delas o ORDYS monta agenda, tarefas, provas, plano de estudos e
             desempenho.
