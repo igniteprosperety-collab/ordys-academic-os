@@ -11,7 +11,6 @@ import {
   LayoutDashboard,
   LineChart,
   LogOut,
-  Menu,
   Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -20,15 +19,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { useNotifications, useOrdysMutations, useProfile } from "@/lib/ordys-db";
 import { QuickCapture } from "@/components/ordys/quick-capture";
 import { Button } from "@/components/ordys/form";
-import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
 
 const modules = [
   { to: "/", label: "Início", icon: LayoutDashboard },
@@ -54,7 +44,7 @@ export function Rail() {
   return (
     <nav
       aria-label="Navegação principal"
-      className="hidden w-[60px] shrink-0 flex-col items-center gap-1 border-r border-border bg-background py-4 md:flex"
+      className="flex w-[60px] shrink-0 flex-col items-center gap-1 overflow-y-auto border-r border-border bg-background py-4"
     >
       <Link to="/" className="mb-4 flex size-8 items-center justify-center" aria-label="ORDYS — Início">
         <span className="text-[13px] font-semibold tracking-[0.14em] text-primary">O</span>
@@ -98,48 +88,6 @@ export function Rail() {
         </Link>
       </div>
     </nav>
-  );
-}
-
-function MobileMenu() {
-  const path = useRouterState({ select: (s) => s.location.pathname });
-  return (
-    <Sheet>
-      <SheetTrigger asChild>
-        <button
-          className="grid size-11 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground md:hidden"
-          aria-label="Abrir navegação"
-        >
-          <Menu className="size-5" strokeWidth={1.7} />
-        </button>
-      </SheetTrigger>
-      <SheetContent side="left" className="dark w-[min(88vw,320px)] overflow-y-auto p-0 text-foreground">
-        <SheetHeader className="border-b border-border px-5 py-5 text-left">
-          <SheetTitle className="text-[15px] tracking-[0.12em] text-primary">ORDYS ACADEMY</SheetTitle>
-          <SheetDescription>A clareza por trás da sua rotina.</SheetDescription>
-        </SheetHeader>
-        <nav aria-label="Navegação principal" className="grid gap-1 p-3">
-        {[...modules, { to: "/perfil", label: "Configurações", icon: Settings } as const].map((m) => {
-          const active = isActive(path, m.to);
-          return (
-            <SheetClose key={m.to} asChild>
-              <Link
-                to={m.to}
-                aria-current={active ? "page" : undefined}
-                className={cn(
-                  "flex min-h-12 items-center gap-3 rounded-lg px-3 text-[13px] transition-colors",
-                  active ? "bg-primary-soft text-primary" : "text-muted-foreground hover:bg-secondary hover:text-foreground",
-                )}
-              >
-                <m.icon className="size-[18px] shrink-0" strokeWidth={1.7} />
-                <span>{m.label}</span>
-              </Link>
-            </SheetClose>
-          );
-        })}
-        </nav>
-      </SheetContent>
-    </Sheet>
   );
 }
 
@@ -358,7 +306,6 @@ export function TopBar({ breadcrumb }: { breadcrumb: string[] }) {
 
   return (
     <header className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-2.5 sm:px-6">
-      <MobileMenu />
       <div className="flex min-w-0 items-center gap-2 text-[12.5px]">
         <span className="shrink-0 font-semibold tracking-[0.1em]">ORDYS</span>
         {breadcrumb.map((b, i) => (
