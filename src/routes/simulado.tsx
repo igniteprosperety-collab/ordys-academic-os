@@ -65,18 +65,47 @@ function Simulado() {
     setFinished(false);
     setAnswers({});
     try {
-      const res = await runGenerate({
-        data: {
-          subjectId: subject.id,
-          difficulty,
-          questionCount: Number(count),
-        },
-      });
-      if (res.error || !res.questions.length) {
-        toast.error(res.error ?? "Nenhuma questão gerada");
-        return;
+      if (guest) {
+        const topicTitles = topics.length
+          ? topics.map((topic) => topic.title)
+          : [`Conteúdos de ${subject.name}`, "Revisão guiada", "Exercícios principais"];
+        const templates = [
+          `Qual conteúdo está diretamente associado à disciplina ${subject.name}?`,
+          `Qual ação é mais adequada para estudar ${subject.name}?`,
+          `Qual item abaixo aparece no programa de ${subject.name}?`,
+          `Qual é uma boa próxima ação para revisar ${subject.name}?`,
+        ];
+        const generated: QuizQuestion[] = Array.from({ length: Number(count) }, (_, i) => {
+          const correctAnswer = topicTitles[i % topicTitles.length]!;
+          const options = [
+            correctAnswer,
+            "Ignorar o conteúdo até a véspera.",
+            "Não registrar nenhum progresso.",
+            "Pular todas as revisões.",
+          ];
+          return {
+            question: templates[i % templates.length]!,
+            options,
+            correct_answer: correctAnswer,
+            explanation: "Questão demonstrativa do modo visita, usando os conteúdos disponíveis.",
+            topic: topics[i % Math.max(1, topics.length)]?.title ?? null,
+          };
+        });
+        setQuestions(generated);
+      } else {
+        const res = await runGenerate({
+          data: {
+            subjectId: subject.id,
+            difficulty,
+            questionCount: Number(count),
+          },
+        });
+        if (res.error || !res.questions.length) {
+          toast.error(res.error ?? "Nenhuma questão gerada");
+          return;
+        }
+        setQuestions(res.questions);
       }
-      setQuestions(res.questions);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao gerar simulado");
     } finally {
