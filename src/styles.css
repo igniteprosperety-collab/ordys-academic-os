@@ -199,9 +199,7 @@
 
 @utility ordys-pressable {
   transition: transform 160ms cubic-bezier(.2,.8,.2,1), opacity 160ms ease, background-color 160ms ease, border-color 160ms ease;
-}
 
-@utility ordys-pressable {
   &:active {
     transform: scale(.98);
   }
