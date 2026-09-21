@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { useAuth } from "@/hooks/use-auth";
+import { insertGuestRow, readGuestProfile, readGuestRows, removeGuestRow, updateGuestRow, upsertGuestNotificationPrefs, upsertGuestProfile, isGuestMode } from "@/lib/demo-mode";
 
 export type Subject = Tables<"subjects">;
 export type Topic = Tables<"topics">;
@@ -67,12 +68,12 @@ export const SUBJECT_COLORS = [
 
 /* ------------------------------------------------------------------ reads */
 
-function useOwnedQuery<T>(key: unknown[], run: () => PromiseLike<Result<T>>) {
-  const { userId, loading } = useAuth();
+function useOwnedQuery<T>(key: unknown[], run: () => PromiseLike<Result<T>>, guestRead?: () => T) {
+  const { userId, guest, loading } = useAuth();
   return useQuery({
-    queryKey: [...key, userId],
-    enabled: !loading && !!userId,
-    queryFn: async () => unwrap<T>(await run()),
+    queryKey: [...key, guest ? "guest" : userId],
+    enabled: !loading && (!!userId || guest),
+    queryFn: async () => guest ? (guestRead ? guestRead() : (null as T)) : unwrap<T>(await run()),
   });
 }
 
