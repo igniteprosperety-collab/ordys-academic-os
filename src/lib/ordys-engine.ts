@@ -330,6 +330,12 @@ export async function generateWeeklyPlan(input: PlanInput) {
 export async function replanMissed(input: PlanInput) {
   const todayKey = dateKey(new Date());
   const missed = input.existing.filter((s) => s.status === "planejada" && s.session_date < todayKey);
+  if (isGuestMode()) {
+    for (const s of missed) updateGuestRow("plan_sessions", s.id, { status: "perdida" });
+    const existing = readGuestRows<PlanSession>("plan_sessions");
+    const created = await generateWeeklyPlan({ ...input, existing });
+    return { missed: missed.length, created };
+  }
   if (missed.length) {
     const { error } = await supabase
       .from("plan_sessions")
@@ -387,8 +393,12 @@ export async function ensureAutomaticReviews(params: {
   }
 
   if (rows.length) {
-    const { error } = await supabase.from("reviews").insert(rows as never);
-    if (error) throw new Error(error.message);
+    if (isGuestMode()) {
+      for (const row of rows) insertGuestRow("reviews", row);
+    } else {
+      const { error } = await supabase.from("reviews").insert(rows as never);
+      if (error) throw new Error(error.message);
+    }
   }
   return rows.length;
 }
@@ -525,6 +535,13 @@ export function buildNotificationRules(input: NotifyInput) {
 export async function syncNotifications(input: NotifyInput) {
   const rows = buildNotificationRules(input).map((r) => ({ ...r, user_id: input.userId }));
   if (!rows.length) return 0;
+  if (isGuestMode()) {
+    const current = readGuestRows<{ dedupe_key: string }>("notifications");
+    for (const row of rows) {
+      if (!current.some((n) => n.dedupe_key === row.dedupe_key)) insertGuestRow("notifications", row);
+    }
+    return rows.length;
+  }
   const { error } = await supabase
     .from("notifications")
     .upsert(rows as never, { onConflict: "user_id,dedupe_key", ignoreDuplicates: true });
