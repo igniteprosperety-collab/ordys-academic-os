@@ -117,33 +117,57 @@ function Simulado() {
     setFinished(true);
     if (!userId || !subject) return;
     try {
-      const { data: created, error } = await supabase
-        .from("quiz_attempts")
-        .insert({
-          user_id: userId,
+      if (guest) {
+        const created = await insert("quiz_attempts", {
           subject_id: subject.id,
           difficulty,
           question_count: questions.length,
           correct_count: correct,
           status: "concluido",
           finished_at: new Date().toISOString(),
-        } as never)
-        .select()
-        .single();
-      if (error) throw new Error(error.message);
-      const attemptId = (created as { id: string }).id;
-      const rows = questions.map((q, i) => ({
-        user_id: userId,
-        attempt_id: attemptId,
-        topic_id: topics.find((t) => t.title === q.topic)?.id ?? null,
-        question: q.question,
-        options: q.options,
-        correct_answer: q.correct_answer,
-        given_answer: answers[i] ?? null,
-        is_correct: answers[i] === q.correct_answer,
-        explanation: q.explanation,
-      }));
-      await supabase.from("quiz_answers").insert(rows as never);
+        });
+        const attemptId = (created as { id: string }).id;
+        for (const [i, q] of questions.entries()) {
+          await insert("quiz_answers", {
+            attempt_id: attemptId,
+            topic_id: topics.find((t) => t.title === q.topic)?.id ?? null,
+            question: q.question,
+            options: q.options,
+            correct_answer: q.correct_answer,
+            given_answer: answers[i] ?? null,
+            is_correct: answers[i] === q.correct_answer,
+            explanation: q.explanation,
+          });
+        }
+      } else {
+        const { data: created, error } = await supabase
+          .from("quiz_attempts")
+          .insert({
+            user_id: userId,
+            subject_id: subject.id,
+            difficulty,
+            question_count: questions.length,
+            correct_count: correct,
+            status: "concluido",
+            finished_at: new Date().toISOString(),
+          } as never)
+          .select()
+          .single();
+        if (error) throw new Error(error.message);
+        const attemptId = (created as { id: string }).id;
+        const rows = questions.map((q, i) => ({
+          user_id: userId,
+          attempt_id: attemptId,
+          topic_id: topics.find((t) => t.title === q.topic)?.id ?? null,
+          question: q.question,
+          options: q.options,
+          correct_answer: q.correct_answer,
+          given_answer: answers[i] ?? null,
+          is_correct: answers[i] === q.correct_answer,
+          explanation: q.explanation,
+        }));
+        await supabase.from("quiz_answers").insert(rows as never);
+      }
       refresh();
       toast.success(`Simulado salvo · ${correct}/${questions.length}`);
     } catch (err) {
