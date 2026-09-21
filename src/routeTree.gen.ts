@@ -198,7 +198,7 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PerfilRouteImport
       parentRoute: typeof rootRouteImport
     }
-      '/simulado': {
+    '/simulado': {
       id: '/simulado'
       path: '/simulado'
       fullPath: '/simulado'
@@ -223,7 +223,6 @@ const rootRouteChildren: RootRouteChildren = {
   DisciplinasRoute: DisciplinasRoute,
   EstudosRoute: EstudosRoute,
   PerfilRoute: PerfilRoute,
-  ResetPasswordRoute: ResetPasswordRoute,
   SimuladoRoute: SimuladoRoute,
   TarefasRoute: TarefasRoute,
 }
