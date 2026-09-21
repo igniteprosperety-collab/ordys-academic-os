@@ -53,7 +53,7 @@ export function Button({
     <button
       {...props}
       className={cn(
-        "inline-flex min-h-9 items-center justify-center gap-2 rounded-lg px-3 py-2 text-[12.5px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+        "ordys-pressable inline-flex min-h-9 items-center justify-center gap-2 rounded-lg px-3 py-2 text-[12.5px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50",
         variant === "primary" && "bg-primary text-primary-foreground hover:bg-primary/90",
         variant === "ghost" &&
           "border border-border bg-surface text-muted-foreground hover:text-foreground",
@@ -87,7 +87,7 @@ export function Modal({
       role="dialog"
       aria-modal="true"
       aria-label={title}
-      className="dark fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/70 px-3 py-6 backdrop-blur-sm sm:px-4 sm:py-10"
+      className="dark ordys-motion-enter fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/70 px-3 py-6 backdrop-blur-sm sm:px-4 sm:py-10"
     >
       <div className="panel w-full" style={{ maxWidth: width }}>
         <header className="flex items-start justify-between gap-4 border-b border-border px-5 py-3.5">
