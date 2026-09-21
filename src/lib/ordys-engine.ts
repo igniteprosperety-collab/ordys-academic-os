@@ -12,6 +12,7 @@ import type {
   Topic,
 } from "./ordys-db";
 import { subjectAttendance, subjectAverage } from "./ordys-db";
+import { isGuestMode, insertGuestRow, readGuestRows, removeGuestRow, updateGuestRow } from "./demo-mode";
 
 /* ------------------------------------------------------------- date utils */
 
@@ -219,6 +220,55 @@ export async function generateWeeklyPlan(input: PlanInput) {
   const rangeStart = dateKey(today);
   const rangeEnd = dateKey(addDays(today, days - 1));
   const dailyLimit = input.profile?.daily_load_limit_minutes ?? 240;
+
+  if (isGuestMode()) {
+    const stateRows = readGuestRows<PlanSession>("plan_sessions");
+    for (const row of stateRows) {
+      if (
+        row.generated &&
+        row.status === "planejada" &&
+        row.session_date >= rangeStart &&
+        row.session_date <= rangeEnd
+      ) removeGuestRow("plan_sessions", row.id);
+    }
+
+    const manual = readGuestRows<PlanSession>("plan_sessions").filter(
+      (s) => (!s.generated || s.status !== "planejada") && s.session_date >= rangeStart && s.session_date <= rangeEnd,
+    );
+    const load = new Map<string, number>();
+    for (let i = 0; i < days; i++) load.set(dateKey(addDays(today, i)), 0);
+    for (const s of manual) load.set(s.session_date, (load.get(s.session_date) ?? 0) + s.duration_minutes);
+
+    const rows: Record<string, unknown>[] = [];
+    for (const candidate of buildCandidates(input)) {
+      for (let i = 0; i < days; i++) {
+        const key = dateKey(addDays(today, i));
+        if (candidate.latest && key > candidate.latest) break;
+        const used = load.get(key) ?? 0;
+        if (used + candidate.duration_minutes > dailyLimit) continue;
+        const hour = Math.min(21, 15 + Math.floor(used / 60));
+        const row = {
+          subject_id: candidate.subject_id,
+          topic_id: candidate.topic_id,
+          exam_id: candidate.exam_id,
+          task_id: candidate.task_id,
+          session_date: key,
+          start_time: `${String(hour).padStart(2, "0")}:00`,
+          duration_minutes: candidate.duration_minutes,
+          kind: candidate.kind,
+          reason: candidate.reason,
+          priority: candidate.priority,
+          status: "planejada",
+          generated: true,
+        };
+        insertGuestRow("plan_sessions", row);
+        rows.push(row);
+        load.set(key, used + candidate.duration_minutes);
+        break;
+      }
+    }
+    return rows.length;
+  }
 
   // limpa apenas o que foi gerado automaticamente e ainda não foi feito
   await supabase
