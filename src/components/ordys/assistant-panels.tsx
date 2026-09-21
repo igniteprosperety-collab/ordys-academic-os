@@ -10,8 +10,10 @@ import {
   useOrdysMutations,
   usePlanSessions,
   useProfile,
+  useReviews,
   useSubjects,
   useTasks,
+  useTopics,
 } from "@/lib/ordys-db";
 import { buildCandidates, dateKey, daysUntil, generateWeeklyPlan, startOfWeek, summarize, addDays } from "@/lib/ordys-engine";
 
@@ -23,6 +25,8 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
   const { data: plan = [] } = usePlanSessions();
   const { data: focus = [] } = useFocusSessions();
   const { data: grades = [] } = useGrades();
+  const { data: topics = [] } = useTopics();
+  const { data: reviews = [] } = useReviews();
   const { userId, refresh } = useOrdysMutations();
 
   const [input, setInput] = useState("");
@@ -87,11 +91,11 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
         userId: userId ?? "guest",
         profile: profile ?? null,
         subjects,
-        topics: [],
+        topics,
         tasks,
         exams,
         grades,
-        reviews: [],
+        reviews,
         existing: plan,
       });
       const c = candidates[0];
