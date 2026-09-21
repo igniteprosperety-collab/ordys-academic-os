@@ -9,7 +9,9 @@ import {
   FileQuestion,
   GraduationCap,
   LayoutDashboard,
+  Sparkles,
   LineChart,
+  LogIn,
   LogOut,
   Settings,
 } from "lucide-react";
@@ -19,6 +21,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { useNotifications, useOrdysMutations, useProfile } from "@/lib/ordys-db";
 import { QuickCapture } from "@/components/ordys/quick-capture";
 import { Button } from "@/components/ordys/form";
+import { stopGuestMode } from "@/lib/demo-mode";
+import { AssistantPanel } from "@/components/ordys/assistant-panels";
 
 const modules = [
   { to: "/", label: "Início", icon: LayoutDashboard },
@@ -296,10 +300,17 @@ function NotificationsButton() {
 export function TopBar({ breadcrumb }: { breadcrumb: string[] }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { guest } = useAuth();
+  const [assistantOpen, setAssistantOpen] = useState(false);
 
   async function signOut() {
     await queryClient.cancelQueries();
     queryClient.clear();
+    if (guest) {
+      stopGuestMode();
+      navigate({ to: "/auth", replace: true });
+      return;
+    }
     await supabase.auth.signOut();
     navigate({ to: "/auth", replace: true });
   }
@@ -319,16 +330,29 @@ export function TopBar({ breadcrumb }: { breadcrumb: string[] }) {
         <QuickCapture />
         <NotificationsButton />
         <button
-          onClick={signOut}
-          title="Sair da conta"
-          aria-label="Sair da conta"
-          className="grid size-9 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          onClick={() => setAssistantOpen((v) => !v)}
+          title="Agente ORDYS"
+          aria-label="Agente ORDYS"
+          className="ordys-pressable grid size-9 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
         >
-          <LogOut className="size-[15px]" strokeWidth={1.6} />
+          <SparklesIcon />
         </button>
+        <button
+          onClick={signOut}
+          title={guest ? "Sair do modo visita" : "Sair da conta"}
+          aria-label={guest ? "Sair do modo visita" : "Sair da conta"}
+          className="ordys-pressable grid size-9 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+        >
+          {guest ? <LogIn className="size-[15px]" strokeWidth={1.6} /> : <LogOut className="size-[15px]" strokeWidth={1.6} />}
+        </button>
+        {assistantOpen ? <AssistantPanel onClose={() => setAssistantOpen(false)} /> : null}
       </div>
     </header>
   );
+}
+
+function SparklesIcon() {
+  return <Sparkles className="size-[15px]" strokeWidth={1.6} />;
 }
 
 function AuthWall() {
@@ -365,12 +389,12 @@ export function Shell({
   children: ReactNode;
   contextFooter?: ReactNode;
 }) {
-  const { user, loading } = useAuth();
+  const { user, guest, loading } = useAuth();
 
   if (loading) {
     return <div className="dark h-screen w-full bg-background" />;
   }
-  if (!user) return <AuthWall />;
+  if (!user && !guest) return <AuthWall />;
 
   return (
     <div className="dark flex h-screen w-full overflow-hidden bg-background text-foreground">
