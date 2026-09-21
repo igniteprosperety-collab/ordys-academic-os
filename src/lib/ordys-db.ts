@@ -81,6 +81,7 @@ export function useProfile() {
   const { userId } = useAuth();
   return useOwnedQuery<Profile | null>(["profile"], () =>
     supabase.from("profiles").select("*").eq("id", userId!).maybeSingle(),
+    () => readGuestProfile<Profile>(),
   );
 }
 
@@ -88,44 +89,50 @@ export function useSubjects(includeArchived = false) {
   return useOwnedQuery<Subject[]>(["subjects", includeArchived], () => {
     const q = supabase.from("subjects").select("*").order("name");
     return includeArchived ? q : q.eq("archived", false);
+  }, () => {
+    const rows = readGuestRows<Subject>("subjects");
+    return includeArchived ? rows : rows.filter((s) => !s.archived);
   });
 }
 
 export function useSchedules() {
   return useOwnedQuery<SubjectSchedule[]>(["schedules"], () =>
     supabase.from("subject_schedules").select("*").order("start_time"),
-  );
+  , () => readGuestRows<SubjectSchedule>("subject_schedules").sort((a, b) => a.start_time.localeCompare(b.start_time)));
 }
 
 export function useTopics(subjectId?: string | null) {
   return useOwnedQuery<Topic[]>(["topics", subjectId ?? "all"], () => {
     const q = supabase.from("topics").select("*").order("position").order("created_at");
     return subjectId ? q.eq("subject_id", subjectId) : q;
+  }, () => {
+    const rows = readGuestRows<Topic>("topics");
+    return (subjectId ? rows.filter((t) => t.subject_id === subjectId) : rows).sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
   });
 }
 
 export function useTasks() {
   return useOwnedQuery<Task[]>(["tasks"], () =>
     supabase.from("tasks").select("*").order("due_at", { nullsFirst: false }),
-  );
+  , () => readGuestRows<Task>("tasks").sort((a, b) => String(a.due_at ?? "9999").localeCompare(String(b.due_at ?? "9999"))));
 }
 
 export function useSubtasks() {
   return useOwnedQuery<Subtask[]>(["subtasks"], () =>
     supabase.from("subtasks").select("*").order("created_at"),
-  );
+  , () => readGuestRows<Subtask>("subtasks"));
 }
 
 export function useExams() {
   return useOwnedQuery<Exam[]>(["exams"], () =>
     supabase.from("exams").select("*").order("exam_at"),
-  );
+  , () => readGuestRows<Exam>("exams").sort((a, b) => a.exam_at.localeCompare(b.exam_at)));
 }
 
 export function useGrades() {
   return useOwnedQuery<Grade[]>(["grades"], () =>
     supabase.from("grades").select("*").order("graded_on"),
-  );
+  , () => readGuestRows<Grade>("grades").sort((a, b) => a.graded_on.localeCompare(b.graded_on)));
 }
 
 export function useAttendance() {
