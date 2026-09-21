@@ -167,3 +167,53 @@
 @utility hairline {
   border-bottom: 1px solid var(--border);
 }
+
+
+@keyframes ordys-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes ordys-slide-in {
+  from { opacity: 0; transform: translateX(14px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes ordys-scale-in {
+  from { opacity: 0; transform: scale(.985); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@utility ordys-motion-enter {
+  animation: ordys-fade-in 220ms cubic-bezier(.2,.8,.2,1) both;
+}
+
+@utility ordys-motion-slide {
+  animation: ordys-slide-in 240ms cubic-bezier(.2,.8,.2,1) both;
+}
+
+@utility ordys-motion-scale {
+  animation: ordys-scale-in 190ms cubic-bezier(.2,.8,.2,1) both;
+  transform-origin: center;
+}
+
+@utility ordys-pressable {
+  transition: transform 160ms cubic-bezier(.2,.8,.2,1), opacity 160ms ease, background-color 160ms ease, border-color 160ms ease;
+}
+
+@utility ordys-pressable {
+  &:active {
+    transform: scale(.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ordys-motion-enter,
+  .ordys-motion-slide,
+  .ordys-motion-scale {
+    animation: none !important;
+  }
+  .ordys-pressable {
+    transition: none !important;
+  }
+}
