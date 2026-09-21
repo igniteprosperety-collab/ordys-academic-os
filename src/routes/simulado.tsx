@@ -43,7 +43,8 @@ function Simulado() {
   const [active, setActive] = useState("Novo simulado");
   const { data: subjects = [] } = useSubjects();
   const { data: attempts = [] } = useQuizAttempts();
-  const { userId, refresh } = useOrdysMutations();
+  const { userId, refresh, insert } = useOrdysMutations();
+  const { guest } = useAuth();
   const runGenerate = useServerFn(generateQuiz);
 
   const [subjectId, setSubjectId] = useState("");
