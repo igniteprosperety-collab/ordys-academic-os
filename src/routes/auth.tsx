@@ -13,7 +13,7 @@ export const Route = createFileRoute("/auth")({
       {
         name: "description",
         content:
-          "Acesse o ORDYS com sua conta Google.",
+          "Acesse o ORDYS com sua conta Google. O ORDYS não envia e-mails de autenticação.",
       },
       { property: "og:title", content: "Entrar no ORDYS" },
       {
@@ -62,7 +62,7 @@ function AuthPage() {
           Entrar no ORDYS
         </h1>
         <p className="mt-1.5 text-[12.5px] text-muted-foreground">
-          Entre com sua conta Google para salvar seu progresso e sincronizar seus dados entre dispositivos.
+          Entre com sua conta Google para salvar seu progresso e sincronizar seus dados entre dispositivos. O ORDYS não envia e-mails de autenticação.
         </p>
 
         <div className="panel mt-6 px-5 py-5">
@@ -86,7 +86,7 @@ function AuthPage() {
         <p className="mt-4 text-center text-[10.5px] leading-relaxed text-muted-foreground/70">
           {guest
             ? "Você está em modo visita. Seus dados ficam salvos neste dispositivo. Entre com Google para sincronizar sua conta."
-            : "Google salva e sincroniza seu progresso entre dispositivos. O modo visita permite testar o app sem criar uma conta."}
+            : "Google salva e sincroniza seu progresso entre dispositivos. A recuperação da conta ou da senha é feita pela própria conta Google. O modo visita permite testar o app sem criar uma conta."}
         </p>
       </div>
     </div>
