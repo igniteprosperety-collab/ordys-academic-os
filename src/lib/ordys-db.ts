@@ -138,31 +138,31 @@ export function useGrades() {
 export function useAttendance() {
   return useOwnedQuery<AttendanceRecord[]>(["attendance"], () =>
     supabase.from("attendance_records").select("*").order("class_date"),
-  );
+  , () => readGuestRows<AttendanceRecord>("attendance_records").sort((a, b) => a.class_date.localeCompare(b.class_date)));
 }
 
 export function useFocusSessions() {
   return useOwnedQuery<FocusSession[]>(["focus"], () =>
     supabase.from("focus_sessions").select("*").order("started_at", { ascending: false }),
-  );
+  , () => readGuestRows<FocusSession>("focus_sessions").sort((a, b) => b.started_at.localeCompare(a.started_at)));
 }
 
 export function usePlanSessions() {
   return useOwnedQuery<PlanSession[]>(["plan"], () =>
     supabase.from("plan_sessions").select("*").order("session_date").order("start_time"),
-  );
+  , () => readGuestRows<PlanSession>("plan_sessions").sort((a, b) => (a.session_date + (a.start_time ?? "")).localeCompare(b.session_date + (b.start_time ?? ""))));
 }
 
 export function useReviews() {
   return useOwnedQuery<Review[]>(["reviews"], () =>
     supabase.from("reviews").select("*").order("due_on"),
-  );
+  , () => readGuestRows<Review>("reviews").sort((a, b) => a.due_on.localeCompare(b.due_on)));
 }
 
 export function useGoals() {
   return useOwnedQuery<Goal[]>(["goals"], () =>
     supabase.from("goals").select("*").order("created_at"),
-  );
+  , () => readGuestRows<Goal>("goals"));
 }
 
 export function useNotifications() {
@@ -173,26 +173,26 @@ export function useNotifications() {
       .is("dismissed_at", null)
       .order("created_at", { ascending: false })
       .limit(60),
-  );
+  , () => readGuestRows<NotificationRow>("notifications").filter((n) => !n.dismissed_at).sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 60));
 }
 
 export function useNotificationPrefs() {
   const { userId } = useAuth();
   return useOwnedQuery<NotificationPrefs | null>(["notif-prefs"], () =>
     supabase.from("notification_preferences").select("*").eq("user_id", userId!).maybeSingle(),
-  );
+  , () => readGuestRows<NotificationPrefs>("notification_preferences")[0] ?? null);
 }
 
 export function useCalendarEvents() {
   return useOwnedQuery<CalendarEvent[]>(["events"], () =>
     supabase.from("calendar_events").select("*").order("starts_at"),
-  );
+  , () => readGuestRows<CalendarEvent>("calendar_events").sort((a, b) => a.starts_at.localeCompare(b.starts_at)));
 }
 
 export function useCheckins() {
   return useOwnedQuery<DailyCheckin[]>(["checkins"], () =>
     supabase.from("daily_checkins").select("*").order("checkin_date", { ascending: false }),
-  );
+  , () => readGuestRows<DailyCheckin>("daily_checkins").sort((a, b) => b.checkin_date.localeCompare(a.checkin_date)));
 }
 
 export function useQuizAttempts() {
