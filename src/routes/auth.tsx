@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { lovable } from "@/integrations/lovable/index";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ordys/form";
+import { startGuestMode, stopGuestMode } from "@/lib/demo-mode";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -28,7 +29,7 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
-  const { user, loading } = useAuth();
+  const { user, guest, loading } = useAuth();
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -36,6 +37,7 @@ function AuthPage() {
   }, [loading, user, navigate]);
 
   async function google() {
+    stopGuestMode();
     setBusy(true);
     try {
       const result = await lovable.auth.signInWithOAuth("google", {
@@ -64,18 +66,27 @@ function AuthPage() {
         </p>
 
         <div className="panel mt-6 px-5 py-5">
+          <Button type="button" onClick={google} disabled={busy} className="w-full py-2.5">
+            {busy ? "Abrindo Google…" : "Continuar com Google"}
+          </Button>
+          <div className="my-4 h-px bg-border" />
           <Button
             type="button"
-            onClick={google}
-            disabled={busy}
+            variant="ghost"
             className="w-full py-2.5"
+            onClick={() => {
+              startGuestMode();
+              navigate({ to: "/", replace: true });
+            }}
           >
-            {busy ? "Abrindo Google…" : "Continuar com Google"}
+            Continuar em modo visita
           </Button>
         </div>
 
         <p className="mt-4 text-center text-[10.5px] leading-relaxed text-muted-foreground/70">
-          O acesso por e-mail e senha foi removido para eliminar a dependência de envio de e-mails de autenticação.
+          {guest
+            ? "Você está em modo visita. Seus dados ficam salvos neste dispositivo. Entre com Google para sincronizar sua conta."
+            : "Google salva e sincroniza seu progresso entre dispositivos. O modo visita permite testar o app sem criar uma conta."}
         </p>
       </div>
     </div>
