@@ -198,19 +198,19 @@ export function useCheckins() {
 export function useQuizAttempts() {
   return useOwnedQuery<QuizAttempt[]>(["quiz-attempts"], () =>
     supabase.from("quiz_attempts").select("*").order("created_at", { ascending: false }),
-  );
+  , () => readGuestRows<QuizAttempt>("quiz_attempts").sort((a, b) => b.created_at.localeCompare(a.created_at)));
 }
 
 export function useQuizAnswers() {
   return useOwnedQuery<QuizAnswer[]>(["quiz-answers"], () =>
     supabase.from("quiz_answers").select("*").order("created_at", { ascending: false }),
-  );
+  , () => readGuestRows<QuizAnswer>("quiz_answers").sort((a, b) => b.created_at.localeCompare(a.created_at)));
 }
 
 export function useCalendarConnections() {
   return useOwnedQuery<Tables<"calendar_connections">[]>(["calendar-connections"], () =>
     supabase.from("calendar_connections").select("*").order("provider"),
-  );
+  , () => readGuestRows<Tables<"calendar_connections">>("calendar_connections"));
 }
 
 /* ------------------------------------------------------------- mutations */
@@ -242,6 +242,11 @@ export function useOrdysMutations() {
 
   async function insert(table: TableName, values: Record<string, unknown>) {
     if (!userId) throw new Error("Sem sessão");
+    if (isGuestMode()) {
+      const row = insertGuestRow(table, values);
+      refresh();
+      return row;
+    }
     const res = await anyDb()
       .from(table)
       .insert({ ...values, user_id: userId })
@@ -253,6 +258,11 @@ export function useOrdysMutations() {
   }
 
   async function update(table: TableName, id: string, values: Record<string, unknown>) {
+    if (isGuestMode()) {
+      const row = updateGuestRow(table, id, values);
+      refresh();
+      return row;
+    }
     const res = await anyDb().from(table).update(values).eq("id", id).select().single();
     const row = unwrap(res);
     refresh();
@@ -260,6 +270,11 @@ export function useOrdysMutations() {
   }
 
   async function remove(table: TableName, id: string) {
+    if (isGuestMode()) {
+      removeGuestRow(table, id);
+      refresh();
+      return;
+    }
     const { error } = await anyDb().from(table).delete().eq("id", id);
     if (error) throw new Error(error.message);
     refresh();
@@ -269,6 +284,11 @@ export function useOrdysMutations() {
 
   async function upsertProfile(values: TablesUpdate<"profiles">) {
     if (!userId) throw new Error("Sem sessão");
+    if (isGuestMode()) {
+      const row = upsertGuestProfile(values as Record<string, unknown>);
+      refresh();
+      return row;
+    }
     const res = await supabase
       .from("profiles")
       .upsert({ ...values, id: userId } as TablesInsert<"profiles">)
@@ -281,6 +301,11 @@ export function useOrdysMutations() {
 
   async function upsertNotificationPrefs(values: TablesUpdate<"notification_preferences">) {
     if (!userId) throw new Error("Sem sessão");
+    if (isGuestMode()) {
+      const row = upsertGuestNotificationPrefs(values as Record<string, unknown>);
+      refresh();
+      return row;
+    }
     const res = await supabase
       .from("notification_preferences")
       .upsert({ ...values, user_id: userId } as TablesInsert<"notification_preferences">)
