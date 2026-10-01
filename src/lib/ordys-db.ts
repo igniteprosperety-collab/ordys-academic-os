@@ -97,7 +97,7 @@ export function useSubjects(includeArchived = false) {
 
 export function useSchedules() {
   return useOwnedQuery<SubjectSchedule[]>(["schedules"], () =>
-    supabase.from("subject_schedules").select("*").order("start_time"),
+    supabase.from("subject_schedules").select("*").order("start_time")
   , () => readGuestRows<SubjectSchedule>("subject_schedules").sort((a, b) => a.start_time.localeCompare(b.start_time)));
 }
 
@@ -113,55 +113,55 @@ export function useTopics(subjectId?: string | null) {
 
 export function useTasks() {
   return useOwnedQuery<Task[]>(["tasks"], () =>
-    supabase.from("tasks").select("*").order("due_at", { nullsFirst: false }),
+    supabase.from("tasks").select("*").order("due_at", { nullsFirst: false })
   , () => readGuestRows<Task>("tasks").sort((a, b) => String(a.due_at ?? "9999").localeCompare(String(b.due_at ?? "9999"))));
 }
 
 export function useSubtasks() {
   return useOwnedQuery<Subtask[]>(["subtasks"], () =>
-    supabase.from("subtasks").select("*").order("created_at"),
+    supabase.from("subtasks").select("*").order("created_at")
   , () => readGuestRows<Subtask>("subtasks"));
 }
 
 export function useExams() {
   return useOwnedQuery<Exam[]>(["exams"], () =>
-    supabase.from("exams").select("*").order("exam_at"),
+    supabase.from("exams").select("*").order("exam_at")
   , () => readGuestRows<Exam>("exams").sort((a, b) => a.exam_at.localeCompare(b.exam_at)));
 }
 
 export function useGrades() {
   return useOwnedQuery<Grade[]>(["grades"], () =>
-    supabase.from("grades").select("*").order("graded_on"),
+    supabase.from("grades").select("*").order("graded_on")
   , () => readGuestRows<Grade>("grades").sort((a, b) => a.graded_on.localeCompare(b.graded_on)));
 }
 
 export function useAttendance() {
   return useOwnedQuery<AttendanceRecord[]>(["attendance"], () =>
-    supabase.from("attendance_records").select("*").order("class_date"),
+    supabase.from("attendance_records").select("*").order("class_date")
   , () => readGuestRows<AttendanceRecord>("attendance_records").sort((a, b) => a.class_date.localeCompare(b.class_date)));
 }
 
 export function useFocusSessions() {
   return useOwnedQuery<FocusSession[]>(["focus"], () =>
-    supabase.from("focus_sessions").select("*").order("started_at", { ascending: false }),
+    supabase.from("focus_sessions").select("*").order("started_at", { ascending: false })
   , () => readGuestRows<FocusSession>("focus_sessions").sort((a, b) => b.started_at.localeCompare(a.started_at)));
 }
 
 export function usePlanSessions() {
   return useOwnedQuery<PlanSession[]>(["plan"], () =>
-    supabase.from("plan_sessions").select("*").order("session_date").order("start_time"),
+    supabase.from("plan_sessions").select("*").order("session_date").order("start_time")
   , () => readGuestRows<PlanSession>("plan_sessions").sort((a, b) => (a.session_date + (a.start_time ?? "")).localeCompare(b.session_date + (b.start_time ?? ""))));
 }
 
 export function useReviews() {
   return useOwnedQuery<Review[]>(["reviews"], () =>
-    supabase.from("reviews").select("*").order("due_on"),
+    supabase.from("reviews").select("*").order("due_on")
   , () => readGuestRows<Review>("reviews").sort((a, b) => a.due_on.localeCompare(b.due_on)));
 }
 
 export function useGoals() {
   return useOwnedQuery<Goal[]>(["goals"], () =>
-    supabase.from("goals").select("*").order("created_at"),
+    supabase.from("goals").select("*").order("created_at")
   , () => readGuestRows<Goal>("goals"));
 }
 
@@ -172,44 +172,44 @@ export function useNotifications() {
       .select("*")
       .is("dismissed_at", null)
       .order("created_at", { ascending: false })
-      .limit(60),
+      .limit(60)
   , () => readGuestRows<NotificationRow>("notifications").filter((n) => !n.dismissed_at).sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 60));
 }
 
 export function useNotificationPrefs() {
   const { userId } = useAuth();
   return useOwnedQuery<NotificationPrefs | null>(["notif-prefs"], () =>
-    supabase.from("notification_preferences").select("*").eq("user_id", userId!).maybeSingle(),
+    supabase.from("notification_preferences").select("*").eq("user_id", userId!).maybeSingle()
   , () => readGuestRows<NotificationPrefs>("notification_preferences")[0] ?? null);
 }
 
 export function useCalendarEvents() {
   return useOwnedQuery<CalendarEvent[]>(["events"], () =>
-    supabase.from("calendar_events").select("*").order("starts_at"),
+    supabase.from("calendar_events").select("*").order("starts_at")
   , () => readGuestRows<CalendarEvent>("calendar_events").sort((a, b) => a.starts_at.localeCompare(b.starts_at)));
 }
 
 export function useCheckins() {
   return useOwnedQuery<DailyCheckin[]>(["checkins"], () =>
-    supabase.from("daily_checkins").select("*").order("checkin_date", { ascending: false }),
+    supabase.from("daily_checkins").select("*").order("checkin_date", { ascending: false })
   , () => readGuestRows<DailyCheckin>("daily_checkins").sort((a, b) => b.checkin_date.localeCompare(a.checkin_date)));
 }
 
 export function useQuizAttempts() {
   return useOwnedQuery<QuizAttempt[]>(["quiz-attempts"], () =>
-    supabase.from("quiz_attempts").select("*").order("created_at", { ascending: false }),
+    supabase.from("quiz_attempts").select("*").order("created_at", { ascending: false })
   , () => readGuestRows<QuizAttempt>("quiz_attempts").sort((a, b) => b.created_at.localeCompare(a.created_at)));
 }
 
 export function useQuizAnswers() {
   return useOwnedQuery<QuizAnswer[]>(["quiz-answers"], () =>
-    supabase.from("quiz_answers").select("*").order("created_at", { ascending: false }),
+    supabase.from("quiz_answers").select("*").order("created_at", { ascending: false })
   , () => readGuestRows<QuizAnswer>("quiz_answers").sort((a, b) => b.created_at.localeCompare(a.created_at)));
 }
 
 export function useCalendarConnections() {
   return useOwnedQuery<Tables<"calendar_connections">[]>(["calendar-connections"], () =>
-    supabase.from("calendar_connections").select("*").order("provider"),
+    supabase.from("calendar_connections").select("*").order("provider")
   , () => readGuestRows<Tables<"calendar_connections">>("calendar_connections"));
 }
 
