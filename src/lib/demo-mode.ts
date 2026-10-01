@@ -274,7 +274,7 @@ const writeState = (state: GuestState) => {
 export function insertGuestRow<T extends GuestRow>(table: GuestTable, values: T): T {
   const state = ensureState();
   const now = new Date().toISOString();
-  const row = { id: values.id ?? uuid(), user_id: state.id, created_at: now, updated_at: now, ...values } as T;
+  const row = { id: values["id"] ?? uuid(), user_id: state.id, created_at: now, updated_at: now, ...values } as T;
   state.tables[table] = [...state.tables[table], row];
   writeState(state);
   return row;
@@ -282,10 +282,10 @@ export function insertGuestRow<T extends GuestRow>(table: GuestTable, values: T)
 
 export function updateGuestRow<T extends GuestRow>(table: GuestTable, id: string, values: Partial<T>): T {
   const state = ensureState();
-  const index = state.tables[table].findIndex((row) => row.id === id);
+  const index = state.tables[table].findIndex((row) => row["id"] === id);
   if (index < 0) throw new Error("Registro não encontrado");
   const current = state.tables[table][index]!;
-  const row = { ...current, ...values, updated_at: new Date().toISOString() } as T;
+  const row = { ...current, ...values, updated_at: new Date().toISOString() } as unknown as T;
   state.tables[table][index] = row;
   writeState(state);
   return row;
@@ -293,7 +293,7 @@ export function updateGuestRow<T extends GuestRow>(table: GuestTable, id: string
 
 export function removeGuestRow(table: GuestTable, id: string) {
   const state = ensureState();
-  state.tables[table] = state.tables[table].filter((row) => row.id !== id);
+  state.tables[table] = state.tables[table].filter((row) => row["id"] !== id);
   writeState(state);
 }
 

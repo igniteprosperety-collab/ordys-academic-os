@@ -1,4 +1,5 @@
 import { difficultyLabel } from "@/lib/ordys-engine";
+import { useAuth } from "@/hooks/use-auth";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
