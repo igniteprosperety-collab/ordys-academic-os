@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      assistant_jobs: {
+        Row: {
+          created_at: string
+          expires_at: string
+          response_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          response_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          response_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       attendance_records: {
         Row: {
           class_date: string
@@ -507,6 +528,24 @@ export type Database = {
         }
         Relationships: []
       }
+      password_recovery_attempts: {
+        Row: {
+          email_hash: string
+          id: string
+          requested_at: string
+        }
+        Insert: {
+          email_hash: string
+          id?: string
+          requested_at?: string
+        }
+        Update: {
+          email_hash?: string
+          id?: string
+          requested_at?: string
+        }
+        Relationships: []
+      }
       plan_sessions: {
         Row: {
           created_at: string
@@ -596,39 +635,63 @@ export type Database = {
       profiles: {
         Row: {
           attendance_target: number
+          birth_date: string | null
+          city: string | null
+          class_name: string | null
+          country: string | null
+          course: string | null
           created_at: string
           daily_load_limit_minutes: number
+          education_level: string | null
           full_name: string | null
           grade_pass: number
           grade_scale_max: number
           id: string
+          school_name: string | null
           stage: string
+          state: string | null
           timezone: string
           updated_at: string
           weekly_study_target_minutes: number
         }
         Insert: {
           attendance_target?: number
+          birth_date?: string | null
+          city?: string | null
+          class_name?: string | null
+          country?: string | null
+          course?: string | null
           created_at?: string
           daily_load_limit_minutes?: number
+          education_level?: string | null
           full_name?: string | null
           grade_pass?: number
           grade_scale_max?: number
           id?: string
+          school_name?: string | null
           stage?: string
+          state?: string | null
           timezone?: string
           updated_at?: string
           weekly_study_target_minutes?: number
         }
         Update: {
           attendance_target?: number
+          birth_date?: string | null
+          city?: string | null
+          class_name?: string | null
+          country?: string | null
+          course?: string | null
           created_at?: string
           daily_load_limit_minutes?: number
+          education_level?: string | null
           full_name?: string | null
           grade_pass?: number
           grade_scale_max?: number
           id?: string
+          school_name?: string | null
           stage?: string
+          state?: string | null
           timezone?: string
           updated_at?: string
           weekly_study_target_minutes?: number
@@ -1085,6 +1148,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_request_password_recovery: {
+        Args: { p_email: string }
+        Returns: Json
+      }
+      consume_usage_limit: {
+        Args: {
+          p_daily_limit: number
+          p_hourly_limit: number
+          p_kind: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       delete_own_data: { Args: never; Returns: undefined }
     }
     Enums: {
