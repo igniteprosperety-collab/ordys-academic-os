@@ -230,7 +230,9 @@ type TableName =
   | "goals"
   | "notifications"
   | "calendar_events"
-  | "daily_checkins";
+  | "daily_checkins"
+  | "quiz_attempts"
+  | "quiz_answers";
 
 export function useOrdysMutations() {
   const client = useQueryClient();
