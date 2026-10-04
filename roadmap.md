@@ -6,6 +6,7 @@
 - [ ] Corrigir launcher adaptativo e fallbacks sem alterar a arte oficial
 - [ ] Integrar OAuth Google nativo com callback seguro e restauração de estado
 - [ ] Validar Manifest, bundle, APK/AAB, assinatura e scans disponíveis
+- [ ] Auditar signup por e-mail, confirmação, reenvio e entrega Gmail sem alterar autenticação
 
 - [ ] Incorporar nome, frase e terminologia oficiais sem transformar o produto em landing page
 - [ ] Corrigir português, datas, dias da semana, estados e ações em todas as telas
