@@ -1,21 +1,29 @@
-# Auditoria e correção final — Android e autenticação
+# Inspeção READ-ONLY — Autenticação ORDYS (produção yqljcoukgpqdoxiispyn)
 
-## Objetivo
-Preparar o projeto atual para empacotamento Android local seguro, sem `server.url`, preservando o app web e o modo visita.
+Nenhuma alteração foi feita. Este documento é só um relatório; não há implementação a aprovar.
 
-## Implementação
-- Reconstituir somente a infraestrutura Android ausente nesta cópia, com Capacitor 8.5.2, pacote `app.ordys.academy`, SDK 36 e proteções de release.
-- Gerar recursos determinísticos a partir do launcher oficial: fundo adaptativo `#0A1128`, foreground sem arte substituta e fallbacks raster sem borda branca.
-- Criar o callback OAuth nativo restrito a `app.ordys.academy://auth/callback`; manter o fluxo web atual fora do Android.
-- Implementar o controlador nativo com navegador externo, retorno por URL, troca de código ou tokens, timeout finito, cancelamento seguro e limpeza de listeners.
-- Manter o bundle Android local e bloquear referências de preview, `localhost`, código dinâmico e permissões perigosas por verificação automatizada.
-- Preservar assinatura privada fora do repositório e validar APK/AAB apenas quando as ferramentas e credenciais estiverem disponíveis.
+## Fatos verificados
 
-## Verificação
-- Testes, lint e build web.
-- Build/sync Android e testes de release disponíveis no ambiente.
-- Inspeção do Manifest final, recursos do launcher, bundle empacotado, dependências e caminhos de autenticação.
-- Relatório separado entre código corrigido, validações concluídas, dependências da conta Google e condição real para eliminar o aviso do Play Protect.
+**1) Confirmação de e-mail**
+- Existe um gatilho ativo `ordys_auto_confirm_email_trigger` (estado `O` = ligado) na tabela de usuários de login.
+- Ele preenche `email_confirmed_at := now()` quando vazio. Na prática, **todo cadastro é auto-confirmado** no banco, seja qual for a opção "Confirm email" do painel.
+- Também ativo: `on_auth_user_created`, que cria perfil e preferências de notificação.
 
-## Premissa explícita
-A branch GitHub privada não está acessível neste ambiente e esta cópia não contém a infraestrutura Android citada. Para não fingir que ela existe, a implementação adicionará apenas a base Android mínima e endurecida exigida, sem alterar telas ou funcionalidades acadêmicas.
+**2) Provedores**
+- Contas existentes por provedor: só `google` (1 identidade). Nenhuma identidade `email`.
+- Isso confirma que o Google já funcionou ao menos uma vez. Não prova se e-mail/senha está ligado.
+
+**3) URLs**
+- Site URL: `https://id-preview--39199358-…lovable.app` (preview, não o publicado).
+- Allowlist (11): 10 endereços `*.lovable.app` / `*.lovableproject.com` do próprio projeto, incluindo `ordys-academic-os.lovable.app/**`, e `app.ordys.academy://auth/callback` (exato).
+- Servidor OAuth (MCP): desligado. Não afeta login.
+
+**4) Erros evidentes**
+- O gatilho de auto-confirmação explica por que o cadastro "conclui" sem e-mail: a conta nasce confirmada. Por isso a confirmação pode não ser enviada ou pode ser inútil. Isso contradiz a exigência de confirmar o e-mail.
+- Site URL no preview: links de e-mail sem redirect explícito caem no preview, não no app publicado.
+- Nenhum erro na allowlist do callback Android.
+
+## Não verificável por mim
+- Interruptores do painel: e-mail/senha ligado, "Confirm email", Google ligado e credencial gerenciada ou própria, remetente/SMTP, limite de e-mails por hora. Não tenho ferramenta de leitura para isso.
+- Caminho no painel: **Cloud → Users → Auth settings** (Sign In Methods → Email / Google; Email → Advanced para o limite; **Emails** para o remetente).
+- Entrega real para o Gmail: nenhum teste foi feito.
