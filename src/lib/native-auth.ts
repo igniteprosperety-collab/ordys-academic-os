@@ -300,15 +300,16 @@ export function expireNativeGoogleSignIn() {
 
 export async function startGoogleSignIn(webRedirectUri: string) {
   if (!Capacitor.isNativePlatform()) {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: webRedirectUri,
-        queryParams: { prompt: "select_account" },
-      },
+    // Web (Lovable Cloud): Google goes through the managed Lovable broker,
+    // which also works inside the editor preview. Android keeps the native flow below.
+    void webRedirectUri;
+    const { lovable } = await import("@/integrations/lovable/index");
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: window.location.origin,
+      extraParams: { prompt: "select_account" },
     });
-    if (error) throw error;
-    return { redirected: true };
+    if (result.error) throw result.error;
+    return { redirected: Boolean(result.redirected) };
   }
 
   // Mark the attempt pending before initialization so initialization failures
