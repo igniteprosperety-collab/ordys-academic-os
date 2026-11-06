@@ -1,5 +1,12 @@
 # ORDYS ACADEMY — auditoria e evolução
 
+## Importação seletiva da main 13d3532 (preview web, prazo 08/11)
+
+- [x] Importar telas/componentes/lib da main preservando integrações geradas, start.ts e server.ts
+- [x] Google web via login gerenciado; build, testes e smoke das rotas
+- [ ] Confirmação de e-mail real (bloqueado: migration que remove auto-confirm + envio de e-mail, exige autorização)
+- [ ] Assistente, recuperação de senha por função, exclusão de conta (bloqueado: funções do backend e migrations pendentes)
+
 ## Entrega final Android + autenticação
 
 - [ ] Sincronizar e preservar o hardening Android existente na fonte oficial
