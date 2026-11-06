@@ -1,14 +1,12 @@
 import { difficultyLabel } from "@/lib/ordys-engine";
-import { useAuth } from "@/hooks/use-auth";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import { Check, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
 import { Shell } from "@/components/ordys/shell";
 import { Bar, Chip, Panel, PanelHeader, PageTitle, Ring, Stat } from "@/components/ordys/primitives";
 import { Button, Field, Select } from "@/components/ordys/form";
-import { generateQuiz, type QuizQuestion } from "@/lib/quiz.functions";
+import { generateOrdysQuiz, type OrdysQuizQuestion } from "@/lib/ordys-assistant-client";
 import {
   useOrdysMutations,
   useQuizAttempts,
@@ -16,17 +14,20 @@ import {
   useTopics,
 } from "@/lib/ordys-db";
 import { supabase } from "@/integrations/supabase/client";
+import { ORDYS_PLUS_AI_ENABLED, ORDYS_PLUS_LOCK_SHORT_MESSAGE } from "@/lib/ordys-ai-access";
+import { useAuth } from "@/hooks/use-auth";
+import { AiContentReportButton } from "@/components/ordys/ai-content-report-button";
 
 export const Route = createFileRoute("/simulado")({
   head: () => ({
     meta: [
-      { title: "Modo prova e simulados — ORDYS" },
+      { title: "Modo prova e simulados — Ordys Academy" },
       {
         name: "description",
         content:
           "Gere simulados de múltipla escolha a partir das suas disciplinas e conteúdos, responda em modo prova e veja acertos por conteúdo.",
       },
-      { property: "og:title", content: "Modo prova e simulados — ORDYS" },
+      { property: "og:title", content: "Modo prova e simulados — Ordys Academy" },
       {
         property: "og:description",
         content: "Simulados gerados pelos seus próprios conteúdos, com correção e explicação.",
@@ -44,69 +45,54 @@ function Simulado() {
   const [active, setActive] = useState("Novo simulado");
   const { data: subjects = [] } = useSubjects();
   const { data: attempts = [] } = useQuizAttempts();
-  const { userId, refresh, insert } = useOrdysMutations();
-  const { guest } = useAuth();
-  const runGenerate = useServerFn(generateQuiz);
+  const { userId, refresh } = useOrdysMutations();
+  const { isDemo } = useAuth();
 
   const [subjectId, setSubjectId] = useState("");
   const { data: topics = [] } = useTopics(subjectId || null);
   const [difficulty, setDifficulty] = useState<"facil" | "media" | "dificil">("media");
   const [count, setCount] = useState("5");
   const [loading, setLoading] = useState(false);
-  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [questions, setQuestions] = useState<OrdysQuizQuestion[]>([]);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [finished, setFinished] = useState(false);
+  const [activeQuiz, setActiveQuiz] = useState<{
+    subjectId: string;
+    difficulty: "facil" | "media" | "dificil";
+  } | null>(null);
 
   const subject = subjects.find((s) => s.id === subjectId);
+  const quizInProgress = questions.length > 0 && !finished;
   const correct = questions.filter((q, i) => answers[i] === q.correct_answer).length;
 
   async function start() {
+    if (isDemo) {
+      toast.error("Simulados com IA exigem uma conta ORDYS. Entre para usar este recurso.");
+      return;
+    }
     if (!subject) return;
+    const quizInput = {
+      subjectId: subject.id,
+      difficulty,
+      questionCount: Number(count),
+    };
     setLoading(true);
     setFinished(false);
     setAnswers({});
+    setQuestions([]);
+    setActiveQuiz(null);
     try {
-      if (guest) {
-        const topicTitles = topics.length
-          ? topics.map((topic) => topic.title)
-          : [`Conteúdos de ${subject.name}`, "Revisão guiada", "Exercícios principais"];
-        const templates = [
-          `Qual conteúdo está diretamente associado à disciplina ${subject.name}?`,
-          `Qual ação é mais adequada para estudar ${subject.name}?`,
-          `Qual item abaixo aparece no programa de ${subject.name}?`,
-          `Qual é uma boa próxima ação para revisar ${subject.name}?`,
-        ];
-        const generated: QuizQuestion[] = Array.from({ length: Number(count) }, (_, i) => {
-          const correctAnswer = topicTitles[i % topicTitles.length]!;
-          const options = [
-            correctAnswer,
-            "Ignorar o conteúdo até a véspera.",
-            "Não registrar nenhum progresso.",
-            "Pular todas as revisões.",
-          ];
-          return {
-            question: templates[i % templates.length]!,
-            options,
-            correct_answer: correctAnswer,
-            explanation: "Questão demonstrativa do modo visita, usando os conteúdos disponíveis.",
-            topic: topics[i % Math.max(1, topics.length)]?.title ?? null,
-          };
-        });
-        setQuestions(generated);
-      } else {
-        const res = await runGenerate({
-          data: {
-            subjectId: subject.id,
-            difficulty,
-            questionCount: Number(count),
-          },
-        });
-        if (res.error || !res.questions.length) {
-          toast.error(res.error ?? "Nenhuma questão gerada");
-          return;
-        }
-        setQuestions(res.questions);
+      const generatedQuestions = await generateOrdysQuiz(quizInput);
+      if (!generatedQuestions.length) {
+        toast.error("Nenhuma questão foi gerada.");
+        return;
       }
+      setActiveQuiz({
+        subjectId: quizInput.subjectId,
+        difficulty: quizInput.difficulty,
+      });
+      setQuestions(generatedQuestions);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao gerar simulado");
     } finally {
@@ -115,64 +101,61 @@ function Simulado() {
   }
 
   async function finish() {
-    setFinished(true);
-    if (!userId || !subject) return;
+    if (!userId || !activeQuiz || saving || !questions.length) return;
+    setSaving(true);
+    let attemptId: string | null = null;
     try {
-      if (guest) {
-        const created = await insert("quiz_attempts", {
-          subject_id: subject.id,
-          difficulty,
+      const { data: topicRows, error: topicsError } = await supabase
+        .from("topics")
+        .select("id,title")
+        .eq("user_id", userId)
+        .eq("subject_id", activeQuiz.subjectId);
+      if (topicsError) throw new Error(topicsError.message);
+
+      const { data: created, error } = await supabase
+        .from("quiz_attempts")
+        .insert({
+          user_id: userId,
+          subject_id: activeQuiz.subjectId,
+          difficulty: activeQuiz.difficulty,
           question_count: questions.length,
           correct_count: correct,
           status: "concluido",
           finished_at: new Date().toISOString(),
-        });
-        const attemptId = (created as { id: string }).id;
-        for (const [i, q] of questions.entries()) {
-          await insert("quiz_answers", {
-            attempt_id: attemptId,
-            topic_id: topics.find((t) => t.title === q.topic)?.id ?? null,
-            question: q.question,
-            options: q.options,
-            correct_answer: q.correct_answer,
-            given_answer: answers[i] ?? null,
-            is_correct: answers[i] === q.correct_answer,
-            explanation: q.explanation,
-          });
-        }
-      } else {
-        const { data: created, error } = await supabase
-          .from("quiz_attempts")
-          .insert({
-            user_id: userId,
-            subject_id: subject.id,
-            difficulty,
-            question_count: questions.length,
-            correct_count: correct,
-            status: "concluido",
-            finished_at: new Date().toISOString(),
-          } as never)
-          .select()
-          .single();
-        if (error) throw new Error(error.message);
-        const attemptId = (created as { id: string }).id;
-        const rows = questions.map((q, i) => ({
-          user_id: userId,
-          attempt_id: attemptId,
-          topic_id: topics.find((t) => t.title === q.topic)?.id ?? null,
-          question: q.question,
-          options: q.options,
-          correct_answer: q.correct_answer,
-          given_answer: answers[i] ?? null,
-          is_correct: answers[i] === q.correct_answer,
-          explanation: q.explanation,
-        }));
-        await supabase.from("quiz_answers").insert(rows as never);
-      }
+        } as never)
+        .select()
+        .single();
+      if (error) throw new Error(error.message);
+
+      attemptId = (created as { id: string }).id;
+      const rows = questions.map((q, i) => ({
+        user_id: userId,
+        attempt_id: attemptId,
+        topic_id: (topicRows ?? []).find((topic) => topic.title === q.topic)?.id ?? null,
+        question: q.question,
+        options: q.options,
+        correct_answer: q.correct_answer,
+        given_answer: answers[i] ?? null,
+        is_correct: answers[i] === q.correct_answer,
+        explanation: q.explanation,
+      }));
+      const { error: answersError } = await supabase.from("quiz_answers").insert(rows as never);
+      if (answersError) throw new Error(answersError.message);
+
+      setFinished(true);
       refresh();
       toast.success(`Simulado salvo · ${correct}/${questions.length}`);
     } catch (err) {
+      if (attemptId) {
+        await supabase
+          .from("quiz_attempts")
+          .delete()
+          .eq("id", attemptId)
+          .eq("user_id", userId);
+      }
       toast.error(err instanceof Error ? err.message : "Erro ao salvar simulado");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -222,7 +205,7 @@ function Simulado() {
           <Panel className="mt-4 px-5 py-5">
             <div className="grid gap-3 sm:grid-cols-4">
               <Field label="Disciplina">
-                <Select value={subjectId} onChange={(e) => setSubjectId(e.target.value)}>
+                <Select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} disabled={loading || quizInProgress}>
                   <option value="">Selecione</option>
                   {subjects.map((s) => (
                     <option key={s.id} value={s.id}>
@@ -235,6 +218,7 @@ function Simulado() {
                 <Select
                   value={difficulty}
                   onChange={(e) => setDifficulty(e.target.value as "facil" | "media" | "dificil")}
+                  disabled={loading || quizInProgress}
                 >
                   <option value="facil">Fácil</option>
                   <option value="media">Média</option>
@@ -242,7 +226,7 @@ function Simulado() {
                 </Select>
               </Field>
               <Field label="Questões">
-                <Select value={count} onChange={(e) => setCount(e.target.value)}>
+                <Select value={count} onChange={(e) => setCount(e.target.value)} disabled={loading || quizInProgress}>
                   {[5, 8, 10].map((n) => (
                     <option key={n} value={n}>
                       {n}
@@ -251,13 +235,15 @@ function Simulado() {
                 </Select>
               </Field>
               <div className="flex items-end">
-                <Button onClick={start} disabled={!subjectId || loading}>
+                <Button onClick={start} disabled={isDemo || !ORDYS_PLUS_AI_ENABLED || !subjectId || loading || quizInProgress}>
                   <Sparkles className="size-[13px]" strokeWidth={1.8} />
                   {loading ? "Gerando…" : "Gerar simulado"}
                 </Button>
               </div>
             </div>
-            {subjectId && !topics.length ? (
+            {!ORDYS_PLUS_AI_ENABLED ? (
+              <p className="mt-3 text-[11.5px] text-muted-foreground">{ORDYS_PLUS_LOCK_SHORT_MESSAGE}</p>
+            ) : subjectId && !topics.length ? (
               <p className="mt-3 text-[11.5px] text-muted-foreground">
                 Cadastre conteúdos nessa disciplina para questões mais alinhadas ao seu programa.
               </p>
@@ -275,7 +261,7 @@ function Simulado() {
                       {correct}/{questions.length}
                     </Chip>
                   ) : (
-                    <Button onClick={finish} disabled={Object.keys(answers).length !== questions.length}>
+                    <Button onClick={finish} disabled={saving || Object.keys(answers).length !== questions.length}>
                       Finalizar
                     </Button>
                   )
@@ -293,11 +279,11 @@ function Simulado() {
                         const isCorrect = finished && opt === q.correct_answer;
                         const isWrong = finished && chosen && opt !== q.correct_answer;
                         return (
-                          <button
+                          <button type="button"
                             key={opt}
                             disabled={finished}
                             onClick={() => setAnswers({ ...answers, [i]: opt })}
-                            className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-left text-[12px] transition-colors ${
+                            className={`flex min-h-11 items-center gap-2 rounded-lg border px-3 py-2 text-left text-[12px] transition-colors ${
                               isCorrect
                                 ? "border-success/50 bg-success/10"
                                 : isWrong
@@ -317,6 +303,13 @@ function Simulado() {
                     {finished && q.explanation ? (
                       <p className="mt-2 text-[11.5px] text-muted-foreground">{q.explanation}</p>
                     ) : null}
+                    <div className="mt-2">
+                      <AiContentReportButton
+                        source="quiz"
+                        label="Sinalizar questão"
+                        content={[`Questão: ${q.question}`, ...q.options.map((option, optionIndex) => `${String.fromCharCode(65 + optionIndex)}. ${option}`), `Resposta correta: ${q.correct_answer}`, q.explanation ? `Explicação: ${q.explanation}` : ""].filter(Boolean).join("\n")}
+                      />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -342,15 +335,15 @@ function Simulado() {
           <div className="border-t border-border">
             {attempts.length ? (
               attempts.map((a) => (
-                <div key={a.id} className="flex items-center gap-3 px-5 py-2.5 text-[12.5px]">
+                <div key={a.id} className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-5 py-2.5 text-[12.5px]">
                   <span className="min-w-0 flex-1 truncate">
                     {subjects.find((s) => s.id === a.subject_id)?.name ?? "Disciplina"}
                   </span>
-                  <Chip>{difficultyLabel(a.difficulty)}</Chip>
-                  <span className="num text-muted-foreground">
+                  <Chip className="shrink-0">{difficultyLabel(a.difficulty)}</Chip>
+                  <span className="num shrink-0 text-muted-foreground">
                     {a.correct_count ?? 0}/{a.question_count}
                   </span>
-                  <span className="num text-[11px] text-muted-foreground">{a.created_at.slice(0, 10)}</span>
+                  <span className="num shrink-0 text-[11px] text-muted-foreground">{a.created_at.slice(0, 10)}</span>
                 </div>
               ))
             ) : (

@@ -8,56 +8,102 @@ function record(error: unknown) {
   lastCapturedError = { error, at: Date.now() };
 }
 
-// h3's HTTPError serializes to {"status":500,"unhandled":true,"message":"HTTPError"} —
-// no stack, no cause — so a plain console.error(error) reaches the log pipeline with
-// the failure detail stripped. Expand Error-like args into a string that keeps the
-// message, stack, and the full cause chain.
+// Server logs retain diagnostic identifiers and stack frames, but never free-form
+// exception messages or arbitrary objects that may contain request/user data.
 const CAUSE_DEPTH_LIMIT = 5;
 const DESCRIPTION_LENGTH_LIMIT = 8_000;
+const STACK_FRAME_LIMIT = 12;
+const STACK_FRAME_LENGTH_LIMIT = 300;
 
 export function describeError(error: unknown): string {
   const parts: string[] = [];
   let current: unknown = error;
+
   for (let depth = 0; depth < CAUSE_DEPTH_LIMIT && current != null; depth++) {
+    const label = depth === 0 ? "" : "caused by: ";
     if (!(current instanceof Error)) {
-      parts.push(typeof current === "string" ? current : safeStringify(current));
+      parts.push(`${label}[non-error cause omitted]`);
       break;
     }
-    const label = depth === 0 ? "" : "caused by: ";
+
+    const name = safeErrorName(current.name);
     const status = describeStatus(current);
-    parts.push(`${label}${current.stack ?? `${current.name}: ${current.message}`}${status}`);
+    const frames = safeStackFrames(current);
+    parts.push(`${label}${name}${status}${frames.length ? `\n${frames.join("\n")}` : ""}`);
     current = current.cause;
   }
+
   return parts.join("\n").slice(0, DESCRIPTION_LENGTH_LIMIT);
+}
+
+function safeErrorName(name: string) {
+  return /^[A-Za-z][A-Za-z0-9_.-]{0,79}$/.test(name) ? name : "Error";
+}
+
+function redactStackFrame(line: string) {
+  const queryStart = line.indexOf("?");
+  if (queryStart < 0) return line.slice(0, STACK_FRAME_LENGTH_LIMIT);
+
+  const hasClosingParen = line.endsWith(")");
+  const location = hasClosingParen ? line.slice(0, -1) : line;
+  const columnSeparator = location.lastIndexOf(":");
+  const lineSeparator = location.lastIndexOf(":", columnSeparator - 1);
+  const hasLineAndColumn =
+    lineSeparator > queryStart &&
+    /^\d+$/.test(location.slice(lineSeparator + 1, columnSeparator)) &&
+    /^\d+$/.test(location.slice(columnSeparator + 1));
+  const suffixStart = hasLineAndColumn
+    ? lineSeparator
+    : hasClosingParen
+      ? line.length - 1
+      : line.length;
+
+  return (
+    line.slice(0, queryStart) +
+    "?[redacted]" +
+    line.slice(suffixStart)
+  ).slice(0, STACK_FRAME_LENGTH_LIMIT);
+}
+
+function safeStackFrames(error: Error) {
+  if (typeof error.stack !== "string") return [];
+  return error.stack
+    .split("\n")
+    .slice(1)
+    .filter((line) => /^\s*at\s+/.test(line))
+    .slice(0, STACK_FRAME_LIMIT)
+    .map(redactStackFrame);
 }
 
 function describeStatus(error: Error): string {
   const { status, statusCode } = error as { status?: unknown; statusCode?: unknown };
   const value = status ?? statusCode;
-  return typeof value === "number" ? ` (status ${value})` : "";
-}
-
-function safeStringify(value: unknown): string {
-  try {
-    return JSON.stringify(value) ?? String(value);
-  } catch {
-    return String(value);
-  }
+  return typeof value === "number" && Number.isFinite(value) ? ` (status ${value})` : "";
 }
 
 function isErrorLike(value: unknown): value is Error {
   return value instanceof Error;
 }
 
-// Wrap console.error so errors logged by any layer — including h3's internal
-// unhandled-error logging, which this file cannot hook directly — are both
-// recorded for consumeLastCapturedError and expanded before serialization.
+// Wrap console.error so h3 and application failures retain useful stack frames
+// without serializing arbitrary objects or user/provider-controlled messages.
 const originalConsoleError = console.error.bind(console);
 console.error = (...args: unknown[]) => {
   const expanded = args.map((arg) => {
-    if (!isErrorLike(arg)) return arg;
-    record(arg);
-    return describeError(arg);
+    if (isErrorLike(arg)) {
+      record(arg);
+      return describeError(arg);
+    }
+    if (
+      arg === null ||
+      arg === undefined ||
+      typeof arg === "string" ||
+      typeof arg === "number" ||
+      typeof arg === "boolean"
+    ) {
+      return arg;
+    }
+    return "[non-error diagnostic omitted]";
   });
   originalConsoleError(...expanded);
 };

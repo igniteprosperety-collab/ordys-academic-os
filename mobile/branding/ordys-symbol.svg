@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="320" viewBox="0 0 320 320" role="img" aria-label="ORDYS">
+  <rect width="320" height="320" fill="#0A1128"/>
+  <g stroke="#56EFFF" stroke-width="2" stroke-linejoin="round">
+    <path fill="#1596FF" d="M14 57 C48 74 83 91 124 103 C174 118 224 131 249 157 C261 170 270 185 276 208 C245 193 212 182 178 172 C129 157 85 145 56 129 C31 115 21 94 14 57 Z"/>
+    <path fill="#20C5FF" d="M42 158 C76 173 119 185 162 187 C207 189 245 197 276 208 C243 212 207 214 171 212 C125 210 83 202 59 190 C50 185 44 173 42 158 Z"/>
+    <path fill="#176AFF" d="M276 208 C250 232 225 257 198 281 C176 301 149 310 119 316 C131 292 145 269 165 244 C189 214 224 207 276 208 Z"/>
+  </g>
+</svg>

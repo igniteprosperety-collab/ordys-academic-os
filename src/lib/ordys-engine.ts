@@ -1,4 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
+import { getOrdysDataClient } from "@/lib/demo-supabase";
+import { getActiveLocalProfileId, isDemoMode } from "@/lib/demo-mode";
 import type {
   AttendanceRecord,
   Exam,
@@ -12,7 +14,11 @@ import type {
   Topic,
 } from "./ordys-db";
 import { subjectAttendance, subjectAverage } from "./ordys-db";
-import { isGuestMode, insertGuestRow, readGuestRows, removeGuestRow, updateGuestRow } from "./demo-mode";
+
+function dataClient() {
+  return isDemoMode() ? getOrdysDataClient() : supabase;
+}
+
 
 /* ------------------------------------------------------------- date utils */
 
@@ -20,6 +26,16 @@ export const dateKey = (d: Date) => {
   const p = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 };
+
+export function parseTimeOfDay(value: string | null | undefined) {
+  if (!value) return null;
+  const [hourText, minuteText] = value.slice(0, 5).split(":");
+  if (hourText === undefined || minuteText === undefined) return null;
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+  return { hour, minute };
+}
 
 export const parseDateKey = (key: string) => {
   const [y, m, d] = key.split("-").map(Number);
@@ -43,6 +59,7 @@ export const startOfWeek = (d: Date) => {
 export const daysUntil = (iso: string | null) => {
   if (!iso) return null;
   const target = new Date(iso);
+  if (Number.isNaN(target.getTime())) return null;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const base = new Date(target);
@@ -51,6 +68,9 @@ export const daysUntil = (iso: string | null) => {
 };
 
 export const weekdayShort = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+
+/** Converte o índice ORDYS (segunda=0 ... domingo=6) para o índice de Date.getDay(). */
+export const ordysWeekdayToJsDay = (weekday: number) => (weekday + 1) % 7;
 
 export const weekdayLong = [
   "Segunda-feira",
@@ -67,6 +87,50 @@ export const priorityLabel = (value: string | null) =>
 
 export const difficultyLabel = (value: string | null) =>
   value === "facil" ? "Fácil" : value === "dificil" ? "Difícil" : "Média";
+
+export const taskStatusLabel = (value: string | null) =>
+  value === "nao_iniciada" ? "Não iniciada" :
+  value === "pendente" ? "Pendente" :
+  value === "em_andamento" ? "Em andamento" :
+  value === "concluida" ? "Concluída" :
+  value === "atrasada" ? "Atrasada" : "Status não informado";
+
+export const planStatusLabel = (value: string | null) =>
+  value === "planejada" ? "Planejada" :
+  value === "em_andamento" ? "Em andamento" :
+  value === "concluida" ? "Concluída" :
+  value === "perdida" ? "Perdida" :
+  value === "cancelada" ? "Cancelada" : "Status não informado";
+
+export const reviewStatusLabel = (value: string | null) =>
+  value === "pendente" ? "Pendente" :
+  value === "concluida" ? "Concluída" :
+  value === "cancelada" ? "Cancelada" : "Status não informado";
+
+export const topicStatusLabel = (value: string | null) =>
+  value === "nao_estudado" ? "Não estudado" :
+  value === "estudando" ? "Estudando" :
+  value === "estudado" ? "Estudado" :
+  value === "precisa_revisar" ? "Precisa revisar" :
+  value === "dominado" ? "Dominado" : "Status não informado";
+
+export const attendanceStatusLabel = (value: string | null) =>
+  value === "presente" ? "Presente" :
+  value === "falta" ? "Falta" :
+  value === "justificada" ? "Justificada" : "Status não informado";
+
+export const goalMetricLabel = (value: string | null) =>
+  value === "horas_estudo" ? "horas de estudo" :
+  value === "media" || value === "media_disciplina" ? "média" :
+  value === "frequencia" ? "frequência" :
+  value === "tarefas" ? "tarefas" : "métrica não informada";
+
+export const goalPeriodLabel = (value: string | null) =>
+  value === "diario" ? "diário" :
+  value === "semanal" || value === "semana" ? "semanal" :
+  value === "mensal" ? "mensal" :
+  value === "bimestral" ? "bimestral" :
+  value === "semestral" ? "semestral" : "período não informado";
 
 export const formatDateTime = (iso: string | null) =>
   iso
@@ -93,6 +157,8 @@ type PlanInput = {
   grades: Grade[];
   reviews: Review[];
   existing: PlanSession[];
+  schedules?: import("./ordys-db").SubjectSchedule[];
+  calendarEvents?: import("./ordys-db").CalendarEvent[];
   days?: number;
 };
 
@@ -114,38 +180,57 @@ export function buildCandidates(input: PlanInput): Candidate[] {
   const { subjects, topics, tasks, exams, grades, reviews, profile } = input;
   const scale = Number(profile?.grade_scale_max ?? 10);
   const out: Candidate[] = [];
+  const seen = new Set<string>();
+
+  const push = (candidate: Candidate) => {
+    const key = [
+      candidate.kind,
+      candidate.subject_id ?? "",
+      candidate.topic_id ?? "",
+      candidate.exam_id ?? "",
+      candidate.task_id ?? "",
+    ].join(":");
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(candidate);
+  };
 
   for (const exam of exams) {
     const left = daysUntil(exam.exam_at);
     if (left === null || left < 0 || left > 14) continue;
+
     const subject = subjects.find((s) => s.id === exam.subject_id);
-    const related = topics.filter((t) => t.subject_id === exam.subject_id);
+    const related = topics
+      .filter((t) => t.subject_id === exam.subject_id)
+      .sort((a, b) => a.mastery - b.mastery);
     const weak = related.filter((t) => WEAK_STATUS.has(t.status) || t.mastery < 70);
-    const pool = weak.length ? weak : related.slice(0, 2);
+    const pool = (weak.length ? weak : related).slice(0, left <= 3 ? 4 : 3);
     const urgency = left <= 3 ? 1 : left <= 7 ? 2 : 3;
+
     if (!pool.length) {
-      out.push({
+      push({
         subject_id: exam.subject_id,
         topic_id: null,
         exam_id: exam.id,
         task_id: null,
         duration_minutes: 45,
-        kind: "estudo",
-        reason: `${subject?.name ?? "Prova"} — prova em ${left} dia(s)`,
+        kind: exam.kind === "simulado" ? "simulado" : "estudo",
+        reason: `${subject?.name ?? "Disciplina"} — avaliação em ${left === 0 ? "hoje" : left === 1 ? "1 dia" : `${left} dias`}`,
         priority: urgency,
         latest: dateKey(new Date(exam.exam_at)),
       });
       continue;
     }
-    for (const topic of pool.slice(0, left <= 3 ? 4 : 3)) {
-      out.push({
+
+    for (const topic of pool) {
+      push({
         subject_id: exam.subject_id,
         topic_id: topic.id,
         exam_id: exam.id,
         task_id: null,
         duration_minutes: topic.mastery < 40 ? 60 : 45,
         kind: "estudo",
-        reason: `Prova de ${subject?.name ?? "disciplina"} em ${left} dia(s) · domínio ${topic.mastery}% em ${topic.title}`,
+        reason: `Prova de ${subject?.name ?? "disciplina"} em ${left === 0 ? "hoje" : left === 1 ? "1 dia" : `${left} dias`} · domínio ${topic.mastery}% em ${topic.title}`,
         priority: urgency,
         latest: dateKey(new Date(exam.exam_at)),
       });
@@ -156,19 +241,20 @@ export function buildCandidates(input: PlanInput): Candidate[] {
     if (task.status === "concluida") continue;
     const left = daysUntil(task.due_at);
     if (left === null || left > 7) continue;
-    out.push({
+
+    const overdue = left < 0;
+    push({
       subject_id: task.subject_id,
       topic_id: task.topic_id,
       exam_id: null,
       task_id: task.id,
-      duration_minutes: task.estimated_minutes ?? 45,
+      duration_minutes: Math.min(240, Math.max(5, task.estimated_minutes ?? 45)),
       kind: "tarefa",
-      reason:
-        left < 0
-          ? `Tarefa atrasada: ${task.title}`
-          : `Tarefa "${task.title}" vence em ${left} dia(s)`,
-      priority: left <= 1 ? 1 : 2,
-      latest: task.due_at ? dateKey(new Date(task.due_at)) : null,
+      reason: overdue
+        ? `Tarefa atrasada: ${task.title}`
+        : `Tarefa "${task.title}" vence ${left === 0 ? "hoje" : left === 1 ? "amanhã" : `em ${left} dias`}`,
+      priority: overdue ? 0 : left <= 1 ? 1 : 2,
+      latest: overdue ? dateKey(new Date()) : task.due_at ? dateKey(new Date(task.due_at)) : null,
     });
   }
 
@@ -176,7 +262,8 @@ export function buildCandidates(input: PlanInput): Candidate[] {
     if (review.status !== "pendente") continue;
     const topic = topics.find((t) => t.id === review.topic_id);
     if (!topic) continue;
-    out.push({
+
+    push({
       subject_id: topic.subject_id,
       topic_id: topic.id,
       exam_id: null,
@@ -184,8 +271,8 @@ export function buildCandidates(input: PlanInput): Candidate[] {
       duration_minutes: 30,
       kind: "revisao",
       reason: review.reason ?? `Revisão de ${topic.title}`,
-      priority: 2,
-      latest: review.due_on,
+      priority: review.due_on <= dateKey(new Date()) ? 1 : 2,
+      latest: review.due_on < dateKey(new Date()) ? dateKey(new Date()) : review.due_on,
     });
   }
 
@@ -195,10 +282,11 @@ export function buildCandidates(input: PlanInput): Candidate[] {
     if (avg !== null && goal !== null && avg < goal) {
       const weak = topics
         .filter((t) => t.subject_id === subject.id && (WEAK_STATUS.has(t.status) || t.mastery < 60))
-        .slice(0, 1);
-      out.push({
+        .sort((a, b) => a.mastery - b.mastery)[0];
+
+      push({
         subject_id: subject.id,
-        topic_id: weak[0]?.id ?? null,
+        topic_id: weak?.id ?? null,
         exam_id: null,
         task_id: null,
         duration_minutes: 45,
@@ -214,113 +302,149 @@ export function buildCandidates(input: PlanInput): Candidate[] {
 }
 
 export async function generateWeeklyPlan(input: PlanInput) {
-  const days = input.days ?? 7;
+  const days = Math.max(1, Math.min(14, input.days ?? 7));
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const rangeStart = dateKey(today);
   const rangeEnd = dateKey(addDays(today, days - 1));
-  const dailyLimit = input.profile?.daily_load_limit_minutes ?? 240;
+  const dailyLimit = Math.max(0, Math.min(1440, Number(input.profile?.daily_load_limit_minutes ?? 240)));
 
-  if (isGuestMode()) {
-    const stateRows = readGuestRows<PlanSession>("plan_sessions");
-    for (const row of stateRows) {
-      if (
-        row.generated &&
-        row.status === "planejada" &&
-        row.session_date >= rangeStart &&
-        row.session_date <= rangeEnd
-      ) removeGuestRow("plan_sessions", row.id);
-    }
-
-    const manual = readGuestRows<PlanSession>("plan_sessions").filter(
-      (s) => (!s.generated || s.status !== "planejada") && s.session_date >= rangeStart && s.session_date <= rangeEnd,
-    );
-    const load = new Map<string, number>();
-    for (let i = 0; i < days; i++) load.set(dateKey(addDays(today, i)), 0);
-    for (const s of manual) load.set(s.session_date, (load.get(s.session_date) ?? 0) + s.duration_minutes);
-
-    const rows: Record<string, unknown>[] = [];
-    for (const candidate of buildCandidates(input)) {
-      for (let i = 0; i < days; i++) {
-        const key = dateKey(addDays(today, i));
-        if (candidate.latest && key > candidate.latest) break;
-        const used = load.get(key) ?? 0;
-        if (used + candidate.duration_minutes > dailyLimit) continue;
-        const hour = Math.min(21, 15 + Math.floor(used / 60));
-        const row = {
-          subject_id: candidate.subject_id,
-          topic_id: candidate.topic_id,
-          exam_id: candidate.exam_id,
-          task_id: candidate.task_id,
-          session_date: key,
-          start_time: `${String(hour).padStart(2, "0")}:00`,
-          duration_minutes: candidate.duration_minutes,
-          kind: candidate.kind,
-          reason: candidate.reason,
-          priority: candidate.priority,
-          status: "planejada",
-          generated: true,
-        };
-        insertGuestRow("plan_sessions", row);
-        rows.push(row);
-        load.set(key, used + candidate.duration_minutes);
-        break;
-      }
-    }
-    return rows.length;
-  }
-
-  // limpa apenas o que foi gerado automaticamente e ainda não foi feito
-  await supabase
+  const { error: clearError } = await dataClient()
     .from("plan_sessions")
     .delete()
+    .eq("user_id", input.userId)
     .eq("generated", true)
     .eq("status", "planejada")
     .gte("session_date", rangeStart)
     .lte("session_date", rangeEnd);
+  if (clearError) throw new Error(clearError.message);
 
   const manual = input.existing.filter(
     (s) => (!s.generated || s.status !== "planejada") && s.session_date >= rangeStart && s.session_date <= rangeEnd,
   );
 
+  const toMinutes = (value: string | null | undefined) => {
+    const parsed = parseTimeOfDay(value);
+    return parsed ? parsed.hour * 60 + parsed.minute : null;
+  };
+
+  const occupied = new Map<string, Array<{ start: number; end: number }>>();
+  const addOccupied = (day: string, start: number, end: number) => {
+    if (end <= start) return;
+    const list = occupied.get(day) ?? [];
+    list.push({ start, end });
+    occupied.set(day, list);
+  };
+
+  const weekdayIndex = (d: Date) => (d.getDay() + 6) % 7; // Monday = 0
+
+  for (const session of manual) {
+    const start = toMinutes(session.start_time);
+    if (start === null) continue;
+    addOccupied(session.session_date, start, start + Math.max(5, session.duration_minutes));
+  }
+
+  for (let i = 0; i < days; i++) {
+    const day = addDays(today, i);
+    const key = dateKey(day);
+    for (const schedule of input.schedules ?? []) {
+      if (schedule.weekday !== weekdayIndex(day)) continue;
+      const start = toMinutes(schedule.start_time);
+      const end = toMinutes(schedule.end_time);
+      if (start !== null && end !== null) addOccupied(key, start, end);
+    }
+
+    const dayStart = new Date(day);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = addDays(dayStart, 1);
+
+    for (const event of input.calendarEvents ?? []) {
+      const startDate = new Date(event.starts_at);
+      if (Number.isNaN(startDate.getTime())) continue;
+
+      const requestedEnd = event.ends_at ? new Date(event.ends_at) : null;
+      const endDate =
+        requestedEnd && !Number.isNaN(requestedEnd.getTime()) && requestedEnd > startDate
+          ? requestedEnd
+          : new Date(startDate.getTime() + 60 * 60 * 1000);
+
+      const overlapStart = startDate > dayStart ? startDate : dayStart;
+      const overlapEnd = endDate < dayEnd ? endDate : dayEnd;
+      if (overlapEnd <= overlapStart) continue;
+
+      const start =
+        overlapStart <= dayStart
+          ? 0
+          : overlapStart.getHours() * 60 + overlapStart.getMinutes();
+      const end =
+        overlapEnd >= dayEnd
+          ? 24 * 60
+          : overlapEnd.getHours() * 60 + overlapEnd.getMinutes();
+      if (end > start) addOccupied(key, start, end);
+    }
+  }
+
   const load = new Map<string, number>();
   for (let i = 0; i < days; i++) load.set(dateKey(addDays(today, i)), 0);
-  for (const s of manual) load.set(s.session_date, (load.get(s.session_date) ?? 0) + s.duration_minutes);
+  for (const s of manual) load.set(s.session_date, (load.get(s.session_date) ?? 0) + Math.max(0, s.duration_minutes));
 
   const candidates = buildCandidates(input);
   const rows: Record<string, unknown>[] = [];
 
+  const fits = (day: string, start: number, duration: number) => {
+    const end = start + duration;
+    if (start < 6 * 60 || end > 22 * 60) return false;
+    if ((load.get(day) ?? 0) + duration > dailyLimit) return false;
+    return !(occupied.get(day) ?? []).some((block) => start < block.end && end > block.start);
+  };
+
+  const orderedStarts = (duration: number) => {
+    const preferred = 15 * 60;
+    const min = 6 * 60;
+    const max = 22 * 60 - duration;
+    const starts: number[] = [];
+    for (let start = min; start <= max; start += 15) starts.push(start);
+    return starts.sort((a, b) => Math.abs(a - preferred) - Math.abs(b - preferred));
+  };
+
   for (const candidate of candidates) {
-    const limitKey = candidate.latest;
-    for (let i = 0; i < days; i++) {
-      const key = dateKey(addDays(today, i));
-      if (limitKey && key > limitKey) break;
-      const used = load.get(key) ?? 0;
-      if (used + candidate.duration_minutes > dailyLimit) continue;
-      const slotIndex = Math.floor(used / 60);
-      const hour = Math.min(21, 15 + slotIndex);
-      load.set(key, used + candidate.duration_minutes);
-      rows.push({
-        user_id: input.userId,
-        subject_id: candidate.subject_id,
-        topic_id: candidate.topic_id,
-        exam_id: candidate.exam_id,
-        task_id: candidate.task_id,
-        session_date: key,
-        start_time: `${String(hour).padStart(2, "0")}:00`,
-        duration_minutes: candidate.duration_minutes,
-        kind: candidate.kind,
-        reason: candidate.reason,
-        priority: candidate.priority,
-        status: "planejada",
-        generated: true,
-      });
-      break;
+    let placed = false;
+    const duration = Math.min(candidate.duration_minutes, dailyLimit);
+    if (duration < 5) continue;
+    for (let i = 0; i < days && !placed; i++) {
+      const day = addDays(today, i);
+      const key = dateKey(day);
+      if (candidate.latest && key > candidate.latest) break;
+
+      for (const start of orderedStarts(duration)) {
+        if (!fits(key, start, duration)) continue;
+
+        const end = start + duration;
+        addOccupied(key, start, end);
+        load.set(key, (load.get(key) ?? 0) + duration);
+        rows.push({
+          user_id: input.userId,
+          subject_id: candidate.subject_id,
+          topic_id: candidate.topic_id,
+          exam_id: candidate.exam_id,
+          task_id: candidate.task_id,
+          session_date: key,
+          start_time: `${String(Math.floor(start / 60)).padStart(2, "0")}:${String(start % 60).padStart(2, "0")}`,
+          duration_minutes: duration,
+          kind: candidate.kind,
+          reason: candidate.reason,
+          priority: candidate.priority,
+          status: "planejada",
+          generated: true,
+        });
+        placed = true;
+        break;
+      }
     }
   }
 
   if (rows.length) {
-    const { error } = await supabase.from("plan_sessions").insert(rows as never);
+    const { error } = await dataClient().from("plan_sessions").insert(rows as never);
     if (error) throw new Error(error.message);
   }
   return rows.length;
@@ -330,23 +454,21 @@ export async function generateWeeklyPlan(input: PlanInput) {
 export async function replanMissed(input: PlanInput) {
   const todayKey = dateKey(new Date());
   const missed = input.existing.filter((s) => s.status === "planejada" && s.session_date < todayKey);
-  if (isGuestMode()) {
-    for (const s of missed) updateGuestRow("plan_sessions", s.id, { status: "perdida" });
-    const existing = readGuestRows<PlanSession>("plan_sessions");
-    const created = await generateWeeklyPlan({ ...input, existing });
-    return { missed: missed.length, created };
-  }
   if (missed.length) {
-    const { error } = await supabase
+    const { error } = await dataClient()
       .from("plan_sessions")
       .update({ status: "perdida" })
       .in(
         "id",
         missed.map((s) => s.id),
-      );
+      )
+      .eq("user_id", input.userId);
     if (error) throw new Error(error.message);
   }
-  const refreshed = await supabase.from("plan_sessions").select("*");
+  const refreshed = await dataClient()
+    .from("plan_sessions")
+    .select("*")
+    .eq("user_id", input.userId);
   const existing = (refreshed.data ?? []) as PlanSession[];
   const created = await generateWeeklyPlan({ ...input, existing });
   return { missed: missed.length, created };
@@ -361,12 +483,23 @@ export async function ensureAutomaticReviews(params: {
   reviews: Review[];
 }) {
   const { userId, topics, exams, reviews } = params;
+
+  // Automatic review generation can run after the user switches local profiles.
+  // Never write data for the previous profile into the newly active local store.
+  if (isDemoMode() && getActiveLocalProfileId() !== userId) return 0;
   const pending = new Set(reviews.filter((r) => r.status === "pendente").map((r) => r.topic_id));
+  const existingAutomatic = new Set(
+    reviews
+      .filter((r) => r.source === "automatico")
+      .map((r) => `${r.topic_id}:${r.due_on}`),
+  );
   const rows: Record<string, unknown>[] = [];
   const today = new Date();
+  const todayKey = dateKey(today);
 
   for (const topic of topics) {
     if (pending.has(topic.id)) continue;
+    if (topic.last_review === todayKey) continue;
     const exam = exams
       .filter((e) => e.subject_id === topic.subject_id)
       .map((e) => ({ e, left: daysUntil(e.exam_at) }))
@@ -381,11 +514,13 @@ export async function ensureAutomaticReviews(params: {
 
     if (!needsReview) continue;
     const due = exam ? addDays(new Date(exam.e.exam_at), -1) : addDays(today, topic.mastery < 40 ? 1 : 3);
+    const dueOn = dateKey(due < today ? today : due);
+    if (existingAutomatic.has(`${topic.id}:${dueOn}`)) continue;
     rows.push({
       user_id: userId,
       topic_id: topic.id,
-      due_on: dateKey(due < today ? today : due),
-      source: "automatica",
+      due_on: dueOn,
+      source: "automatico",
       reason: exam
         ? `Prova próxima e domínio de ${topic.mastery}% em ${topic.title}`
         : `Domínio baixo (${topic.mastery}%) em ${topic.title}`,
@@ -393,12 +528,8 @@ export async function ensureAutomaticReviews(params: {
   }
 
   if (rows.length) {
-    if (isGuestMode()) {
-      for (const row of rows) insertGuestRow("reviews", row);
-    } else {
-      const { error } = await supabase.from("reviews").insert(rows as never);
-      if (error) throw new Error(error.message);
-    }
+    const { error } = await dataClient().from("reviews").insert(rows as never);
+    if (error) throw new Error(error.message);
   }
   return rows.length;
 }
@@ -414,23 +545,45 @@ type NotifyInput = {
   plan: PlanSession[];
   grades: Grade[];
   attendance: AttendanceRecord[];
+  focus?: FocusSession[];
   profile: Profile | null;
   prefs: {
     enabled: boolean;
     exams: boolean;
     tasks: boolean;
     overdue: boolean;
+    classes?: boolean;
     study_sessions: boolean;
     goals: boolean;
+    daily_summary: boolean;
+    weekly_summary: boolean;
+    monthly_summary: boolean;
   } | null;
 };
 
 export function buildNotificationRules(input: NotifyInput) {
-  const { subjects, topics, tasks, exams, plan, grades, attendance, profile, prefs } = input;
+  const { subjects, topics, tasks, exams, plan, grades, attendance, focus = [], profile, prefs } = input;
   const rows: { category: string; title: string; body: string; link: string; dedupe_key: string }[] = [];
   if (prefs && !prefs.enabled) return rows;
   const scale = Number(profile?.grade_scale_max ?? 10);
   const subjectName = (id: string | null) => subjects.find((s) => s.id === id)?.name ?? "Disciplina";
+  const now = new Date();
+  const dayStart = new Date(now);
+  dayStart.setHours(0, 0, 0, 0);
+  const nextDay = addDays(dayStart, 1);
+  const inRange = (value: string | null, from: Date, to: Date) => {
+    if (!value) return false;
+    const date = new Date(value);
+    return !Number.isNaN(date.getTime()) && date >= from && date < to;
+  };
+  const minutesFor = (from: Date, to: Date) =>
+    focus
+      .filter((item) => item.status === "concluida" && inRange(item.started_at, from, to))
+      .reduce((sum, item) => sum + (item.actual_minutes ?? item.planned_minutes), 0);
+  const tasksDoneFor = (from: Date, to: Date) =>
+    tasks.filter((item) => item.status === "concluida" && inRange(item.completed_at, from, to)).length;
+  const planDoneFor = (from: Date, to: Date) =>
+    plan.filter((item) => item.status === "concluida" && inRange(`${item.session_date}T12:00:00`, from, to)).length;
 
   if (!prefs || prefs.exams) {
     for (const exam of exams) {
@@ -452,33 +605,33 @@ export function buildNotificationRules(input: NotifyInput) {
     }
   }
 
-  if (!prefs || prefs.tasks) {
-    for (const task of tasks) {
-      if (task.status === "concluida") continue;
-      const left = daysUntil(task.due_at);
-      if (left === null) continue;
-      if (left < 0 && (!prefs || prefs.overdue)) {
-        rows.push({
-          category: "tarefas",
-          title: `${subjectName(task.subject_id)} — tarefa atrasada`,
-          body: `${task.title} venceu há ${Math.abs(left)} dia(s).`,
-          link: "/tarefas",
-          dedupe_key: `task-late:${task.id}:${dateKey(new Date())}`,
-        });
-      } else if (left === 0 || left === 1) {
-        rows.push({
-          category: "tarefas",
-          title: `${subjectName(task.subject_id)} — tarefa vence ${left === 0 ? "hoje" : "amanhã"}`,
-          body: task.estimated_minutes
-            ? `Essa tarefa está estimada em ${task.estimated_minutes} minutos.`
-            : task.title,
-          link: "/tarefas",
-          dedupe_key: `task:${task.id}:${left}`,
-        });
-      }
+  for (const task of tasks) {
+    if (task.status === "concluida") continue;
+    const left = daysUntil(task.due_at);
+    if (left === null) continue;
+
+    if (left < 0 && (!prefs || prefs.overdue)) {
+      rows.push({
+        category: "tarefas",
+        title: `${subjectName(task.subject_id)} — tarefa atrasada`,
+        body: `${task.title} venceu há ${Math.abs(left)} dia(s).`,
+        link: "/tarefas",
+        dedupe_key: `task-late:${task.id}:${dateKey(new Date())}`,
+      });
+    }
+
+    if ((left === 0 || left === 1) && (!prefs || prefs.tasks)) {
+      rows.push({
+        category: "tarefas",
+        title: `${subjectName(task.subject_id)} — tarefa vence ${left === 0 ? "hoje" : "amanhã"}`,
+        body: task.estimated_minutes
+          ? `Essa tarefa está estimada em ${task.estimated_minutes} minutos.`
+          : task.title,
+        link: "/tarefas",
+        dedupe_key: `task:${task.id}:${left}`,
+      });
     }
   }
-
   if (!prefs || prefs.study_sessions) {
     const todayKey = dateKey(new Date());
     const missed = plan.filter((s) => s.status === "perdida" && s.session_date === dateKey(addDays(new Date(), -1)));
@@ -486,7 +639,7 @@ export function buildNotificationRules(input: NotifyInput) {
       rows.push({
         category: "estudos",
         title: "Plano de estudos reorganizado",
-        body: `Você não realizou ${missed.length} sessão(ões) de ontem. O plano foi redistribuído.`,
+        body: `Você não realizou ${missed.length} ${missed.length === 1 ? "sessão" : "sessões"} de ontem. O plano foi redistribuído.`,
         link: "/estudos",
         dedupe_key: `replan:${todayKey}`,
       });
@@ -495,10 +648,62 @@ export function buildNotificationRules(input: NotifyInput) {
     if (todaySessions.length) {
       rows.push({
         category: "estudos",
-        title: `${todaySessions.length} sessão(ões) de estudo hoje`,
+        title: `${todaySessions.length} ${todaySessions.length === 1 ? "sessão" : "sessões"} de estudo hoje`,
         body: todaySessions[0]!.reason ?? "Sessões planejadas para hoje.",
         link: "/estudos",
         dedupe_key: `plan-today:${todayKey}`,
+      });
+    }
+  }
+
+  if (!prefs || prefs.daily_summary) {
+    if (now.getHours() >= 20) {
+      const minutes = minutesFor(dayStart, nextDay);
+      const completedTasks = tasksDoneFor(dayStart, nextDay);
+      const completedPlan = planDoneFor(dayStart, nextDay);
+      rows.push({
+        category: "resumos",
+        title: "Resumo diário",
+        body: `Hoje: ${minutes} min de estudo, ${completedTasks} tarefa(s) concluída(s) e ${completedPlan} sessão(ões) do plano concluída(s).`,
+        link: "/desempenho",
+        dedupe_key: `summary-day:${dateKey(dayStart)}`,
+      });
+    }
+  }
+
+  if (!prefs || prefs.weekly_summary) {
+    if (now.getDay() === 0 && now.getHours() >= 19) {
+      const from = startOfWeek(now);
+      const to = addDays(from, 7);
+      const minutes = minutesFor(from, to);
+      const completedTasks = tasksDoneFor(from, to);
+      const completedPlan = planDoneFor(from, to);
+      rows.push({
+        category: "resumos",
+        title: "Resumo semanal",
+        body: `Nesta semana: ${minutes} min de estudo, ${completedTasks} tarefa(s) concluída(s) e ${completedPlan} sessão(ões) do plano concluída(s).`,
+        link: "/desempenho",
+        dedupe_key: `summary-week:${dateKey(from)}`,
+      });
+    }
+  }
+
+  if (!prefs || prefs.monthly_summary) {
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const lastDayOfMonth = new Date(monthEnd);
+    lastDayOfMonth.setDate(lastDayOfMonth.getDate() - 1);
+    if (dateKey(now) === dateKey(lastDayOfMonth) && now.getHours() >= 19) {
+      const from = new Date(now.getFullYear(), now.getMonth(), 1);
+      const to = monthEnd;
+      const minutes = minutesFor(from, to);
+      const completedTasks = tasksDoneFor(from, to);
+      const completedPlan = planDoneFor(from, to);
+      rows.push({
+        category: "resumos",
+        title: "Resumo mensal",
+        body: `Neste mês: ${minutes} min de estudo, ${completedTasks} tarefa(s) concluída(s) e ${completedPlan} sessão(ões) do plano concluída(s).`,
+        link: "/desempenho",
+        dedupe_key: `summary-month:${dateKey(from)}`,
       });
     }
   }
@@ -535,14 +740,7 @@ export function buildNotificationRules(input: NotifyInput) {
 export async function syncNotifications(input: NotifyInput) {
   const rows = buildNotificationRules(input).map((r) => ({ ...r, user_id: input.userId }));
   if (!rows.length) return 0;
-  if (isGuestMode()) {
-    const current = readGuestRows<{ dedupe_key: string }>("notifications");
-    for (const row of rows) {
-      if (!current.some((n) => n.dedupe_key === row.dedupe_key)) insertGuestRow("notifications", row);
-    }
-    return rows.length;
-  }
-  const { error } = await supabase
+  const { error } = await dataClient()
     .from("notifications")
     .upsert(rows as never, { onConflict: "user_id,dedupe_key", ignoreDuplicates: true });
   if (error) throw new Error(error.message);
@@ -551,20 +749,27 @@ export async function syncNotifications(input: NotifyInput) {
 
 /* ------------------------------------------------------------- resumos */
 
-export function summarize(range: { from: Date; to: Date }, data: {
-  focus: FocusSession[];
-  tasks: Task[];
-  plan: PlanSession[];
-  grades: Grade[];
-  attendance: AttendanceRecord[];
-}) {
+export function summarize(
+  range: { from: Date; to: Date },
+  data: {
+    focus: FocusSession[];
+    tasks: Task[];
+    plan: PlanSession[];
+    grades: Grade[];
+    attendance: AttendanceRecord[];
+  },
+  gradeScaleMax = 10,
+) {
   const inRange = (iso: string | null) => {
     if (!iso) return false;
     const d = new Date(iso);
     return d >= range.from && d <= range.to;
   };
   const focus = data.focus.filter((f) => f.status === "concluida" && inRange(f.started_at));
-  const minutes = focus.reduce((acc, f) => acc + (f.actual_minutes ?? f.planned_minutes), 0);
+  const minutes = focus.reduce((acc, f) => {
+    const value = Number(f.actual_minutes ?? f.planned_minutes);
+    return acc + (Number.isFinite(value) ? Math.max(0, value) : 0);
+  }, 0);
   const done = data.tasks.filter((t) => t.status === "concluida" && inRange(t.completed_at));
   const late = data.tasks.filter(
     (t) => t.status !== "concluida" && t.due_at && new Date(t.due_at) < new Date(),
@@ -577,6 +782,27 @@ export function summarize(range: { from: Date; to: Date }, data: {
   );
   const completedPlan = planned.filter((p) => p.status === "concluida");
 
+  const validGrades = grades
+    .map((grade) => ({
+      grade,
+      score: Number(grade.score),
+      maxScore: Number(grade.max_score || gradeScaleMax),
+      weight: Number(grade.weight || 1),
+    }))
+    .filter(
+      (item) =>
+        Number.isFinite(item.score) &&
+        Number.isFinite(item.maxScore) &&
+        item.maxScore > 0 &&
+        Number.isFinite(item.weight) &&
+        item.weight > 0,
+    );
+  const gradeWeight = validGrades.reduce((acc, item) => acc + item.weight, 0);
+  const weightedGradeSum = validGrades.reduce(
+    (acc, item) => acc + (item.score / item.maxScore) * gradeScaleMax * item.weight,
+    0,
+  );
+
   return {
     minutes,
     focusCount: focus.length,
@@ -584,9 +810,7 @@ export function summarize(range: { from: Date; to: Date }, data: {
     tasksPending: pending.length,
     tasksLate: late.length,
     grades,
-    gradeAverage: grades.length
-      ? grades.reduce((acc, g) => acc + (Number(g.score) / Number(g.max_score || 10)) * 10, 0) / grades.length
-      : null,
+    gradeAverage: gradeWeight > 0 ? weightedGradeSum / gradeWeight : null,
     attendanceRate: attendance.length
       ? (attendance.filter((a) => a.status === "presente" || a.status === "justificada").length /
           attendance.length) *

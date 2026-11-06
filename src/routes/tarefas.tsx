@@ -26,13 +26,13 @@ import { daysUntil, formatDateTime, priorityLabel } from "@/lib/ordys-engine";
 export const Route = createFileRoute("/tarefas")({
   head: () => ({
     meta: [
-      { title: "Tarefas — ORDYS" },
+      { title: "Tarefas — Ordys Academy" },
       {
         name: "description",
         content:
-          "Gerencie tarefas acadêmicas com prazos, prioridades, disciplina, conteúdo e estimativa de tempo — tudo salvo na sua conta ORDYS.",
+          "Gerencie tarefas acadêmicas com prazos, prioridades, disciplina, conteúdo e estimativa de tempo — tudo salvo na sua conta Ordys Academy.",
       },
-      { property: "og:title", content: "Tarefas — ORDYS" },
+      { property: "og:title", content: "Tarefas — Ordys Academy" },
       {
         property: "og:description",
         content: "Prazos, prioridades e status reais, integrados ao plano de estudos.",
@@ -147,15 +147,27 @@ function Tarefas() {
 
   const minutesInvalid =
     form.estimated_minutes !== "" &&
-    (!Number.isFinite(Number(form.estimated_minutes)) || Number(form.estimated_minutes) < 0);
+    (!Number.isFinite(Number(form.estimated_minutes)) ||
+      Number(form.estimated_minutes) < 0 ||
+      Number(form.estimated_minutes) > 1440);
+  const titleInvalid = !form.title.trim() || form.title.trim().length > 200;
+  const descriptionInvalid = form.description.length > 8000;
 
   async function save() {
     if (!form.title.trim()) {
       toast.error("Dê um título para a tarefa");
       return;
     }
+    if (form.title.trim().length > 200) {
+      toast.error("O título deve ter no máximo 200 caracteres.");
+      return;
+    }
     if (minutesInvalid) {
-      toast.error("A estimativa deve ser um número de minutos");
+      toast.error("A estimativa deve ficar entre 0 e 1.440 minutos.");
+      return;
+    }
+    if (descriptionInvalid) {
+      toast.error("A descrição deve ter no máximo 8.000 caracteres.");
       return;
     }
     const payload = {
@@ -248,13 +260,18 @@ function Tarefas() {
               const isDone = t.status === "concluida";
               return (
                 <div key={t.id} className="flex items-start gap-3 border-b border-border px-4 py-3 last:border-0 sm:px-5">
-                  <button
+                  <button type="button"
                     onClick={() => toggle(t)}
-                    className={`mt-[3px] size-4 shrink-0 rounded-[4px] border transition-colors ${
-                      isDone ? "border-success bg-success/40" : "border-border-strong hover:border-primary"
-                    }`}
+                    className="mt-0 grid size-10 shrink-0 place-items-center rounded-md"
                     aria-label={isDone ? `Reabrir ${t.title}` : `Concluir ${t.title}`}
-                  />
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={`size-4 rounded-[4px] border transition-colors ${
+                        isDone ? "border-success bg-success/40" : "border-border-strong hover:border-primary"
+                      }`}
+                    />
+                  </button>
                   <div className="min-w-0 flex-1">
                     <p className={`text-[12.5px] ${isDone ? "text-muted-foreground line-through" : ""}`}>
                       {t.title}
@@ -276,15 +293,15 @@ function Tarefas() {
                     </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
-                    <button
-                      className="grid size-9 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground"
+                    <button type="button"
+                      className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground sm:size-9"
                       onClick={() => openEdit(t)}
                       aria-label={`Editar ${t.title}`}
                     >
                       <Pencil className="size-[14px]" strokeWidth={1.7} />
                     </button>
-                    <button
-                      className="grid size-9 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-destructive"
+                    <button type="button"
+                      className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-destructive sm:size-9"
                       onClick={() => setConfirm(t)}
                       aria-label={`Excluir ${t.title}`}
                     >
@@ -387,7 +404,7 @@ function Tarefas() {
           <Button variant="ghost" onClick={() => setModal({ open: false })}>
             Cancelar
           </Button>
-          <Button onClick={save} disabled={!form.title.trim() || minutesInvalid}>
+          <Button onClick={save} disabled={titleInvalid || minutesInvalid || descriptionInvalid}>
             {modal.editing ? "Salvar alterações" : "Criar tarefa"}
           </Button>
         </div>

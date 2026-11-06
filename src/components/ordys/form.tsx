@@ -1,9 +1,9 @@
-import type { ReactNode, SelectHTMLAttributes, InputHTMLAttributes, TextareaHTMLAttributes } from "react";
+import { useEffect, useId, useRef, type ReactNode, type SelectHTMLAttributes, type InputHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const control =
-  "w-full rounded-md border border-border bg-secondary/40 px-2.5 py-2 text-[12.5px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary/50";
+  "w-full min-h-11 rounded-md border border-border bg-secondary/40 px-2.5 py-2 text-[12.5px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary/50 sm:min-h-9";
 
 export function Field({
   label,
@@ -50,10 +50,10 @@ export function Button({
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "ghost" | "danger" }) {
   return (
-    <button
+    <button type="button"
       {...props}
       className={cn(
-        "ordys-pressable inline-flex min-h-9 items-center justify-center gap-2 rounded-lg px-3 py-2 text-[12.5px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+        "inline-flex min-h-11 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-[12.5px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-9",
         variant === "primary" && "bg-primary text-primary-foreground hover:bg-primary/90",
         variant === "ghost" &&
           "border border-border bg-surface text-muted-foreground hover:text-foreground",
@@ -81,25 +81,74 @@ export function Modal({
   children: ReactNode;
   width?: number;
 }) {
+  const dialogId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const previousActive = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key === "Tab") {
+        const focusables = Array.from(
+          dialogRef.current?.querySelectorAll<HTMLElement>(
+            'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])',
+          ) ?? [],
+        ).filter((element) => element.offsetParent !== null);
+        if (!focusables.length) {
+          event.preventDefault();
+          dialogRef.current?.focus();
+          return;
+        }
+        const first = focusables[0]!;
+        const last = focusables[focusables.length - 1]!;
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    requestAnimationFrame(() => dialogRef.current?.focus());
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      previousActive?.focus();
+    };
+  }, [open, onClose]);
+
   if (!open) return null;
   return (
     <div
       role="dialog"
       aria-modal="true"
-      aria-label={title}
-      className="dark ordys-motion-enter fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/70 px-3 py-6 backdrop-blur-sm sm:px-4 sm:py-10"
+      aria-labelledby={`${dialogId}-title`}
+      aria-describedby={subtitle ? `${dialogId}-description` : undefined}
+      className="dark fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/70 px-3 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-[calc(1.5rem+env(safe-area-inset-bottom))] backdrop-blur-sm sm:px-4 sm:py-10"
     >
-      <div className="panel w-full" style={{ maxWidth: width }}>
-        <header className="flex items-start justify-between gap-4 border-b border-border px-5 py-3.5">
-          <div>
-            <h2 className="text-[13.5px] font-semibold tracking-tight">{title}</h2>
+      <div ref={dialogRef} tabIndex={-1} className="panel w-full outline-none" style={{ maxWidth: width }}>
+        <header className="flex min-w-0 items-start justify-between gap-4 border-b border-border px-5 py-3.5">
+          <div className="min-w-0 flex-1">
+            <h2 id={`${dialogId}-title`} className="truncate text-[13.5px] font-semibold tracking-tight">{title}</h2>
             {subtitle ? (
-              <p className="mt-0.5 text-[11.5px] text-muted-foreground">{subtitle}</p>
+              <p id={`${dialogId}-description`} className="mt-0.5 break-words text-[11.5px] text-muted-foreground">{subtitle}</p>
             ) : null}
           </div>
-          <button
+          <button type="button"
             onClick={onClose}
-            className="grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground"
+            className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground sm:size-8"
             aria-label="Fechar"
           >
             <X className="size-[15px]" strokeWidth={1.7} />
@@ -117,6 +166,8 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel = "Excluir",
+  confirmVariant = "danger",
+  loadingLabel = "Removendo…",
   onConfirm,
   onClose,
   loading,
@@ -125,19 +176,20 @@ export function ConfirmDialog({
   title: string;
   description: string;
   confirmLabel?: string;
+  confirmVariant?: "primary" | "danger";
+  loadingLabel?: string;
   onConfirm: () => void;
   onClose: () => void;
   loading?: boolean;
 }) {
   return (
-    <Modal open={open} onClose={onClose} title={title} width={420}>
-      <p className="text-[12.5px] leading-relaxed text-muted-foreground">{description}</p>
-      <div className="mt-5 flex justify-end gap-2">
-        <Button variant="ghost" onClick={onClose}>
+    <Modal open={open} onClose={onClose} title={title} subtitle={description} width={420}>
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <Button variant="ghost" onClick={onClose} disabled={loading}>
           Cancelar
         </Button>
-        <Button variant="danger" onClick={onConfirm} disabled={loading}>
-          {loading ? "Removendo…" : confirmLabel}
+        <Button variant={confirmVariant} onClick={onConfirm} disabled={loading}>
+          {loading ? loadingLabel : confirmLabel}
         </Button>
       </div>
     </Modal>

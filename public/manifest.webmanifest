@@ -1,7 +1,8 @@
 {
-  "name": "ORDYS — Organização acadêmica",
-  "short_name": "ORDYS",
-  "description": "Disciplina, aprendizagem e praticidade: agenda, tarefas, provas, estudos e desempenho em um só lugar.",
+  "name": "Ordys Academy",
+  "short_name": "Ordys",
+  "description": "A clareza por trás da sua rotina acadêmica: disciplinas, calendário, tarefas, estudos, provas e desempenho em um só lugar.",
+  "id": "/",
   "lang": "pt-BR",
   "start_url": "/",
   "scope": "/",
@@ -10,6 +11,23 @@
   "background_color": "#0A1128",
   "theme_color": "#0A1128",
   "icons": [
-    { "src": "/favicon.ico", "sizes": "48x48", "type": "image/x-icon" }
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ]
 }

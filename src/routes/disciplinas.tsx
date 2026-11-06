@@ -4,7 +4,7 @@ import { Archive, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Shell } from "@/components/ordys/shell";
 import { Bar, Chip, Dot, Panel, PanelHeader, PageTitle, Stat } from "@/components/ordys/primitives";
-import { Button, Field, Modal, Select, TextArea, TextInput } from "@/components/ordys/form";
+import { Button, ConfirmDialog, Field, Modal, Select, TextArea, TextInput } from "@/components/ordys/form";
 import { ColorSelector } from "@/components/ordys/color-selector";
 import {
   SUBJECT_COLORS,
@@ -24,18 +24,18 @@ import {
   type Subject,
   type Topic,
 } from "@/lib/ordys-db";
-import { dateKey, formatDateTime, weekdayLong, weekdayShort } from "@/lib/ordys-engine";
+import { attendanceStatusLabel, dateKey, formatDateTime, formatDay, weekdayLong, weekdayShort } from "@/lib/ordys-engine";
 
 export const Route = createFileRoute("/disciplinas")({
   head: () => ({
     meta: [
-      { title: "Disciplinas — ORDYS" },
+      { title: "Disciplinas — Ordys Academy" },
       {
         name: "description",
         content:
-          "Crie e organize suas próprias disciplinas com professor, sala, horários, conteúdos, notas, frequência e metas dentro do ORDYS.",
+          "Crie e organize suas próprias disciplinas com professor, sala, horários, conteúdos, notas, frequência e metas dentro do Ordys Academy.",
       },
-      { property: "og:title", content: "Disciplinas — ORDYS" },
+      { property: "og:title", content: "Disciplinas — Ordys Academy" },
       {
         property: "og:description",
         content: "Disciplinas personalizáveis com conteúdos, notas, frequência e metas.",
@@ -99,6 +99,8 @@ function Disciplinas() {
   const [topicModal, setTopicModal] = useState<{ open: boolean; editing?: Topic }>({ open: false });
   const [topicForm, setTopicForm] = useState({ title: "", status: "nao_estudado", mastery: "0", notes: "", next_review: "" });
   const [gradeForm, setGradeForm] = useState({ title: "", score: "", max_score: "", weight: "1" });
+  const [subjectToDelete, setSubjectToDelete] = useState<Subject | null>(null);
+  const [deleteSubjectBusy, setDeleteSubjectBusy] = useState(false);
 
   const scale = Number(profile?.grade_scale_max ?? 10);
   const average = selected ? subjectAverage(grades, selected.id, scale) : null;
@@ -114,6 +116,11 @@ function Disciplinas() {
   }
 
   function openEdit(subject: Subject) {
+    const schedule = schedules
+      .filter((item) => item.subject_id === subject.id)
+      .slice()
+      .sort((a, b) => a.weekday - b.weekday || a.start_time.localeCompare(b.start_time))[0];
+
     setForm({
       name: subject.name,
       teacher: subject.teacher ?? "",
@@ -122,36 +129,93 @@ function Disciplinas() {
       weekly_hours: subject.weekly_hours ? String(subject.weekly_hours) : "",
       grade_goal: subject.grade_goal ? String(subject.grade_goal) : "",
       color: subject.color,
-      weekday: "0",
-      start_time: "",
-      end_time: "",
+      weekday: String(schedule?.weekday ?? 0),
+      start_time: schedule?.start_time?.slice(0, 5) ?? "",
+      end_time: schedule?.end_time?.slice(0, 5) ?? "",
     });
     setSubjectModal({ open: true, editing: subject });
   }
 
+  async function confirmDeleteSubject() {
+    const target = subjectToDelete;
+    if (!target || deleteSubjectBusy) return;
+    setDeleteSubjectBusy(true);
+    try {
+      await remove("subjects", target.id);
+      setSelectedId(null);
+      setSubjectToDelete(null);
+      toast.success("Disciplina excluída");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Não foi possível excluir a disciplina.");
+    } finally {
+      setDeleteSubjectBusy(false);
+    }
+  }
+
   async function saveSubject() {
+    const name = form.name.trim();
+    if (!name) {
+      toast.error("Informe o nome da disciplina.");
+      return;
+    }
+
+    const weeklyHours = form.weekly_hours ? Number(form.weekly_hours) : null;
+    const gradeGoal = form.grade_goal ? Number(form.grade_goal) : null;
+    if (
+      (weeklyHours !== null && (!Number.isFinite(weeklyHours) || weeklyHours < 0 || weeklyHours > 168)) ||
+      (gradeGoal !== null && (!Number.isFinite(gradeGoal) || gradeGoal < 0 || gradeGoal > scale))
+    ) {
+      toast.error("Revise as configurações da disciplina.");
+      return;
+    }
+
+    if ((form.start_time && !form.end_time) || (!form.start_time && form.end_time)) {
+      toast.error("Informe o início e o fim da aula.");
+      return;
+    }
+    if (form.start_time && form.end_time && form.end_time <= form.start_time) {
+      toast.error("O fim da aula deve ser depois do início.");
+      return;
+    }
+
     try {
       const payload = {
-        name: form.name.trim(),
+        name,
         teacher: form.teacher || null,
         room: form.room || null,
         term: form.term || null,
-        weekly_hours: form.weekly_hours ? Number(form.weekly_hours) : null,
-        grade_goal: form.grade_goal ? Number(form.grade_goal) : null,
+        weekly_hours: weeklyHours,
+        grade_goal: gradeGoal,
         color: form.color,
-        short_name: form.name.slice(0, 3).toUpperCase(),
+        short_name: name.slice(0, 3).toUpperCase(),
       };
       const row = subjectModal.editing
         ? await update("subjects", subjectModal.editing.id, payload)
         : await insert("subjects", payload);
+      const subjectId = (row as Subject).id;
+      const existingSchedules = schedules
+        .filter((item) => item.subject_id === subjectId)
+        .slice()
+        .sort((a, b) => a.weekday - b.weekday || a.start_time.localeCompare(b.start_time));
+
       if (form.start_time && form.end_time) {
-        await insert("subject_schedules", {
-          subject_id: (row as Subject).id,
+        const schedulePayload = {
+          subject_id: subjectId,
           weekday: Number(form.weekday),
           start_time: form.start_time,
           end_time: form.end_time,
           room: form.room || null,
-        });
+        };
+        const primarySchedule = existingSchedules[0];
+        if (primarySchedule) {
+          await update("subject_schedules", primarySchedule.id, schedulePayload);
+        } else {
+          await insert("subject_schedules", schedulePayload);
+        }
+      } else if (subjectModal.editing && existingSchedules.length) {
+        // This form edits only the primary schedule. Never silently erase
+        // additional schedules that may have been created elsewhere.
+        await remove("subject_schedules", existingSchedules[0]!.id);
       }
       setSelectedId((row as Subject).id);
       setSubjectModal({ open: false });
@@ -163,11 +227,21 @@ function Disciplinas() {
 
   async function saveTopic() {
     if (!selected) return;
+    const title = topicForm.title.trim();
+    const mastery = Number(topicForm.mastery || 0);
+    if (!title) {
+      toast.error("Informe o nome do conteúdo.");
+      return;
+    }
+    if (!Number.isFinite(mastery) || mastery < 0 || mastery > 100) {
+      toast.error("O domínio deve estar entre 0 e 100.");
+      return;
+    }
     const payload = {
       subject_id: selected.id,
-      title: topicForm.title.trim(),
+      title,
       status: topicForm.status,
-      mastery: Number(topicForm.mastery || 0),
+      mastery,
       notes: topicForm.notes || null,
       next_review: topicForm.next_review || null,
       last_review: topicForm.status === "estudado" || topicForm.status === "dominado" ? dateKey(new Date()) : null,
@@ -185,13 +259,28 @@ function Disciplinas() {
 
   async function saveGrade() {
     if (!selected) return;
+    const score = Number(gradeForm.score || 0);
+    const maxScore = Number(gradeForm.max_score || scale);
+    const weight = Number(gradeForm.weight || 1);
+    if (
+      !Number.isFinite(score) ||
+      !Number.isFinite(maxScore) ||
+      !Number.isFinite(weight) ||
+      maxScore <= 0 ||
+      score < 0 ||
+      score > maxScore ||
+      weight <= 0
+    ) {
+      toast.error("Revise a nota, a nota máxima e o peso.");
+      return;
+    }
     try {
       await insert("grades", {
         subject_id: selected.id,
-        title: gradeForm.title || "Avaliação",
-        score: Number(gradeForm.score || 0),
-        max_score: Number(gradeForm.max_score || scale),
-        weight: Number(gradeForm.weight || 1),
+        title: gradeForm.title.trim() || "Avaliação",
+        score,
+        max_score: maxScore,
+        weight,
         graded_on: dateKey(new Date()),
       });
       setGradeForm({ title: "", score: "", max_score: "", weight: "1" });
@@ -203,12 +292,31 @@ function Disciplinas() {
 
   async function markAttendance(status: string) {
     if (!selected) return;
-    await insert("attendance_records", {
-      subject_id: selected.id,
-      class_date: dateKey(new Date()),
-      status,
-    });
-    toast.success(status === "presente" ? "Presença registrada" : "Falta registrada");
+    try {
+      const today = dateKey(new Date());
+      const existing = attendance.find((record) => record.subject_id === selected.id && record.class_date === today);
+      if (existing) {
+        await update("attendance_records", existing.id, { status });
+      } else {
+        await insert("attendance_records", {
+          subject_id: selected.id,
+          class_date: today,
+          status,
+        });
+      }
+      toast.success(status === "presente" ? "Presença registrada" : status === "justificada" ? "Falta justificada registrada" : "Falta registrada");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Não foi possível registrar a frequência.");
+    }
+  }
+
+  async function removeRecord(table: "topics" | "grades" | "attendance_records", id: string, label: string) {
+    try {
+      await remove(table, id);
+      toast.success(label);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Não foi possível excluir o registro.");
+    }
   }
 
   return (
@@ -249,10 +357,10 @@ function Disciplinas() {
         <>
           <div className="mt-5 flex flex-wrap gap-2">
             {list.map((x) => (
-              <button
+              <button type="button"
                 key={x.id}
                 onClick={() => setSelectedId(x.id)}
-                className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-[12.5px] transition-colors ${
+                className={`flex min-h-11 items-center gap-2 rounded-lg border px-3 py-1.5 text-[12.5px] transition-colors ${
                   x.id === selected?.id
                     ? "border-primary/40 bg-primary-soft text-foreground"
                     : "border-border bg-surface text-muted-foreground hover:text-foreground"
@@ -300,29 +408,32 @@ function Disciplinas() {
                 </Button>
                 <Button
                   variant="ghost"
-                  onClick={() => update("subjects", selected.id, { archived: !selected.archived })}
+                  onClick={async () => {
+                    try {
+                      await update("subjects", selected.id, { archived: !selected.archived });
+                      toast.success(selected.archived ? "Disciplina desarquivada" : "Disciplina arquivada");
+                    } catch (err) {
+                      toast.error(err instanceof Error ? err.message : "Não foi possível alterar o arquivamento.");
+                    }
+                  }}
                 >
                   <Archive className="size-[13px]" strokeWidth={1.7} />
                   {selected.archived ? "Desarquivar" : "Arquivar"}
                 </Button>
                 <Button
                   variant="danger"
-                  onClick={async () => {
-                    await remove("subjects", selected.id);
-                    setSelectedId(null);
-                    toast.success("Disciplina excluída");
-                  }}
+                  onClick={() => setSubjectToDelete(selected)}
                 >
                   <Trash2 className="size-[13px]" strokeWidth={1.7} /> Excluir
                 </Button>
               </div>
 
-              <div className="mt-5 flex gap-1 border-b border-border">
+              <div className="mt-5 flex gap-1 overflow-x-auto border-b border-border">
                 {tabs.map((t) => (
-                  <button
+                  <button type="button"
                     key={t}
                     onClick={() => setTab(t)}
-                    className={`-mb-px border-b px-3 py-2 text-[12.5px] transition-colors ${
+                    className={`-mb-px min-h-11 shrink-0 border-b px-3 py-2 text-[12.5px] transition-colors ${
                       tab === t
                         ? "border-primary text-foreground"
                         : "border-transparent text-muted-foreground hover:text-foreground"
@@ -355,13 +466,13 @@ function Disciplinas() {
                       {topics.length ? (
                         topics.map((t) => (
                           <div key={t.id} className="px-5 py-3">
-                            <div className="mb-1.5 flex flex-wrap items-center gap-2 text-[12.5px]">
-                              <span className="font-medium">{t.title}</span>
+                            <div className="mb-1.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5 text-[12.5px]">
+                              <span className="min-w-0 flex-1 basis-[10rem] break-words font-medium">{t.title}</span>
                               <Chip>{TOPIC_STATUS.find((s) => s.key === t.status)?.label ?? t.status}</Chip>
                               {t.next_review ? <Chip tone="gold">revisar {t.next_review}</Chip> : null}
-                              <span className="num ml-auto text-[11px] text-muted-foreground">{t.mastery}%</span>
-                              <button
-                                className="text-muted-foreground hover:text-foreground"
+                              <span className="num ml-auto shrink-0 text-[11px] text-muted-foreground">{t.mastery}%</span>
+                              <button type="button"
+                                className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground sm:size-8 hover:bg-secondary hover:text-foreground"
                                 onClick={() => {
                                   setTopicForm({
                                     title: t.title,
@@ -375,9 +486,9 @@ function Disciplinas() {
                               >
                                 <Pencil className="size-[13px]" strokeWidth={1.7} />
                               </button>
-                              <button
-                                className="text-muted-foreground hover:text-destructive"
-                                onClick={() => remove("topics", t.id)}
+                              <button type="button"
+                                className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground sm:size-8 hover:bg-secondary hover:text-destructive"
+                                onClick={() => void removeRecord("topics", t.id, "Conteúdo excluído")}
                               >
                                 <Trash2 className="size-[13px]" strokeWidth={1.7} />
                               </button>
@@ -406,14 +517,14 @@ function Disciplinas() {
                         tasks
                           .filter((t) => t.subject_id === selected.id)
                           .map((t) => (
-                            <div key={t.id} className="flex items-center gap-3 px-5 py-2.5">
+                            <div key={t.id} className="flex min-w-0 flex-col gap-1.5 px-5 py-2.5 sm:flex-row sm:items-center sm:gap-3">
                               <span
                                 className={`size-3.5 shrink-0 rounded-[4px] border ${
                                   t.status === "concluida" ? "border-success bg-success/30" : "border-border-strong"
                                 }`}
                               />
                               <p className="min-w-0 flex-1 truncate text-[12.5px]">{t.title}</p>
-                              <span className="num text-[11px] text-muted-foreground">
+                              <span className="num shrink-0 self-end text-[11px] text-muted-foreground sm:self-auto">
                                 {formatDateTime(t.due_at)}
                               </span>
                             </div>
@@ -434,8 +545,8 @@ function Disciplinas() {
                           .filter((e) => e.subject_id === selected.id)
                           .map((e) => (
                             <div key={e.id} className="px-5 py-3">
-                              <div className="flex items-center gap-2 text-[12.5px]">
-                                <span className="font-medium">{e.title}</span>
+                              <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5 text-[12.5px]">
+                                <span className="min-w-0 flex-1 basis-[10rem] break-words font-medium">{e.title}</span>
                                 {e.weight ? <Chip tone="gold">{e.weight}</Chip> : null}
                                 <span className="num ml-auto text-[11px] text-muted-foreground">
                                   {formatDateTime(e.exam_at)}
@@ -464,15 +575,15 @@ function Disciplinas() {
                           grades
                             .filter((g) => g.subject_id === selected.id)
                             .map((g) => (
-                              <div key={g.id} className="flex items-center gap-3 px-5 py-2.5 text-[12.5px]">
-                                <span className="min-w-0 flex-1 truncate">{g.title}</span>
+                              <div key={g.id} className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-5 py-2.5 text-[12.5px]">
+                                <span className="min-w-0 flex-1 basis-[10rem] truncate">{g.title}</span>
                                 <Chip>peso {Number(g.weight)}</Chip>
                                 <span className="num font-semibold">
                                   {fmtNumber(Number(g.score))} / {fmtNumber(Number(g.max_score), 0)}
                                 </span>
-                                <button
-                                  className="text-muted-foreground hover:text-destructive"
-                                  onClick={() => remove("grades", g.id)}
+                                <button type="button"
+                                  className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-destructive sm:size-8"
+                                  onClick={() => void removeRecord("grades", g.id, "Nota excluída")}
                                 >
                                   <Trash2 className="size-[13px]" strokeWidth={1.7} />
                                 </button>
@@ -532,12 +643,12 @@ function Disciplinas() {
                             .slice()
                             .reverse()
                             .map((a) => (
-                              <div key={a.id} className="flex items-center gap-3 px-5 py-2.5 text-[12.5px]">
-                                <span className="num flex-1">{a.class_date}</span>
-                                <Chip tone={a.status === "falta" ? "danger" : "primary"}>{a.status}</Chip>
-                                <button
+                              <div key={a.id} className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-5 py-2.5 text-[12.5px]">
+                                <span className="num flex-1">{formatDay(`${a.class_date}T12:00:00`)}</span>
+                                <Chip className="shrink-0" tone={a.status === "falta" ? "danger" : "primary"}>{attendanceStatusLabel(a.status)}</Chip>
+                                <button type="button"
                                   className="text-muted-foreground hover:text-destructive"
-                                  onClick={() => remove("attendance_records", a.id)}
+                                  onClick={() => void removeRecord("attendance_records", a.id, "Registro de frequência excluído")}
                                 >
                                   <Trash2 className="size-[13px]" strokeWidth={1.7} />
                                 </button>
@@ -601,7 +712,12 @@ function Disciplinas() {
           <Field label="Cor da disciplina" className="sm:col-span-2" hint="Usada em cartões, horários, eventos e indicadores">
             <ColorSelector value={form.color} onChange={(color) => setForm({ ...form, color })} />
           </Field>
-          <Field label="Dia da aula">
+          {subjectModal.editing &&
+          schedules.filter((item) => item.subject_id === subjectModal.editing?.id).length > 1 ? (
+            <p className="sm:col-span-2 rounded-lg border border-border bg-secondary/30 px-3 py-2 text-[10.5px] leading-relaxed text-muted-foreground">
+              Horários adicionais desta disciplina são preservados ao editar. Este formulário altera apenas o primeiro horário.
+            </p>
+          ) : null}\n          <Field label="Dia da aula">
             <Select value={form.weekday} onChange={(e) => setForm({ ...form, weekday: e.target.value })}>
               {weekdayLong.map((w, i) => (
                 <option key={w} value={i}>
@@ -627,7 +743,7 @@ function Disciplinas() {
             </Field>
           </div>
         </div>
-        <div className="mt-5 flex justify-end gap-2">
+        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Button variant="ghost" onClick={() => setSubjectModal({ open: false })}>
             Cancelar
           </Button>
@@ -685,6 +801,19 @@ function Disciplinas() {
           </Button>
         </div>
       </Modal>
+      <ConfirmDialog
+        open={subjectToDelete !== null}
+        title={subjectToDelete ? `Excluir a disciplina "${subjectToDelete.name}"?` : "Excluir disciplina?"}
+        description="Esta ação também remove conteúdos, horários, notas e registros de frequência vinculados à disciplina."
+        confirmLabel="Excluir disciplina"
+        confirmVariant="danger"
+        loadingLabel="Excluindo…"
+        onConfirm={() => void confirmDeleteSubject()}
+        onClose={() => {
+          if (!deleteSubjectBusy) setSubjectToDelete(null);
+        }}
+        loading={deleteSubjectBusy}
+      />
     </Shell>
   );
 }

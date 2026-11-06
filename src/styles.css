@@ -123,6 +123,12 @@
 
   --shadow-panel: 0 1px 0 0 oklch(1 0 0 / 6%) inset;
   --shadow-card: 0 12px 30px -22px oklch(0 0 0 / 80%);
+
+  /* Motion system inspired by Apple's responsive animation and accessibility guidance. */
+  --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-press: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --motion-fast: 160ms;
+  --motion-standard: 260ms;
 }
 
 .dark {
@@ -145,11 +151,103 @@
     -webkit-font-smoothing: antialiased;
     letter-spacing: 0;
     overscroll-behavior: none;
+    overflow-x: hidden;
   }
 
   ::selection {
     background: var(--primary);
     color: var(--primary-foreground);
+  }
+
+  button:not(:disabled),
+  a[href] {
+    -webkit-tap-highlight-color: transparent;
+    transition-property: transform, opacity, background-color, border-color, color, box-shadow;
+    transition-duration: var(--motion-fast);
+    transition-timing-function: var(--motion-ease);
+  }
+
+  button:not(:disabled):active,
+  a[href]:active {
+    transform: scale(0.985);
+  }
+}
+
+@keyframes ordys-fade-up {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes ordys-slide-in {
+  from {
+    opacity: 0;
+    transform: translate3d(28px, 0, 0) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes ordys-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.ordys-motion-enter {
+  animation: ordys-fade-up var(--motion-standard) var(--motion-ease) both;
+}
+
+.ordys-motion-slide {
+  animation: ordys-slide-in var(--motion-standard) var(--motion-ease) both;
+}
+
+.ordys-motion-scale {
+  animation: ordys-scale-in var(--motion-fast) var(--motion-ease) both;
+}
+
+.ordys-pressable {
+  transition: transform var(--motion-fast) var(--motion-press),
+    opacity var(--motion-fast) var(--motion-ease),
+    background-color var(--motion-fast) var(--motion-ease),
+    border-color var(--motion-fast) var(--motion-ease),
+    box-shadow var(--motion-fast) var(--motion-ease);
+}
+
+.ordys-pressable:active {
+  transform: scale(0.985);
+}
+
+.panel {
+  animation: ordys-fade-up var(--motion-standard) var(--motion-ease) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+
+  button:not(:disabled):active,
+  a[href]:active,
+  .ordys-pressable:active {
+    transform: none;
   }
 }
 
@@ -166,52 +264,4 @@
 
 @utility hairline {
   border-bottom: 1px solid var(--border);
-}
-
-
-@keyframes ordys-fade-in {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes ordys-slide-in {
-  from { opacity: 0; transform: translateX(14px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-
-@keyframes ordys-scale-in {
-  from { opacity: 0; transform: scale(.985); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-@utility ordys-motion-enter {
-  animation: ordys-fade-in 220ms cubic-bezier(.2,.8,.2,1) both;
-}
-
-@utility ordys-motion-slide {
-  animation: ordys-slide-in 240ms cubic-bezier(.2,.8,.2,1) both;
-}
-
-@utility ordys-motion-scale {
-  animation: ordys-scale-in 190ms cubic-bezier(.2,.8,.2,1) both;
-  transform-origin: center;
-}
-
-@utility ordys-pressable {
-  transition: transform 160ms cubic-bezier(.2,.8,.2,1), opacity 160ms ease, background-color 160ms ease, border-color 160ms ease;
-
-  &:active {
-    transform: scale(.98);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ordys-motion-enter,
-  .ordys-motion-slide,
-  .ordys-motion-scale {
-    animation: none !important;
-  }
-  .ordys-pressable {
-    transition: none !important;
-  }
 }
