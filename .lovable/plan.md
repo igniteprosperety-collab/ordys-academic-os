@@ -1,40 +1,27 @@
-# Plano: importação seletiva da main oficial do ORDYS
+# Verificação de acesso à main oficial e próximo passo
 
-## Acesso verificado (somente leitura, 06/11 01:15 UTC)
-- Conexão: "Prosperety's GitHub API" (OAuth). Está ativa e acessível, mas ainda não está vinculada ao projeto. Para ler, o vínculo não é necessário.
-- Repositório `igniteprosperety-collab/ordys-academy.app`, branch `main`: HTTP 200.
-- SHA lido: `13d353269103411fad213890c449ef5a4578569e`, assinatura verificada. Árvore `7b3c5338…`, lida por completo e sem truncamento.
-- Arquivos de entrada lidos às 01:13 UTC, todos existem:
-  - `package.json` (blob `42f3c0d`): Capacitor 8.5.2, zod 4.6.7, react-start 1.168.60.
-  - `src/routes/auth.tsx` (blob `7503680`): e-mail/senha, cadastro, reenvio de confirmação, link para recuperação, Google.
-  - `src/integrations/supabase/client.ts` (blob `a5751b5`): sem o armazenamento de sessão da preview do Lovable; usa `public-config.ts` com o mesmo backend `yqljcoukgpqdoxiispyn`.
-- O Git Sync deste projeto continua no repositório interno do Lovable (`4e874bc`).
+## Acesso verificado agora (06/11 01:21 UTC, somente leitura)
+- Conexão "Prosperety's GitHub API": OAuth, acesso confirmado ("has access: yes"). Ela não está vinculada ao projeto, e para ler não é preciso vincular.
+- Repositório `igniteprosperety-collab/ordys-academy.app`, ref `13d353269103411fad213890c449ef5a4578569e`:
+  - `README.md`: HTTP 200, blob `f15e372e84facdd0dfec3d3ec25c1fd5c0baffc4`, 2241 bytes.
+  - `package.json`: HTTP 200, blob `42f3c0df12d0cfbc070d7ac69757f53b4c967e0d`, 3801 bytes.
+- Não falta nenhuma autorização ou escopo.
 
-## Comparação
-- Iguais: 109 arquivos, incluindo `vite.config.ts`.
-- Diferentes: 41.
-- Só na main: rotas `redefinir-senha`, `excluir-conta`, `privacidade` e `assistente`; os arquivos de `src/lib` `native-auth`, `signup-confirmation`, `password-recovery-session`, `ordys-session` e `demo-supabase`; os componentes `brand-lockup` e `ai-content-report-button`; 15 migrations, 9 Edge Functions, Capacitor e `mobile/`.
-- Só aqui: `src/integrations/lovable/index.ts`, `src/lib/quiz.functions.ts` e `components/ui/avatar.tsx`.
+## Situação do projeto
+A importação seletiva dessa mesma versão da main já foi feita nesta sessão. Foi verificada assim:
+- Typecheck sem erros e build com resultado "build OK".
+- Testes: 89 de 89 passam quando rodados um arquivo por vez. Rodando todos de uma vez, 6 testes de logout e o arquivo de testes da lógica de planejamento falham; cada um passa sozinho.
+- Navegador, em modo "sem conta" e com a conta existente: início, calendário, tarefas, disciplinas, estudos, simulados, desempenho e perfil abriram sem erros nem requisições falhas ao backend. Recuperação de senha e privacidade foram abertas no modo "sem conta".
+- Não foram testados: cadastro, login por e-mail, login com Google e Android.
 
-## O que será importado (após aprovação)
-1. Telas: `auth`, `index`, `agenda`, `tarefas`, `disciplinas`, `estudos`, `simulado`, `desempenho`, `perfil`, `redefinir-senha`, `privacidade` e `excluir-conta`.
-2. `src/components/ordys/*`, `src/hooks/use-auth.ts`, os arquivos de `src/lib/*` usados pelas telas, `src/styles.css`, ícones em `public/` e `tests/` (exceto os testes de Android e billing).
-3. Merge manual de `package.json`, `__root.tsx`, `start.ts` (mantendo o envio do token de login) e `server.ts`.
+Arquivos gerados preservados: `src/integrations/*`, `src/start.ts`, `src/server.ts`, `.env`, `supabase/config.toml` e a lista de rotas gerada.
 
-## O que será preservado (não sobrescrito)
-`.env`, `supabase/config.toml`, `src/routeTree.gen.ts`, `src/integrations/lovable/index.ts` e todos os arquivos gerados em `src/integrations/supabase/` (`client.ts`, `client.server.ts`, `auth-middleware.ts`, `auth-attacher.ts`, `previewAuthStorage.ts`, `types.ts`).
+## Próximo passo proposto (o mais curto)
+1. Antes de qualquer ajuste, rodar `git hash-object` nos arquivos importados de `src/` e comparar com os blobs da árvore `7b3c5338…`, para registrar a paridade. As únicas diferenças esperadas são `src/lib/native-auth.ts` (Google web pelo login gerenciado) e `src/lib/ordys-ai-access.ts` (o import aponta para `src/lib/ordys-ai-access-shared.ts`).
+2. Ajustar o `vitest.config.ts` para os testes rodarem um arquivo por vez (`fileParallelism: false`), o que elimina as falhas ao rodar todos de uma vez.
+3. Nas telas cujas funções do backend não estão confirmadas (assistente, recuperação de senha e exclusão de conta), mostrar uma mensagem clara de "indisponível" quando a chamada falhar, sem escrever no banco.
+4. Fazer uma nova verificação das rotas no navegador. Não publicar.
 
-## Fora desta etapa
-Migrations, Edge Functions, billing/Asaas, assistente IA, `mobile/`, `capacitor.config.ts`, `vite.mobile.config.ts` e `.github/`. Nada é aplicado no banco ou no Auth, e nada é publicado.
-
-## Adaptações necessárias
-- **Google na web:** usar o login do Google pelo Lovable. A main chama o Supabase direto, o que exige credenciais próprias do Google, não verificadas. O fluxo nativo do `native-auth.ts` fica intacto para o Android.
-- **Uso do backend:** os imports de `public-config.ts` passam a usar o `client.ts` gerado.
-- **Telas que dependem de migrations não aplicadas:** proteger contra colunas ausentes. Cada caso será listado antes de mexer.
-
-## Validação
-Build e testes. Na preview, com sessão real, nesta ordem: login/cadastro, calendário, tarefas, disciplinas, estudos e simulados. Paro antes de publicar.
-
-## Bloqueios conhecidos
-- Confirmação de e-mail real depende de uma migration autorizada que remove a auto-confirmação e da configuração de envio de e-mails.
-- Ainda preciso da decisão sobre o Google na web. O padrão proposto é o login pelo Lovable.
+## Bloqueios (fora do alcance sem autorização)
+- Confirmação de e-mail real: exige a migration que remove o trigger de auto-confirmação e o envio de e-mails configurado.
+- Migrations 19 a 33 e Edge Functions da main: não foram aplicadas nem implantadas.
