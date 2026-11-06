@@ -37,13 +37,13 @@ import {
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "ORDYS ACADEMY — Sua rotina acadêmica com clareza" },
+      { title: "Ordys Academy — Sua rotina acadêmica com clareza" },
       {
         name: "description",
         content:
           "Organize disciplinas, horários, tarefas, estudos e desempenho para enxergar sua rotina acadêmica com clareza.",
       },
-      { property: "og:title", content: "ORDYS ACADEMY — A clareza por trás da sua rotina" },
+      { property: "og:title", content: "Ordys Academy — A clareza por trás da sua rotina" },
       {
         property: "og:description",
         content:
@@ -77,10 +77,36 @@ function Home() {
   const { data: events = [] } = useCalendarEvents();
   const { data: prefs } = useNotificationPrefs();
 
-  const synced = useRef(false);
+  const notificationSyncRef = useRef("");
+  const notificationSyncSignature = [
+    profile?.id ?? "",
+    prefs
+      ? JSON.stringify({
+          enabled: prefs.enabled,
+          exams: prefs.exams,
+          tasks: prefs.tasks,
+          overdue: prefs.overdue,
+          classes: prefs.classes,
+          study_sessions: prefs.study_sessions,
+          goals: prefs.goals,
+          daily_summary: prefs.daily_summary,
+          weekly_summary: prefs.weekly_summary,
+          monthly_summary: prefs.monthly_summary,
+        })
+      : "no-prefs",
+    JSON.stringify(subjects.map((item) => [item.id, item.name, item.archived])),
+    JSON.stringify(topics.map((item) => [item.id, item.status, item.mastery, item.last_review])),
+    JSON.stringify(tasks.map((item) => [item.id, item.status, item.due_at, item.completed_at])),
+    JSON.stringify(exams.map((item) => [item.id, item.exam_at])),
+    JSON.stringify(plan.map((item) => [item.id, item.status, item.session_date, item.start_time])),
+    JSON.stringify(grades.map((item) => [item.id, item.score, item.max_score, item.weight, item.graded_on])),
+    JSON.stringify(attendance.map((item) => [item.id, item.status, item.class_date])),
+    JSON.stringify(focus.map((item) => [item.id, item.status, item.started_at, item.actual_minutes])),
+  ].join("|");
+
   useEffect(() => {
-    if (synced.current || !profile) return;
-    synced.current = true;
+    if (!profile || notificationSyncRef.current === notificationSyncSignature) return;
+    notificationSyncRef.current = notificationSyncSignature;
     void syncNotifications({
       userId: profile.id,
       subjects,
@@ -90,10 +116,11 @@ function Home() {
       plan,
       grades,
       attendance,
+      focus,
       profile,
       prefs: prefs ?? null,
     }).catch(() => undefined);
-  }, [profile, subjects, topics, tasks, exams, plan, grades, attendance, prefs]);
+  }, [notificationSyncSignature, profile, subjects, topics, tasks, exams, plan, grades, attendance, focus, prefs]);
 
   const now = new Date();
   const todayKey = dateKey(now);
@@ -156,8 +183,11 @@ function Home() {
     .filter((v): v is number => v !== null);
   const overall = averages.length ? averages.reduce((a, b) => a + b, 0) / averages.length : null;
 
-  const weekRange = { from: startOfWeek(now), to: addDays(startOfWeek(now), 6) };
-  const week = summarize(weekRange, { focus, tasks, plan, grades, attendance });
+  const weekStart = startOfWeek(now);
+  const weekEnd = addDays(weekStart, 6);
+  weekEnd.setHours(23, 59, 59, 999);
+  const weekRange = { from: weekStart, to: weekEnd };
+  const week = summarize(weekRange, { focus, tasks, plan, grades, attendance }, scale);
   const target = profile?.weekly_study_target_minutes ?? 480;
 
   const attention: { tone: string; text: string; meta: string }[] = [];
@@ -196,15 +226,25 @@ function Home() {
   const weekDays = Array.from({ length: 7 }).map((_, i) => {
     const day = addDays(weekRange.from, i);
     const key = dateKey(day);
+    const daySchedules = schedules.filter((s) => s.weekday === i);
+    const dayPlans = plan.filter((p) => p.session_date === key);
+    const dayEvents = events.filter((e) => dateKey(new Date(e.starts_at)) === key);
+    const names = Array.from(
+      new Set([
+        ...daySchedules.map((s) => subjects.find((x) => x.id === s.subject_id)?.name).filter(Boolean),
+        ...dayPlans.map((p) => subjects.find((x) => x.id === p.subject_id)?.name).filter(Boolean),
+        ...dayEvents.map((e) => subjects.find((x) => x.id === e.subject_id)?.name).filter(Boolean),
+      ]),
+    ) as string[];
     return {
       key,
       label: weekdayShort[i]!,
       date: String(day.getDate()),
       active: key === todayKey,
-      load:
-        plan.filter((p) => p.session_date === key).length +
-        schedules.filter((s) => s.weekday === i).length,
+      load: daySchedules.length + dayPlans.length + dayEvents.length,
       exams: exams.filter((e) => dateKey(new Date(e.exam_at)) === key).length,
+      subjects: names.slice(0, 2),
+      extraSubjects: Math.max(0, names.length - 2),
     };
   });
 
@@ -299,6 +339,19 @@ function Home() {
         />
       </div>
 
+      <Panel className="relative mt-4 overflow-hidden border-primary/10 bg-[radial-gradient(circle_at_78%_50%,rgba(65,105,225,0.16),transparent_48%)]">
+        <div className="relative min-h-[108px] px-5 py-4 sm:min-h-[116px]">
+          <p className="max-w-[340px] text-[14px] leading-relaxed font-medium sm:text-[15px]">
+            “O progresso acontece quando você não desiste.”
+          </p>
+          <div className="mt-2.5 flex items-center gap-2 text-[10px] tracking-[0.09em] text-muted-foreground uppercase">
+            <span>Mensagem do Ordys</span>
+            <ArrowUpRight className="size-[12px]" strokeWidth={1.7} />
+          </div>
+          
+        </div>
+      </Panel>
+
       <div className="mt-4 grid gap-4 lg:grid-cols-[1.35fr_1fr]">
         <Panel>
           <PanelHeader
@@ -311,9 +364,9 @@ function Home() {
               dayBlocks.map((b) => (
                 <div
                   key={b.key}
-                  className="flex items-center gap-4 px-5 py-2.5 transition-colors hover:bg-secondary/40"
+                  className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1.5 px-5 py-2.5 transition-colors hover:bg-secondary/40"
                 >
-                  <span className="num w-[74px] text-[12px] text-muted-foreground">
+                  <span className="num w-auto min-w-[64px] shrink-0 text-[12px] text-muted-foreground sm:w-[74px]">
                     {b.time}
                     {b.end ? `–${b.end}` : ""}
                   </span>
@@ -322,8 +375,8 @@ function Home() {
                     <p className="truncate text-[13px] font-medium">{b.label}</p>
                     <p className="truncate text-[11.5px] text-muted-foreground">{b.meta}</p>
                   </div>
-                  {b.key === nextBlock?.key ? <Chip tone="primary">a seguir</Chip> : null}
-                  {b.kind === "estudo" ? <Chip>foco</Chip> : null}
+                  {b.key === nextBlock?.key ? <Chip className="shrink-0" tone="primary">a seguir</Chip> : null}
+                  {b.kind === "estudo" ? <Chip className="shrink-0">foco</Chip> : null}
                 </div>
               ))
             ) : (
@@ -356,35 +409,68 @@ function Home() {
               )}
             </div>
           </Panel>
-
-          <Panel>
-            <PanelHeader
-              title="Semana"
-              hint={`${weekRange.from.getDate()} – ${weekRange.to.getDate()}`}
-            />
-            <div className="grid grid-cols-7 gap-1.5 border-t border-border px-4 py-4">
-              {weekDays.map((d) => (
-                <div key={d.key} className="flex flex-col items-center gap-2">
-                  <span className="text-[10.5px] text-muted-foreground">{d.label}</span>
-                  <span
-                    className={`num grid size-7 place-items-center rounded-md text-[12px] ${
-                      d.active ? "bg-primary text-primary-foreground" : "bg-secondary"
-                    }`}
-                  >
-                    {d.date}
-                  </span>
-                  <div className="flex h-10 w-full flex-col justify-end gap-[3px]">
-                    {Array.from({ length: Math.min(6, d.load) }).map((_, i) => (
-                      <span key={i} className="h-[3px] rounded-full bg-primary/35" />
-                    ))}
-                    {d.exams ? <span className="h-[3px] rounded-full bg-gold" /> : null}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Panel>
         </div>
       </div>
+
+      <Panel className="mt-4">
+        <PanelHeader
+          title="Sua semana"
+          hint={`${weekRange.from.getDate()} – ${weekRange.to.getDate()}`}
+          action={<Link to="/agenda" className="text-[11.5px] text-primary">Ver calendário</Link>}
+        />
+
+        <div className="hidden grid-cols-7 gap-px border-t border-border bg-border lg:grid">
+          {weekDays.map((d) => (
+            <div key={d.key} className="min-w-0 bg-surface px-3 py-3">
+              <div className="flex items-center gap-2">
+                <span className="text-[10.5px] tracking-wide text-muted-foreground uppercase">{d.label}</span>
+                <span className={`num ml-auto grid size-6 place-items-center rounded-full text-[11px] ${d.active ? "bg-primary text-primary-foreground" : "text-foreground"}`}>
+                  {d.date}
+                </span>
+              </div>
+              <div className="mt-2 min-h-[34px] space-y-1">
+                {d.subjects.length ? d.subjects.map((name) => (
+                  <div key={name} className="truncate rounded-md bg-background/70 px-2 py-1 text-[10.5px] font-medium text-foreground">
+                    {name}
+                  </div>
+                )) : (
+                  <p className="text-[10.5px] text-muted-foreground">Livre</p>
+                )}
+              </div>
+              <div className="mt-2 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                {d.load ? <span>{d.load} {d.load === 1 ? "bloco" : "blocos"}</span> : null}
+                {d.exams ? <><span>·</span><span className="text-gold">{d.exams} {d.exams === 1 ? "prova" : "provas"}</span></> : null}
+                {d.extraSubjects ? <><span>·</span><span>+{d.extraSubjects}</span></> : null}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid gap-1.5 border-t border-border px-3 py-2.5 lg:hidden">
+          {weekDays.map((d) => (
+            <div key={d.key} className="grid grid-cols-[56px_minmax(0,1fr)] items-start gap-3 rounded-lg border border-border bg-surface px-3 py-2.5">
+              <div className="flex items-center gap-2">
+                <span className={`num grid size-6 shrink-0 place-items-center rounded-full text-[10px] ${d.active ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground"}`}>
+                  {d.date}
+                </span>
+                <span className="text-[9.5px] tracking-wide text-muted-foreground uppercase">{d.label}</span>
+              </div>
+              <div className="min-w-0">
+                {d.subjects.length ? (
+                  <div className="flex min-w-0 flex-wrap gap-1">
+                    {d.subjects.slice(0, 3).map((name) => (
+                      <span key={name} className="max-w-full truncate rounded-md bg-background/70 px-2 py-1 text-[10px] font-medium" title={name}>{name}</span>
+                    ))}
+                    {d.extraSubjects ? <span className="px-1 py-1 text-[10px] text-muted-foreground">+{d.extraSubjects} mais</span> : null}
+                  </div>
+                ) : (
+                  <p className="text-[10.5px] text-muted-foreground">Livre</p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </Panel>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
         <Panel>
@@ -395,20 +481,16 @@ function Home() {
                 const s = subjects.find((x) => x.id === t.subject_id);
                 const left = daysUntil(t.due_at);
                 return (
-                  <div key={t.id} className="flex items-start gap-3 px-5 py-2.5">
+                  <div key={t.id} className="flex min-w-0 flex-wrap items-start gap-3 px-5 py-2.5">
                     <span className="mt-[3px] size-3.5 shrink-0 rounded-[4px] border border-border-strong" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[12.5px]">{t.title}</p>
-                      <p className="mt-0.5 flex items-center gap-1.5 truncate text-[11px] text-muted-foreground">
-                        {s ? (
-                          <>
-                            <Dot color={s.color} /> {s.name} ·{" "}
-                          </>
-                        ) : null}
+                      <p className="mt-0.5 flex min-w-0 flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+                        {s ? <><Dot color={s.color} /> {s.name} · </> : null}
                         {formatDateTime(t.due_at)}
                       </p>
                     </div>
-                    {left !== null && left < 0 ? <Chip tone="danger">atrasada</Chip> : null}
+                    {left !== null && left < 0 ? <Chip className="shrink-0" tone="danger">atrasada</Chip> : null}
                   </div>
                 );
               })
@@ -444,18 +526,13 @@ function Home() {
         <Panel>
           <PanelHeader title="Progresso" hint="esta semana" />
           <div className="flex items-center gap-5 border-t border-border px-5 py-4">
-            <Ring
-              value={week.plannedCount ? (week.completedPlanCount / week.plannedCount) * 100 : 0}
-              size={72}
-            />
+            <Ring value={week.plannedCount ? (week.completedPlanCount / week.plannedCount) * 100 : 0} size={72} />
             <div className="flex-1 space-y-2.5">
               {studyBySubject.length ? (
                 studyBySubject.map((p) => (
                   <div key={p.subject.id}>
                     <div className="mb-1 flex items-center justify-between text-[11.5px]">
-                      <span className="flex items-center gap-1.5">
-                        <Dot color={p.subject.color} /> {p.subject.name}
-                      </span>
+                      <span className="flex items-center gap-1.5"><Dot color={p.subject.color} /> {p.subject.name}</span>
                       <span className="num text-muted-foreground">{p.done.toFixed(0)}%</span>
                     </div>
                     <Bar value={p.done} />
@@ -487,18 +564,12 @@ function Home() {
                   <div className="flex items-center gap-2">
                     <Dot color={s.color} />
                     <p className="text-[13px] font-medium">{s.name}</p>
-                    <span className="num ml-auto text-[13px] font-semibold">
-                      {avg === null ? "—" : fmtNumber(avg)}
-                    </span>
+                    <span className="num ml-auto text-[13px] font-semibold">{avg === null ? "—" : fmtNumber(avg)}</span>
                   </div>
-                  <p className="mt-1 truncate text-[11px] text-muted-foreground">
-                    {s.teacher ?? "sem professor"} · {s.room ?? "sem sala"}
-                  </p>
+                  <p className="mt-1 truncate text-[11px] text-muted-foreground">{s.teacher ?? "sem professor"} · {s.room ?? "sem sala"}</p>
                   <div className="mt-2.5 flex items-center gap-2">
                     <Bar value={att ?? 0} tone={att !== null && att < 85 ? "warning" : "primary"} />
-                    <span className="num text-[10.5px] text-muted-foreground">
-                      {att === null ? "—" : `${att.toFixed(0)}%`}
-                    </span>
+                    <span className="num text-[10.5px] text-muted-foreground">{att === null ? "—" : `${att.toFixed(0)}%`}</span>
                   </div>
                 </div>
               );
@@ -508,7 +579,7 @@ function Home() {
       ) : null}
 
       <p className="mt-8 text-center text-[11px] tracking-[0.14em] text-muted-foreground/70 uppercase">
-        Ordys · Discipline your day. Learn with purpose.
+        ORDYS ACADEMY · A clareza por trás da sua rotina.
       </p>
     </Shell>
   );

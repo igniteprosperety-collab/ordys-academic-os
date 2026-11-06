@@ -11,11 +11,15 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AgendaRouteImport } from './routes/agenda'
+import { Route as AssistenteRouteImport } from './routes/assistente'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as DesempenhoRouteImport } from './routes/desempenho'
 import { Route as DisciplinasRouteImport } from './routes/disciplinas'
 import { Route as EstudosRouteImport } from './routes/estudos'
+import { Route as ExcluirContaRouteImport } from './routes/excluir-conta'
 import { Route as PerfilRouteImport } from './routes/perfil'
+import { Route as PrivacidadeRouteImport } from './routes/privacidade'
+import { Route as RedefinirSenhaRouteImport } from './routes/redefinir-senha'
 import { Route as SimuladoRouteImport } from './routes/simulado'
 import { Route as TarefasRouteImport } from './routes/tarefas'
 
@@ -27,6 +31,11 @@ const IndexRoute = IndexRouteImport.update({
 const AgendaRoute = AgendaRouteImport.update({
   id: '/agenda',
   path: '/agenda',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AssistenteRoute = AssistenteRouteImport.update({
+  id: '/assistente',
+  path: '/assistente',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -49,9 +58,24 @@ const EstudosRoute = EstudosRouteImport.update({
   path: '/estudos',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExcluirContaRoute = ExcluirContaRouteImport.update({
+  id: '/excluir-conta',
+  path: '/excluir-conta',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PerfilRoute = PerfilRouteImport.update({
   id: '/perfil',
   path: '/perfil',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacidadeRoute = PrivacidadeRouteImport.update({
+  id: '/privacidade',
+  path: '/privacidade',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RedefinirSenhaRoute = RedefinirSenhaRouteImport.update({
+  id: '/redefinir-senha',
+  path: '/redefinir-senha',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SimuladoRoute = SimuladoRouteImport.update({
@@ -68,22 +92,30 @@ const TarefasRoute = TarefasRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/agenda': typeof AgendaRoute
+  '/assistente': typeof AssistenteRoute
   '/auth': typeof AuthRoute
   '/desempenho': typeof DesempenhoRoute
   '/disciplinas': typeof DisciplinasRoute
   '/estudos': typeof EstudosRoute
+  '/excluir-conta': typeof ExcluirContaRoute
   '/perfil': typeof PerfilRoute
+  '/privacidade': typeof PrivacidadeRoute
+  '/redefinir-senha': typeof RedefinirSenhaRoute
   '/simulado': typeof SimuladoRoute
   '/tarefas': typeof TarefasRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/agenda': typeof AgendaRoute
+  '/assistente': typeof AssistenteRoute
   '/auth': typeof AuthRoute
   '/desempenho': typeof DesempenhoRoute
   '/disciplinas': typeof DisciplinasRoute
   '/estudos': typeof EstudosRoute
+  '/excluir-conta': typeof ExcluirContaRoute
   '/perfil': typeof PerfilRoute
+  '/privacidade': typeof PrivacidadeRoute
+  '/redefinir-senha': typeof RedefinirSenhaRoute
   '/simulado': typeof SimuladoRoute
   '/tarefas': typeof TarefasRoute
 }
@@ -91,11 +123,15 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/agenda': typeof AgendaRoute
+  '/assistente': typeof AssistenteRoute
   '/auth': typeof AuthRoute
   '/desempenho': typeof DesempenhoRoute
   '/disciplinas': typeof DisciplinasRoute
   '/estudos': typeof EstudosRoute
+  '/excluir-conta': typeof ExcluirContaRoute
   '/perfil': typeof PerfilRoute
+  '/privacidade': typeof PrivacidadeRoute
+  '/redefinir-senha': typeof RedefinirSenhaRoute
   '/simulado': typeof SimuladoRoute
   '/tarefas': typeof TarefasRoute
 }
@@ -104,33 +140,45 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/agenda'
+    | '/assistente'
     | '/auth'
     | '/desempenho'
     | '/disciplinas'
     | '/estudos'
+    | '/excluir-conta'
     | '/perfil'
+    | '/privacidade'
+    | '/redefinir-senha'
     | '/simulado'
     | '/tarefas'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/agenda'
+    | '/assistente'
     | '/auth'
     | '/desempenho'
     | '/disciplinas'
     | '/estudos'
+    | '/excluir-conta'
     | '/perfil'
+    | '/privacidade'
+    | '/redefinir-senha'
     | '/simulado'
     | '/tarefas'
   id:
     | '__root__'
     | '/'
     | '/agenda'
+    | '/assistente'
     | '/auth'
     | '/desempenho'
     | '/disciplinas'
     | '/estudos'
+    | '/excluir-conta'
     | '/perfil'
+    | '/privacidade'
+    | '/redefinir-senha'
     | '/simulado'
     | '/tarefas'
   fileRoutesById: FileRoutesById
@@ -138,11 +186,15 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AgendaRoute: typeof AgendaRoute
+  AssistenteRoute: typeof AssistenteRoute
   AuthRoute: typeof AuthRoute
   DesempenhoRoute: typeof DesempenhoRoute
   DisciplinasRoute: typeof DisciplinasRoute
   EstudosRoute: typeof EstudosRoute
+  ExcluirContaRoute: typeof ExcluirContaRoute
   PerfilRoute: typeof PerfilRoute
+  PrivacidadeRoute: typeof PrivacidadeRoute
+  RedefinirSenhaRoute: typeof RedefinirSenhaRoute
   SimuladoRoute: typeof SimuladoRoute
   TarefasRoute: typeof TarefasRoute
 }
@@ -161,6 +213,13 @@ declare module '@tanstack/react-router' {
       path: '/agenda'
       fullPath: '/agenda'
       preLoaderRoute: typeof AgendaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/assistente': {
+      id: '/assistente'
+      path: '/assistente'
+      fullPath: '/assistente'
+      preLoaderRoute: typeof AssistenteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -191,11 +250,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EstudosRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/excluir-conta': {
+      id: '/excluir-conta'
+      path: '/excluir-conta'
+      fullPath: '/excluir-conta'
+      preLoaderRoute: typeof ExcluirContaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/perfil': {
       id: '/perfil'
       path: '/perfil'
       fullPath: '/perfil'
       preLoaderRoute: typeof PerfilRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacidade': {
+      id: '/privacidade'
+      path: '/privacidade'
+      fullPath: '/privacidade'
+      preLoaderRoute: typeof PrivacidadeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/redefinir-senha': {
+      id: '/redefinir-senha'
+      path: '/redefinir-senha'
+      fullPath: '/redefinir-senha'
+      preLoaderRoute: typeof RedefinirSenhaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/simulado': {
@@ -218,11 +298,15 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AgendaRoute: AgendaRoute,
+  AssistenteRoute: AssistenteRoute,
   AuthRoute: AuthRoute,
   DesempenhoRoute: DesempenhoRoute,
   DisciplinasRoute: DisciplinasRoute,
   EstudosRoute: EstudosRoute,
+  ExcluirContaRoute: ExcluirContaRoute,
   PerfilRoute: PerfilRoute,
+  PrivacidadeRoute: PrivacidadeRoute,
+  RedefinirSenhaRoute: RedefinirSenhaRoute,
   SimuladoRoute: SimuladoRoute,
   TarefasRoute: TarefasRoute,
 }

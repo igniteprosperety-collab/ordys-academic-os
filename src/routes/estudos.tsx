@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Pause, Play, RefreshCw, RotateCcw, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
 import { Shell } from "@/components/ordys/shell";
@@ -9,6 +9,7 @@ import {
   minutesLabel,
   useAttendance,
   useCheckins,
+  useCalendarEvents,
   useExams,
   useFocusSessions,
   useGrades,
@@ -17,6 +18,7 @@ import {
   useProfile,
   useReviews,
   useSubjects,
+  useSchedules,
   useTasks,
   useTopics,
   type PlanSession,
@@ -30,18 +32,19 @@ import {
   replanMissed,
   startOfWeek,
   summarize,
+  planStatusLabel,
 } from "@/lib/ordys-engine";
 
 export const Route = createFileRoute("/estudos")({
   head: () => ({
     meta: [
-      { title: "Estudos — ORDYS" },
+      { title: "Estudos — Ordys Academy" },
       {
         name: "description",
         content:
-          "Plano de estudos inteligente, replanejamento automático, sessões de foco cronometradas, revisões espaçadas e check-in diário no ORDYS.",
+          "Plano de estudos inteligente, replanejamento automático, sessões de foco cronometradas, revisões espaçadas e check-in diário no Ordys Academy.",
       },
-      { property: "og:title", content: "Estudos — ORDYS" },
+      { property: "og:title", content: "Estudos — Ordys Academy" },
       {
         property: "og:description",
         content: "Plano gerado a partir das suas provas, tarefas e nível de domínio.",
@@ -54,6 +57,10 @@ export const Route = createFileRoute("/estudos")({
 });
 
 const groups = [{ items: ["Plano", "Foco", "Revisões", "Check-in"] }];
+
+function checkinPlanLabel(value: string | null) {
+  return value === "sim" ? "Sim, tudo" : value === "parcial" ? "Parcialmente" : value === "nao" ? "Não consegui" : "—";
+}
 
 function Estudos() {
   const [active, setActive] = useState("Plano");
@@ -68,13 +75,50 @@ function Estudos() {
   const { data: plan = [] } = usePlanSessions();
   const { data: focus = [] } = useFocusSessions();
   const { data: checkins = [] } = useCheckins();
+  const { data: schedules = [] } = useSchedules();
+  const { data: calendarEvents = [] } = useCalendarEvents();
   const { insert, update, userId, refresh } = useOrdysMutations();
   const [busy, setBusy] = useState(false);
 
   const todayKey = dateKey(new Date());
+  const todayCheckin = checkins.find((c) => c.checkin_date === todayKey) ?? null;
+  const automaticReviewSignature = [
+    ...topics.map((topic) => `t:${topic.id}:${topic.status}:${topic.mastery}:${topic.last_review ?? ""}`),
+    ...exams.map((exam) => `e:${exam.id}:${exam.exam_at}`),
+    ...reviews.map((review) => `r:${review.id}:${review.status}:${review.due_on}`),
+  ].sort().join("|");
+  const automaticReviewSignatureRef = useRef<string | null>(null);
+  const automaticReviewGeneratingRef = useRef(false);
+  useEffect(() => {
+    if (
+      !userId ||
+      !automaticReviewSignature ||
+      automaticReviewSignatureRef.current === automaticReviewSignature ||
+      automaticReviewGeneratingRef.current
+    ) {
+      return;
+    }
+    automaticReviewGeneratingRef.current = true;
+    void ensureAutomaticReviews({ userId, topics, exams, reviews })
+      .then((created) => {
+        automaticReviewSignatureRef.current = automaticReviewSignature;
+        if (created > 0) refresh();
+      })
+      .catch((error) => {
+        console.error("[reviews] automatic generation failed", error);
+      })
+      .finally(() => {
+        automaticReviewGeneratingRef.current = false;
+      });
+  }, [automaticReviewSignature, exams, refresh, reviews, topics, userId]);
+
+  const weekStart = startOfWeek(new Date());
+  const weekEnd = addDays(weekStart, 6);
+  weekEnd.setHours(23, 59, 59, 999);
   const week = summarize(
-    { from: startOfWeek(new Date()), to: addDays(startOfWeek(new Date()), 6) },
+    { from: weekStart, to: weekEnd },
     { focus, tasks, plan, grades, attendance },
+    Number(profile?.grade_scale_max ?? 10),
   );
   const target = profile?.weekly_study_target_minutes ?? 480;
   const planByDay = useMemo(() => {
@@ -98,6 +142,8 @@ function Estudos() {
     grades,
     reviews,
     existing: plan,
+    schedules,
+    calendarEvents,
   });
 
   async function run(label: string, fn: () => Promise<unknown>) {
@@ -188,7 +234,7 @@ function Estudos() {
                     </span>
                   </div>
                   {sessions.map((s) => (
-                    <div key={s.id} className="flex items-center gap-3 px-5 py-2.5">
+                    <div key={s.id} className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-5 py-2.5">
                       <span className="num w-[46px] text-[12px] text-muted-foreground">
                         {s.start_time?.slice(0, 5) ?? "--:--"}
                       </span>
@@ -200,19 +246,19 @@ function Estudos() {
                         </p>
                       </div>
                       <Chip tone={s.status === "concluida" ? "success" : s.status === "perdida" ? "danger" : "primary"}>
-                        {s.status}
+                        {planStatusLabel(s.status)}
                       </Chip>
-                      <button
-                        className="text-muted-foreground hover:text-success"
+                      <button type="button"
+                        className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-success sm:size-8"
                         aria-label="Concluir sessão"
-                        onClick={() => update("plan_sessions", s.id, { status: "concluida" })}
+                        onClick={() => run("Sessão concluída", () => update("plan_sessions", s.id, { status: "concluida" }))}
                       >
                         <Check className="size-[14px]" strokeWidth={1.8} />
                       </button>
-                      <button
-                        className="text-muted-foreground hover:text-destructive"
+                      <button type="button"
+                        className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-destructive sm:size-8"
                         aria-label="Pular sessão"
-                        onClick={() => update("plan_sessions", s.id, { status: "cancelada" })}
+                        onClick={() => run("Sessão cancelada", () => update("plan_sessions", s.id, { status: "cancelada" }))}
                       >
                         <X className="size-[14px]" strokeWidth={1.8} />
                       </button>
@@ -275,28 +321,42 @@ function Estudos() {
                 .map((r) => {
                   const topic = topics.find((t) => t.id === r.topic_id);
                   return (
-                    <div key={r.id} className="flex items-center gap-3 px-5 py-2.5">
+                    <div key={r.id} className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-5 py-2.5">
                       <Dot color={subjectColor(topic?.subject_id ?? null)} />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-[12.5px]">{topic?.title ?? "Conteúdo"}</p>
                         <p className="truncate text-[11px] text-muted-foreground">{r.reason ?? "Revisão programada"}</p>
                       </div>
-                      <Chip tone={r.due_on <= todayKey ? "danger" : "gold"}>{r.due_on}</Chip>
-                      <button
-                        className="text-muted-foreground hover:text-success"
+                      <Chip className="shrink-0" tone={r.due_on <= todayKey ? "danger" : "gold"}>{formatDay(`${r.due_on}T12:00:00`)}</Chip>
+                      <button type="button"
+                        className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-success sm:size-8"
                         aria-label="Concluir revisão"
-                        onClick={async () => {
-                          await update("reviews", r.id, {
-                            status: "concluida",
-                            completed_at: new Date().toISOString(),
-                          });
-                          if (topic) {
-                            await update("topics", topic.id, {
-                              last_review: todayKey,
-                              mastery: Math.min(100, topic.mastery + 10),
+                        disabled={busy}
+                        onClick={() =>
+                          run("Revisão concluída", async () => {
+                            await update("reviews", r.id, {
+                              status: "concluida",
+                              completed_at: new Date().toISOString(),
                             });
-                          }
-                        }}
+                            if (!topic) return;
+                            try {
+                              await update("topics", topic.id, {
+                                last_review: todayKey,
+                                mastery: Math.min(100, topic.mastery + 10),
+                              });
+                            } catch (error) {
+                              try {
+                                await update("reviews", r.id, {
+                                  status: "pendente",
+                                  completed_at: null,
+                                });
+                              } catch (rollbackError) {
+                                console.error("[reviews] rollback failed", rollbackError);
+                              }
+                              throw error;
+                            }
+                          })
+                        }
                       >
                         <Check className="size-[14px]" strokeWidth={1.8} />
                       </button>
@@ -316,11 +376,17 @@ function Estudos() {
       {active === "Check-in" ? (
         <CheckinPanel
           subjects={subjects}
-          already={checkins.some((c) => c.checkin_date === todayKey)}
+          already={!!todayCheckin}
           history={checkins.slice(0, 7)}
           onSave={async (payload) => {
-            await insert("daily_checkins", { ...payload, checkin_date: todayKey });
-            toast.success("Check-in registrado");
+            if (todayCheckin) {
+              await update("daily_checkins", todayCheckin.id, payload);
+              toast.success("Check-in atualizado");
+            } else {
+              await insert("daily_checkins", { ...payload, checkin_date: todayKey });
+              toast.success("Check-in registrado");
+            }
+            refresh();
           }}
         />
       ) : null}
@@ -351,36 +417,62 @@ function FocusPanel({
   const [planId, setPlanId] = useState("");
   const [left, setLeft] = useState(50 * 60);
   const [running, setRunning] = useState(false);
+  const [saving, setSaving] = useState(false);
   const startedAt = useRef<string | null>(null);
+  const timerEndAt = useRef<number | null>(null);
+
+  const sessionStarted = startedAt.current !== null;
+  const elapsedMinutes = Math.max(0, Math.round((minutes * 60 - left) / 60));
+
+  const finish = useCallback(async (status: "concluida" | "cancelada") => {
+    if (saving || !startedAt.current) return;
+    setRunning(false);
+    setSaving(true);
+    const actualMinutes = status === "concluida" ? Math.max(1, elapsedMinutes) : elapsedMinutes;
+    try {
+      await onSave({
+        subject_id: subjectId || null,
+        topic_id: topicId || null,
+        plan_session_id: planId || null,
+        planned_minutes: minutes,
+        actual_minutes: actualMinutes,
+        started_at: startedAt.current,
+        ended_at: new Date().toISOString(),
+        status,
+      });
+      startedAt.current = null;
+      timerEndAt.current = null;
+      setLeft(minutes * 60);
+      toast.success(status === "concluida" ? `Sessão de ${actualMinutes} min salva` : "Sessão cancelada");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Não foi possível salvar a sessão.";
+      toast.error(message);
+      setLeft((current) => Math.max(1, current));
+    } finally {
+      setSaving(false);
+    }
+  }, [elapsedMinutes, minutes, onSave, planId, saving, subjectId, topicId]);
 
   useEffect(() => {
     if (!running) return;
-    const id = window.setInterval(() => setLeft((v) => Math.max(0, v - 1)), 1000);
+    const tick = () => {
+      const endAt = timerEndAt.current;
+      if (endAt === null) return;
+      setLeft(Math.max(0, Math.ceil((endAt - Date.now()) / 1000)));
+    };
+    tick();
+    const id = window.setInterval(tick, 500);
     return () => window.clearInterval(id);
   }, [running]);
 
   useEffect(() => {
-    if (!running) setLeft(minutes * 60);
-  }, [minutes, running]);
-
-  const elapsedMinutes = Math.max(1, Math.round((minutes * 60 - left) / 60));
-
-  async function finish(status: "concluida" | "cancelada") {
-    setRunning(false);
-    await onSave({
-      subject_id: subjectId || null,
-      topic_id: topicId || null,
-      plan_session_id: planId || null,
-      planned_minutes: minutes,
-      actual_minutes: elapsedMinutes,
-      started_at: startedAt.current ?? new Date().toISOString(),
-      ended_at: new Date().toISOString(),
-      status,
-    });
-    startedAt.current = null;
     setLeft(minutes * 60);
-    toast.success(status === "concluida" ? `Sessão de ${elapsedMinutes} min salva` : "Sessão cancelada");
-  }
+  }, [minutes]);
+
+  useEffect(() => {
+    if (!running || left > 0) return;
+    void finish("concluida");
+  }, [finish, left, running]);
 
   return (
     <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_320px]">
@@ -392,11 +484,11 @@ function FocusPanel({
         <div className="mx-auto mt-6 flex w-full max-w-xs flex-col gap-3">
           <div className="flex justify-center gap-2">
             {[25, 50, 90].map((m) => (
-              <button
+              <button type="button"
                 key={m}
-                disabled={running}
+                disabled={sessionStarted}
                 onClick={() => setMinutes(m)}
-                className={`rounded-lg border px-3 py-1.5 text-[12px] transition-colors disabled:opacity-40 ${
+                className={`min-h-11 rounded-lg border px-3 py-1.5 text-[12px] transition-colors disabled:opacity-40 ${
                   minutes === m ? "border-primary/40 bg-primary-soft" : "border-border bg-surface text-muted-foreground"
                 }`}
               >
@@ -407,6 +499,7 @@ function FocusPanel({
           <Field label="Disciplina">
             <Select
               value={subjectId}
+              disabled={sessionStarted}
               onChange={(e) => {
                 setSubjectId(e.target.value);
                 setTopicId("");
@@ -421,7 +514,7 @@ function FocusPanel({
             </Select>
           </Field>
           <Field label="Conteúdo">
-            <Select value={topicId} onChange={(e) => setTopicId(e.target.value)}>
+            <Select value={topicId} disabled={sessionStarted} onChange={(e) => setTopicId(e.target.value)}>
               <option value="">Sem conteúdo</option>
               {topics
                 .filter((t) => !subjectId || t.subject_id === subjectId)
@@ -434,7 +527,7 @@ function FocusPanel({
           </Field>
           {plan.length ? (
             <Field label="Vincular a uma sessão do plano">
-              <Select value={planId} onChange={(e) => setPlanId(e.target.value)}>
+              <Select value={planId} disabled={sessionStarted} onChange={(e) => setPlanId(e.target.value)}>
                 <option value="">Sem vínculo</option>
                 {plan.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -447,13 +540,23 @@ function FocusPanel({
           <div className="flex justify-center gap-2">
             {running ? (
               <>
-                <Button variant="ghost" onClick={() => setRunning(false)}>
+                <Button
+                  variant="ghost"
+                  disabled={saving}
+                  onClick={() => {
+                    if (timerEndAt.current !== null) {
+                      setLeft(Math.max(0, Math.ceil((timerEndAt.current - Date.now()) / 1000)));
+                    }
+                    timerEndAt.current = null;
+                    setRunning(false);
+                  }}
+                >
                   <Pause className="size-[13px]" strokeWidth={1.8} /> Pausar
                 </Button>
-                <Button onClick={() => finish("concluida")}>
+                <Button disabled={saving} onClick={() => void finish("concluida")}>
                   <Check className="size-[13px]" strokeWidth={1.8} /> Concluir
                 </Button>
-                <Button variant="danger" onClick={() => finish("cancelada")}>
+                <Button variant="danger" disabled={saving} onClick={() => void finish("cancelada")}>
                   <X className="size-[13px]" strokeWidth={1.8} /> Cancelar
                 </Button>
               </>
@@ -461,6 +564,7 @@ function FocusPanel({
               <Button
                 onClick={() => {
                   startedAt.current = startedAt.current ?? new Date().toISOString();
+                  timerEndAt.current = Date.now() + left * 1000;
                   setRunning(true);
                 }}
               >
@@ -474,7 +578,7 @@ function FocusPanel({
       <div className="flex flex-col gap-4">
         <Panel>
           <PanelHeader title="Semana" hint="tempo real de estudo" />
-          <div className="flex items-center gap-5 border-t border-border px-5 py-5">
+          <div className="flex flex-wrap items-center gap-5 border-t border-border px-5 py-5">
             <Ring value={Math.min(100, (weekMinutes / Math.max(1, target)) * 100)} size={72} />
             <div>
               <p className="num text-[16px] font-semibold">{minutesLabel(weekMinutes)}</p>
@@ -487,11 +591,11 @@ function FocusPanel({
           <div className="border-t border-border">
             {recent.length ? (
               recent.map((r) => (
-                <div key={r.id} className="flex items-center gap-3 px-5 py-2.5 text-[12px]">
+                <div key={r.id} className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-5 py-2.5 text-[12px]">
                   <Dot color={r.color} />
                   <span className="min-w-0 flex-1 truncate">{r.label}</span>
-                  <span className="num text-muted-foreground">{minutesLabel(r.minutes)}</span>
-                  <Chip tone={r.status === "concluida" ? "success" : "muted"}>{r.status}</Chip>
+                  <span className="num shrink-0 text-muted-foreground">{minutesLabel(r.minutes)}</span>
+                  <Chip className="shrink-0" tone={r.status === "concluida" ? "success" : "muted"}>{planStatusLabel(r.status)}</Chip>
                 </div>
               ))
             ) : (
@@ -522,6 +626,34 @@ function CheckinPanel({
     hardest_subject_id: "",
     pending_note: "",
   });
+  const [saving, setSaving] = useState(false);
+
+  async function saveCheckin() {
+    const studiedMinutes =
+      form.studied_minutes.trim() === "" ? null : Number(form.studied_minutes);
+    if (
+      studiedMinutes !== null &&
+      (!Number.isInteger(studiedMinutes) || studiedMinutes < 0 || studiedMinutes > 1440)
+    ) {
+      toast.error("Os minutos estudados devem ser um número inteiro entre 0 e 1440.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await onSave({
+        completed_plan: form.completed_plan,
+        focus_rating: Number(form.focus_rating),
+        studied_minutes: studiedMinutes,
+        hardest_subject_id: form.hardest_subject_id || null,
+        pending_note: form.pending_note.trim() || null,
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível salvar o check-in.");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_340px]">
@@ -576,19 +708,8 @@ function CheckinPanel({
             />
           </Field>
         </div>
-        <Button
-          className="mt-4"
-          onClick={() =>
-            onSave({
-              completed_plan: form.completed_plan,
-              focus_rating: Number(form.focus_rating),
-              studied_minutes: form.studied_minutes ? Number(form.studied_minutes) : null,
-              hardest_subject_id: form.hardest_subject_id || null,
-              pending_note: form.pending_note || null,
-            })
-          }
-        >
-          {already ? "Atualizar check-in" : "Registrar check-in"}
+        <Button className="mt-4" onClick={saveCheckin} disabled={saving}>
+          {saving ? "Salvando…" : already ? "Atualizar check-in" : "Registrar check-in"}
         </Button>
       </Panel>
       <Panel>
@@ -596,10 +717,10 @@ function CheckinPanel({
         <div className="border-t border-border">
           {history.length ? (
             history.map((c) => (
-              <div key={c.id} className="flex items-center gap-3 px-5 py-2.5 text-[12px]">
-                <span className="num flex-1">{c.checkin_date}</span>
-                <Chip tone={c.completed_plan === "sim" ? "success" : c.completed_plan === "nao" ? "danger" : "gold"}>
-                  {c.completed_plan ?? "—"}
+              <div key={c.id} className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-5 py-2.5 text-[12px]">
+                <span className="num flex-1">{formatDay(`${c.checkin_date}T12:00:00`)}</span>
+                <Chip className="shrink-0" tone={c.completed_plan === "sim" ? "success" : c.completed_plan === "nao" ? "danger" : "gold"}>
+                  {checkinPlanLabel(c.completed_plan)}
                 </Chip>
                 <span className="num text-muted-foreground">foco {c.focus_rating ?? "—"}</span>
               </div>

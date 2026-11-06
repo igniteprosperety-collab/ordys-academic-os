@@ -1,3 +1,6 @@
+- App source is imported selectively from the official GitHub main; never overwrite `src/integrations/*`, `src/start.ts`, `src/server.ts` or `.env` with the repo's copies — they carry the Lovable preview session and Cloud wiring.
+- Web Google sign-in uses the Lovable broker (`@/integrations/lovable`), loaded dynamically in `native-auth.ts`; Android keeps the native Capacitor flow — managed Cloud Google has no raw Supabase OAuth credentials.
+
 <!-- LOVABLE:BEGIN -->
 > [!IMPORTANT]
 > This project is connected to [Lovable](https://lovable.dev). Avoid rewriting

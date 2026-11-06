@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { getOrdysDataClient } from "@/lib/demo-supabase";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { useAuth } from "@/hooks/use-auth";
-import { insertGuestRow, readGuestProfile, readGuestRows, removeGuestRow, updateGuestRow, upsertGuestNotificationPrefs, upsertGuestProfile, isGuestMode } from "@/lib/demo-mode";
+import { isDemoMode } from "@/lib/demo-mode";
 
 export type Subject = Tables<"subjects">;
 export type Topic = Tables<"topics">;
@@ -66,236 +67,119 @@ export const SUBJECT_COLORS = [
   "var(--subject-petrol)",
 ];
 
-/* ------------------------------------------------------------------ reads */
+function dataClient() {
+  return isDemoMode() ? getOrdysDataClient() : supabase;
+}
 
-function useOwnedQuery<T>(key: unknown[], run: () => PromiseLike<Result<T>>, guestRead?: () => T) {
-  const { userId, guest, loading } = useAuth();
+function useOwnedQuery<T>(key: unknown[], run: (client: ReturnType<typeof dataClient>) => PromiseLike<Result<T>>) {
+  const { userId, loading } = useAuth();
   return useQuery({
-    queryKey: [...key, guest ? "guest" : userId],
-    enabled: !loading && (!!userId || guest),
-    queryFn: async () => guest ? (guestRead ? guestRead() : (null as T)) : unwrap<T>(await run()),
+    queryKey: [...key, userId, isDemoMode() ? "demo" : "cloud"],
+    enabled: !loading && !!userId,
+    queryFn: async () => unwrap<T>(await run(dataClient())),
   });
 }
 
 export function useProfile() {
   const { userId } = useAuth();
-  return useOwnedQuery<Profile | null>(["profile"], () =>
-    supabase.from("profiles").select("*").eq("id", userId!).maybeSingle(),
-    () => readGuestProfile<Profile>(),
-  );
+  return useOwnedQuery<Profile | null>(["profile"], (db) => db.from("profiles").select("*").eq("id", userId!).maybeSingle());
 }
 
 export function useSubjects(includeArchived = false) {
-  return useOwnedQuery<Subject[]>(["subjects", includeArchived], () => {
-    const q = supabase.from("subjects").select("*").order("name");
+  return useOwnedQuery<Subject[]>(["subjects", includeArchived], (db) => {
+    const q = db.from("subjects").select("*").order("name");
     return includeArchived ? q : q.eq("archived", false);
-  }, () => {
-    const rows = readGuestRows<Subject>("subjects");
-    return includeArchived ? rows : rows.filter((s) => !s.archived);
   });
 }
 
-export function useSchedules() {
-  return useOwnedQuery<SubjectSchedule[]>(["schedules"], () =>
-    supabase.from("subject_schedules").select("*").order("start_time")
-  , () => readGuestRows<SubjectSchedule>("subject_schedules").sort((a, b) => a.start_time.localeCompare(b.start_time)));
-}
+export function useSchedules() { return useOwnedQuery<SubjectSchedule[]>(["schedules"], (db) => db.from("subject_schedules").select("*").order("start_time")); }
 
 export function useTopics(subjectId?: string | null) {
-  return useOwnedQuery<Topic[]>(["topics", subjectId ?? "all"], () => {
-    const q = supabase.from("topics").select("*").order("position").order("created_at");
+  return useOwnedQuery<Topic[]>(["topics", subjectId ?? "all"], (db) => {
+    const q = db.from("topics").select("*").order("position").order("created_at");
     return subjectId ? q.eq("subject_id", subjectId) : q;
-  }, () => {
-    const rows = readGuestRows<Topic>("topics");
-    return (subjectId ? rows.filter((t) => t.subject_id === subjectId) : rows).sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
   });
 }
 
-export function useTasks() {
-  return useOwnedQuery<Task[]>(["tasks"], () =>
-    supabase.from("tasks").select("*").order("due_at", { nullsFirst: false })
-  , () => readGuestRows<Task>("tasks").sort((a, b) => String(a.due_at ?? "9999").localeCompare(String(b.due_at ?? "9999"))));
-}
-
-export function useSubtasks() {
-  return useOwnedQuery<Subtask[]>(["subtasks"], () =>
-    supabase.from("subtasks").select("*").order("created_at")
-  , () => readGuestRows<Subtask>("subtasks"));
-}
-
-export function useExams() {
-  return useOwnedQuery<Exam[]>(["exams"], () =>
-    supabase.from("exams").select("*").order("exam_at")
-  , () => readGuestRows<Exam>("exams").sort((a, b) => a.exam_at.localeCompare(b.exam_at)));
-}
-
-export function useGrades() {
-  return useOwnedQuery<Grade[]>(["grades"], () =>
-    supabase.from("grades").select("*").order("graded_on")
-  , () => readGuestRows<Grade>("grades").sort((a, b) => a.graded_on.localeCompare(b.graded_on)));
-}
-
-export function useAttendance() {
-  return useOwnedQuery<AttendanceRecord[]>(["attendance"], () =>
-    supabase.from("attendance_records").select("*").order("class_date")
-  , () => readGuestRows<AttendanceRecord>("attendance_records").sort((a, b) => a.class_date.localeCompare(b.class_date)));
-}
-
-export function useFocusSessions() {
-  return useOwnedQuery<FocusSession[]>(["focus"], () =>
-    supabase.from("focus_sessions").select("*").order("started_at", { ascending: false })
-  , () => readGuestRows<FocusSession>("focus_sessions").sort((a, b) => b.started_at.localeCompare(a.started_at)));
-}
-
-export function usePlanSessions() {
-  return useOwnedQuery<PlanSession[]>(["plan"], () =>
-    supabase.from("plan_sessions").select("*").order("session_date").order("start_time")
-  , () => readGuestRows<PlanSession>("plan_sessions").sort((a, b) => (a.session_date + (a.start_time ?? "")).localeCompare(b.session_date + (b.start_time ?? ""))));
-}
-
-export function useReviews() {
-  return useOwnedQuery<Review[]>(["reviews"], () =>
-    supabase.from("reviews").select("*").order("due_on")
-  , () => readGuestRows<Review>("reviews").sort((a, b) => a.due_on.localeCompare(b.due_on)));
-}
-
-export function useGoals() {
-  return useOwnedQuery<Goal[]>(["goals"], () =>
-    supabase.from("goals").select("*").order("created_at")
-  , () => readGuestRows<Goal>("goals"));
-}
-
+export function useTasks() { return useOwnedQuery<Task[]>(["tasks"], (db) => db.from("tasks").select("*").order("due_at", { nullsFirst: false })); }
+export function useSubtasks() { return useOwnedQuery<Subtask[]>(["subtasks"], (db) => db.from("subtasks").select("*").order("created_at")); }
+export function useExams() { return useOwnedQuery<Exam[]>(["exams"], (db) => db.from("exams").select("*").order("exam_at")); }
+export function useGrades() { return useOwnedQuery<Grade[]>(["grades"], (db) => db.from("grades").select("*").order("graded_on")); }
+export function useAttendance() { return useOwnedQuery<AttendanceRecord[]>(["attendance"], (db) => db.from("attendance_records").select("*").order("class_date")); }
+export function useFocusSessions() { return useOwnedQuery<FocusSession[]>(["focus"], (db) => db.from("focus_sessions").select("*").order("started_at", { ascending: false })); }
+export function usePlanSessions() { return useOwnedQuery<PlanSession[]>(["plan"], (db) => db.from("plan_sessions").select("*").order("session_date").order("start_time")); }
+export function useReviews() { return useOwnedQuery<Review[]>(["reviews"], (db) => db.from("reviews").select("*").order("due_on")); }
+export function useGoals() { return useOwnedQuery<Goal[]>(["goals"], (db) => db.from("goals").select("*").order("created_at")); }
 export function useNotifications() {
-  return useOwnedQuery<NotificationRow[]>(["notifications"], () =>
-    supabase
-      .from("notifications")
-      .select("*")
-      .is("dismissed_at", null)
-      .order("created_at", { ascending: false })
-      .limit(60)
-  , () => readGuestRows<NotificationRow>("notifications").filter((n) => !n.dismissed_at).sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 60));
+  return useOwnedQuery<NotificationRow[]>(["notifications"], (db) => db.from("notifications").select("*").is("dismissed_at", null).order("created_at", { ascending: false }).limit(60));
 }
-
 export function useNotificationPrefs() {
   const { userId } = useAuth();
-  return useOwnedQuery<NotificationPrefs | null>(["notif-prefs"], () =>
-    supabase.from("notification_preferences").select("*").eq("user_id", userId!).maybeSingle()
-  , () => readGuestRows<NotificationPrefs>("notification_preferences")[0] ?? null);
+  return useOwnedQuery<NotificationPrefs | null>(["notif-prefs"], (db) => db.from("notification_preferences").select("*").eq("user_id", userId!).maybeSingle());
 }
+export function useCalendarEvents() { return useOwnedQuery<CalendarEvent[]>(["events"], (db) => db.from("calendar_events").select("*").order("starts_at")); }
+export function useCheckins() { return useOwnedQuery<DailyCheckin[]>(["checkins"], (db) => db.from("daily_checkins").select("*").order("checkin_date", { ascending: false })); }
+export function useQuizAttempts() { return useOwnedQuery<QuizAttempt[]>(["quiz-attempts"], (db) => db.from("quiz_attempts").select("*").order("created_at", { ascending: false })); }
+export function useQuizAnswers() { return useOwnedQuery<QuizAnswer[]>(["quiz-answers"], (db) => db.from("quiz_answers").select("*").order("created_at", { ascending: false })); }
+export function useCalendarConnections() { return useOwnedQuery<Tables<"calendar_connections">[]>(["calendar-connections"], (db) => db.from("calendar_connections").select("*").order("provider")); }
 
-export function useCalendarEvents() {
-  return useOwnedQuery<CalendarEvent[]>(["events"], () =>
-    supabase.from("calendar_events").select("*").order("starts_at")
-  , () => readGuestRows<CalendarEvent>("calendar_events").sort((a, b) => a.starts_at.localeCompare(b.starts_at)));
-}
-
-export function useCheckins() {
-  return useOwnedQuery<DailyCheckin[]>(["checkins"], () =>
-    supabase.from("daily_checkins").select("*").order("checkin_date", { ascending: false })
-  , () => readGuestRows<DailyCheckin>("daily_checkins").sort((a, b) => b.checkin_date.localeCompare(a.checkin_date)));
-}
-
-export function useQuizAttempts() {
-  return useOwnedQuery<QuizAttempt[]>(["quiz-attempts"], () =>
-    supabase.from("quiz_attempts").select("*").order("created_at", { ascending: false })
-  , () => readGuestRows<QuizAttempt>("quiz_attempts").sort((a, b) => b.created_at.localeCompare(a.created_at)));
-}
-
-export function useQuizAnswers() {
-  return useOwnedQuery<QuizAnswer[]>(["quiz-answers"], () =>
-    supabase.from("quiz_answers").select("*").order("created_at", { ascending: false })
-  , () => readGuestRows<QuizAnswer>("quiz_answers").sort((a, b) => b.created_at.localeCompare(a.created_at)));
-}
-
-export function useCalendarConnections() {
-  return useOwnedQuery<Tables<"calendar_connections">[]>(["calendar-connections"], () =>
-    supabase.from("calendar_connections").select("*").order("provider")
-  , () => readGuestRows<Tables<"calendar_connections">>("calendar_connections"));
-}
-
-/* ------------------------------------------------------------- mutations */
-
-type TableName =
-  | "subjects"
-  | "subject_schedules"
-  | "topics"
-  | "tasks"
-  | "subtasks"
-  | "exams"
-  | "grades"
-  | "attendance_records"
-  | "focus_sessions"
-  | "plan_sessions"
-  | "reviews"
-  | "goals"
-  | "notifications"
-  | "calendar_events"
-  | "daily_checkins"
-  | "quiz_attempts"
-  | "quiz_answers";
+type TableName = "subjects" | "subject_schedules" | "topics" | "tasks" | "subtasks" | "exams" | "grades" | "attendance_records" | "focus_sessions" | "plan_sessions" | "reviews" | "goals" | "notifications" | "calendar_events" | "calendar_connections" | "daily_checkins" | "quiz_attempts" | "quiz_answers";
 
 export function useOrdysMutations() {
   const client = useQueryClient();
   const { userId } = useAuth();
   const refresh = () => client.invalidateQueries();
-
-  /* eslint-disable @typescript-eslint/no-explicit-any */
-  const anyDb = () => supabase as any;
+  type MutationResult = Result<unknown>;
+  type MutationBuilder = PromiseLike<MutationResult> & {
+    select(): MutationBuilder;
+    single(): PromiseLike<MutationResult>;
+    eq(column: string, value: unknown): MutationBuilder;
+    insert(values: Record<string, unknown>): MutationBuilder;
+    update(values: Record<string, unknown>): MutationBuilder;
+    delete(): MutationBuilder;
+    upsert(values: Record<string, unknown>, options?: { onConflict?: string }): MutationBuilder;
+  };
+  type MutationDbTableName = TableName | "profiles" | "notification_preferences";
+  type MutationClient = { from(table: MutationDbTableName): MutationBuilder };
+  const mutationDb = () => dataClient() as unknown as MutationClient;
 
   async function insert(table: TableName, values: Record<string, unknown>) {
     if (!userId) throw new Error("Sem sessão");
-    if (isGuestMode()) {
-      const row = insertGuestRow(table, values);
-      refresh();
-      return row;
-    }
-    const res = await anyDb()
-      .from(table)
-      .insert({ ...values, user_id: userId })
-      .select()
-      .single();
+    const res = await mutationDb().from(table).insert({ ...values, user_id: userId }).select().single();
     const row = unwrap(res);
     refresh();
     return row;
   }
 
   async function update(table: TableName, id: string, values: Record<string, unknown>) {
-    if (isGuestMode()) {
-      const row = updateGuestRow(table, id, values);
-      refresh();
-      return row;
-    }
-    const res = await anyDb().from(table).update(values).eq("id", id).select().single();
+    if (!userId) throw new Error("Sem sessão");
+    const { user_id: _ignoredUserId, ...safeValues } = values;
+    const res = await mutationDb()
+      .from(table)
+      .update(safeValues)
+      .eq("id", id)
+      .eq("user_id", userId)
+      .select()
+      .single();
     const row = unwrap(res);
     refresh();
     return row;
   }
 
   async function remove(table: TableName, id: string) {
-    if (isGuestMode()) {
-      removeGuestRow(table, id);
-      refresh();
-      return;
-    }
-    const { error } = await anyDb().from(table).delete().eq("id", id);
+    if (!userId) throw new Error("Sem sessão");
+    const { error } = await mutationDb()
+      .from(table)
+      .delete()
+      .eq("id", id)
+      .eq("user_id", userId);
     if (error) throw new Error(error.message);
     refresh();
   }
-  /* eslint-enable @typescript-eslint/no-explicit-any */
-
 
   async function upsertProfile(values: TablesUpdate<"profiles">) {
     if (!userId) throw new Error("Sem sessão");
-    if (isGuestMode()) {
-      const row = upsertGuestProfile(values as Record<string, unknown>);
-      refresh();
-      return row;
-    }
-    const res = await supabase
-      .from("profiles")
-      .upsert({ ...values, id: userId } as TablesInsert<"profiles">)
-      .select()
-      .single();
+    const res = await mutationDb().from("profiles").upsert({ ...values, id: userId } as TablesInsert<"profiles">).select().single();
     const row = unwrap(res);
     refresh();
     return row;
@@ -303,14 +187,12 @@ export function useOrdysMutations() {
 
   async function upsertNotificationPrefs(values: TablesUpdate<"notification_preferences">) {
     if (!userId) throw new Error("Sem sessão");
-    if (isGuestMode()) {
-      const row = upsertGuestNotificationPrefs(values as Record<string, unknown>);
-      refresh();
-      return row;
-    }
-    const res = await supabase
+    const res = await mutationDb()
       .from("notification_preferences")
-      .upsert({ ...values, user_id: userId } as TablesInsert<"notification_preferences">)
+      .upsert(
+        { ...values, user_id: userId } as TablesInsert<"notification_preferences">,
+        { onConflict: "user_id" },
+      )
       .select()
       .single();
     const row = unwrap(res);
@@ -323,20 +205,29 @@ export function useOrdysMutations() {
 
 export function useAsyncAction<TArgs extends unknown[]>(fn: (...args: TArgs) => Promise<unknown>) {
   const client = useQueryClient();
-  return useMutation({
-    mutationFn: (args: TArgs) => fn(...args),
-    onSuccess: () => client.invalidateQueries(),
-  });
+  return useMutation({ mutationFn: (args: TArgs) => fn(...args), onSuccess: () => client.invalidateQueries() });
 }
 
-/* ---------------------------------------------------------------- derived */
-
 export function subjectAverage(grades: Grade[], subjectId: string, scaleMax = 10) {
-  const rows = grades.filter((g) => g.subject_id === subjectId);
+  const rows = grades
+    .filter((g) => g.subject_id === subjectId)
+    .map((grade) => ({
+      score: Number(grade.score),
+      maxScore: Number(grade.max_score || scaleMax),
+      weight: Number(grade.weight || 1),
+    }))
+    .filter(
+      (grade) =>
+        Number.isFinite(grade.score) &&
+        Number.isFinite(grade.maxScore) &&
+        grade.maxScore > 0 &&
+        Number.isFinite(grade.weight) &&
+        grade.weight > 0,
+    );
   if (!rows.length) return null;
-  const totalWeight = rows.reduce((acc, g) => acc + Number(g.weight || 1), 0);
+  const totalWeight = rows.reduce((acc, grade) => acc + grade.weight, 0);
   const sum = rows.reduce(
-    (acc, g) => acc + (Number(g.score) / Number(g.max_score || scaleMax)) * scaleMax * Number(g.weight || 1),
+    (acc, grade) => acc + (grade.score / grade.maxScore) * scaleMax * grade.weight,
     0,
   );
   return totalWeight ? sum / totalWeight : null;
@@ -349,11 +240,5 @@ export function subjectAttendance(records: AttendanceRecord[], subjectId: string
   return (present / rows.length) * 100;
 }
 
-export const fmtNumber = (n: number, digits = 1) =>
-  n.toLocaleString("pt-BR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
-
-export const minutesLabel = (minutes: number) => {
-  const h = Math.floor(minutes / 60);
-  const m = Math.round(minutes % 60);
-  return h ? `${h}h${m ? String(m).padStart(2, "0") : ""}` : `${m}min`;
-};
+export const fmtNumber = (n: number, digits = 1) => n.toLocaleString("pt-BR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+export const minutesLabel = (minutes: number) => { const h = Math.floor(minutes / 60); const m = Math.round(minutes % 60); return h ? `${h}h${m ? String(m).padStart(2, "0") : ""}` : `${m}min`; };

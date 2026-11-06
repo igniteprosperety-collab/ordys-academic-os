@@ -30,44 +30,78 @@ export function QuickCapture() {
   const { insert } = useOrdysMutations();
 
   function reset() {
+    setKind("tarefa");
     setTitle("");
+    setSubjectId("");
     setWhen("");
     setValue("");
     setTopicId("");
   }
 
   async function save() {
+    const requiresTitle = kind === "tarefa" || kind === "evento";
+    const cleanTitle = title.trim();
+    if (requiresTitle && !cleanTitle) {
+      toast.error("Informe um título.");
+      return;
+    }
+
+    const parsedWhen = when ? new Date(when) : null;
+    if (parsedWhen && Number.isNaN(parsedWhen.getTime())) {
+      toast.error("Informe uma data ou horário válido.");
+      return;
+    }
+
+    const numericValue =
+      value.trim() === "" ? null : Number(value);
+    if (numericValue !== null && !Number.isFinite(numericValue)) {
+      toast.error("Informe um valor numérico válido.");
+      return;
+    }
+    if (kind === "tarefa" && numericValue !== null && (numericValue < 0 || numericValue > 1440)) {
+      toast.error("A estimativa deve ficar entre 0 e 1.440 minutos.");
+      return;
+    }
+    if (kind === "sessao" && numericValue !== null && (numericValue < 5 || numericValue > 1440)) {
+      toast.error("A duração da sessão deve ficar entre 5 e 1.440 minutos.");
+      return;
+    }
+    if (kind === "nota" && numericValue !== null && numericValue < 0) {
+      toast.error("A nota não pode ser negativa.");
+      return;
+    }
+
     setBusy(true);
     try {
       const subject = subjectId || null;
       if (kind === "tarefa") {
         await insert("tasks", {
-          title,
+          title: cleanTitle,
           subject_id: subject,
           topic_id: topicId || null,
           due_at: when ? new Date(when).toISOString() : null,
-          estimated_minutes: value ? Number(value) : null,
+          estimated_minutes: numericValue,
         });
       } else if (kind === "prova") {
         await insert("exams", {
-          title: title || "Avaliação",
+          title: cleanTitle || "Avaliação",
           subject_id: subject,
           exam_at: new Date(when || Date.now()).toISOString(),
-          content: value || null,
+          content: value.trim() || null,
         });
       } else if (kind === "evento") {
         await insert("calendar_events", {
-          title,
+          title: cleanTitle,
           subject_id: subject,
           starts_at: new Date(when || Date.now()).toISOString(),
-          location: value || null,
+          location: value.trim() || null,
         });
       } else if (kind === "nota") {
         if (!subject) throw new Error("Escolha a disciplina");
         await insert("grades", {
-          title: title || "Avaliação",
+          title: cleanTitle || "Avaliação",
           subject_id: subject,
-          score: Number(value || 0),
+          score: numericValue ?? 0,
           graded_on: when ? when.slice(0, 10) : dateKey(new Date()),
         });
       } else if (kind === "revisao") {
@@ -75,7 +109,7 @@ export function QuickCapture() {
         await insert("reviews", {
           topic_id: topicId,
           due_on: when ? when.slice(0, 10) : dateKey(new Date()),
-          reason: title || "Revisão criada manualmente",
+          reason: cleanTitle || "Revisão criada manualmente",
           source: "manual",
         });
       } else {
@@ -84,9 +118,9 @@ export function QuickCapture() {
           topic_id: topicId || null,
           session_date: when ? when.slice(0, 10) : dateKey(new Date()),
           start_time: when && when.includes("T") ? when.slice(11, 16) : null,
-          duration_minutes: Number(value || 45),
+          duration_minutes: numericValue ?? 45,
           kind: "estudo",
-          reason: title || "Sessão criada manualmente",
+          reason: cleanTitle || "Sessão criada manualmente",
           generated: false,
         });
       }
@@ -114,9 +148,9 @@ export function QuickCapture() {
 
   return (
     <>
-      <button
+      <button type="button"
         onClick={() => setOpen(true)}
-        className="grid size-8 place-items-center rounded-lg bg-primary text-primary-foreground transition-colors hover:bg-primary/90"
+        className="grid size-11 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground transition-colors hover:bg-primary/90 sm:size-8"
         aria-label="Captura rápida"
         title="Captura rápida"
       >
@@ -126,10 +160,10 @@ export function QuickCapture() {
       <Modal open={open} onClose={() => setOpen(false)} title="Captura rápida" subtitle="Crie qualquer item em segundos">
         <div className="mb-4 flex flex-wrap gap-1.5">
           {kinds.map((k) => (
-            <button
+            <button type="button"
               key={k.key}
               onClick={() => setKind(k.key)}
-              className={`rounded-md border px-2.5 py-1.5 text-[12px] transition-colors ${
+              className={`min-h-11 rounded-md border px-2.5 py-2 text-[12px] transition-colors ${
                 kind === k.key
                   ? "border-primary/40 bg-primary-soft text-foreground"
                   : "border-border bg-surface text-muted-foreground hover:text-foreground"
@@ -184,11 +218,14 @@ export function QuickCapture() {
           </Field>
         </div>
 
-        <div className="mt-5 flex justify-end gap-2">
+        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Button variant="ghost" onClick={() => setOpen(false)}>
             Cancelar
           </Button>
-          <Button onClick={save} disabled={busy || !title.trim()}>
+          <Button
+            onClick={save}
+            disabled={busy || ((kind === "tarefa" || kind === "evento") && !title.trim())}
+          >
             Salvar
           </Button>
         </div>

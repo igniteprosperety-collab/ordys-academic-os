@@ -21,12 +21,12 @@ export function PanelHeader({
   action?: ReactNode;
 }) {
   return (
-    <header className="flex items-baseline justify-between gap-4 px-5 pt-4 pb-3">
-      <div className="flex items-baseline gap-3">
-        <h2 className="text-[13px] font-semibold tracking-tight">{title}</h2>
-        {hint ? <span className="text-[11px] text-muted-foreground">{hint}</span> : null}
+    <header className="flex min-w-0 flex-wrap items-start justify-between gap-3 px-5 pt-4 pb-3">
+      <div className="min-w-0 flex-1 flex items-baseline gap-3">
+        <h2 className="min-w-0 truncate text-[13px] font-semibold tracking-tight">{title}</h2>
+        {hint ? <span className="min-w-0 truncate text-[11px] text-muted-foreground">{hint}</span> : null}
       </div>
-      {action}
+      {action ? <div className="ml-auto shrink-0">{action}</div> : null}
     </header>
   );
 }
@@ -120,14 +120,17 @@ export function Dot({ color }: { color: string }) {
 export function Chip({
   children,
   tone = "muted",
+  className,
 }: {
   children: ReactNode;
   tone?: "muted" | "primary" | "gold" | "danger" | "success" | "warning";
+  className?: string;
 }) {
   return (
     <span
       className={cn(
         "inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10.5px] font-medium tracking-wide",
+        className,
         tone === "muted" && "bg-secondary text-muted-foreground",
         tone === "primary" && "bg-primary-soft text-primary",
         tone === "gold" && "bg-gold/12 text-gold",
@@ -151,14 +154,14 @@ export function PageTitle({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-wrap items-end justify-between gap-4">
-      <div>
+    <div className="flex min-w-0 flex-wrap items-end justify-between gap-4">
+      <div className="min-w-0">
         <h1 className="text-[22px] leading-tight font-semibold tracking-tight">{title}</h1>
         {subtitle ? (
           <p className="mt-1 text-[13px] text-muted-foreground">{subtitle}</p>
         ) : null}
       </div>
-      {action}
+      {action ? <div className="shrink-0">{action}</div> : null}
     </div>
   );
 }
