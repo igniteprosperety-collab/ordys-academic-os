@@ -1,0 +1,23 @@
+name: Actions Runner Probe
+
+on:
+  push:
+    branches:
+      - diagnostics/actions-runner-probe-2026-11-06
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  runner-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Confirm hosted runner allocation
+        shell: bash
+        run: |
+          echo "runner_probe_started=true"
+          echo "repository=$GITHUB_REPOSITORY"
+          echo "runner_os=$RUNNER_OS"
+          echo "runner_name=$RUNNER_NAME"
