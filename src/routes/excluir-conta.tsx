@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { deleteLocalProfile, getActiveLocalProfileId, isDemoMode, stopDemoMode } from "@/lib/demo-mode";
 import { signOutCurrentSession } from "@/lib/ordys-session";
+import { edgeFunctionUnavailableMessage } from "@/lib/edge-function-errors";
 import { Button, ConfirmDialog } from "@/components/ordys/form";
 import { OrdysBrandLockup } from "@/components/ordys/brand-lockup";
 
@@ -65,7 +66,8 @@ function DeleteAccountPage() {
           "A conta foi excluída, mas não foi possível confirmar o encerramento da sessão neste dispositivo. Tente novamente.",
         );
       } else {
-        toast.error(error instanceof Error ? error.message : "Não foi possível concluir a exclusão.");
+        toast.error(edgeFunctionUnavailableMessage(error, "account-deletion") ??
+          (error instanceof Error ? error.message : "Não foi possível concluir a exclusão."));
       }
     } finally {
       setBusy(false);

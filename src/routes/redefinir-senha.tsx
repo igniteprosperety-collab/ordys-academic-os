@@ -8,6 +8,7 @@ import { signOutCurrentSession } from "@/lib/ordys-session";
 import { Button, Field, TextInput } from "@/components/ordys/form";
 import { OrdysBrandLockup } from "@/components/ordys/brand-lockup";
 import { resolveRecoveryScreenMode } from "@/lib/password-recovery-session";
+import { edgeFunctionUnavailableMessage } from "@/lib/edge-function-errors";
 import {
   markNativeRecoveryPending,
   ORDYS_NATIVE_AUTH_REDIRECT_URI,
@@ -151,6 +152,7 @@ function ResetPasswordPage() {
         if (Capacitor.isNativePlatform()) {
           window.localStorage.removeItem("ordys:native-recovery-pending-v1");
         }
+        if (edgeFunctionUnavailableMessage(recoveryError, "password-recovery")) throw recoveryError;
         let message = recoveryError.message;
         const context = (recoveryError as Error & { context?: unknown }).context;
         if (context instanceof Response) {
@@ -180,7 +182,8 @@ function ResetPasswordPage() {
       setRecoveryCooldownUntil(Date.now() + 60_000);
       setSent(true);
     } catch (error) {
-      toast.error(readableAuthError(error instanceof Error ? error.message : String(error)));
+      toast.error(edgeFunctionUnavailableMessage(error, "password-recovery") ??
+        readableAuthError(error instanceof Error ? error.message : String(error)));
     } finally {
       setBusy(false);
     }
