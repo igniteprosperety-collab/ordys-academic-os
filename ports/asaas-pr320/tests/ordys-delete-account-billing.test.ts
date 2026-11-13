@@ -68,7 +68,7 @@ function makeDependencies(
       return [{ ...(firstAttempt as Record<string, unknown>) }];
     }
     if (path.startsWith("ordys_billing_subscriptions?") && init?.method === "PATCH") {
-      const idMatch = path.match(/(?:^|&)id=eq\.([^&]+)/);
+      const idMatch = path.match(/[?&]id=eq\.([^&]+)/);
       const id = idMatch?.[1] ? decodeURIComponent(idMatch[1]) : "";
       const target = Array.isArray(subscriptionRows)
         ? subscriptionRows.find((row) => row && typeof row === "object" && (row as Record<string, unknown>).id === id)
@@ -614,7 +614,7 @@ describe("account deletion billing guard", () => {
 
     dependencies.serviceRest.mockImplementation(async (path: string, init?: RequestInit) => {
       if (path.startsWith("ordys_billing_checkout_attempts?") && init?.method === "PATCH") {
-        const idMatch = path.match(/(?:^|&)id=eq\.([^&]+)/);
+        const idMatch = path.match(/[?&]id=eq\.([^&]+)/);
         const id = idMatch?.[1] ? decodeURIComponent(idMatch[1]) : "";
         const target = attempts.find((attempt) => attempt.id === id);
         if (!target) return [];
@@ -659,7 +659,7 @@ describe("account deletion billing guard", () => {
     if (!original) throw new Error("Missing serviceRest mock implementation");
 
     dependencies.serviceRest.mockImplementation(async (path: string, init?: RequestInit) => {
-      const idMatch = path.match(/(?:^|&)id=eq\.([^&]+)/);
+      const idMatch = path.match(/[?&]id=eq\.([^&]+)/);
       const id = idMatch?.[1] ? decodeURIComponent(idMatch[1]) : "";
       if (path.startsWith("ordys_billing_checkout_attempts?") && init?.method === "PATCH") {
         if (id === "attempt-claim-inconclusive") return [];
@@ -1058,7 +1058,7 @@ describe("account deletion deployment gates", () => {
   });
 
   it("verifies the account-deletion schema-status RPC after migrations and before deploying the function", () => {
-    const workflow = readFileSync(".github/workflows/deploy-ordys-assistant.yml", "utf8");
+    const workflow = readFileSync("ports/asaas-pr320/github-workflows/deploy-ordys-assistant.yml", "utf8");
     const migrationApply = workflow.indexOf("- name: Apply Supabase database migrations");
     const schemaGateStart = workflow.indexOf("- name: Verify account-deletion schema-status RPC before deploying core deletion");
     const deletionStart = workflow.indexOf("- name: Deploy Ordys Delete Account Edge Function");

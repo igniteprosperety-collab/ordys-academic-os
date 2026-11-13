@@ -174,6 +174,7 @@ async function setup(options: {
 
   vi.stubGlobal("Deno", {
     serve: (handler: CheckoutHandler) => { registeredHandler = handler; },
+    env: { get: (name: string) => (name === "SUPABASE_URL" ? "https://project-ref.supabase.co" : undefined) },
   });
   await import("../edge-functions/ordys-billing-checkout/index.ts");
   if (!registeredHandler) throw new Error("Checkout Edge Function did not register its HTTP handler.");
