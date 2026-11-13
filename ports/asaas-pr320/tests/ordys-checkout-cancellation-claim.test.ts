@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { claimOrdysCheckoutCancellation } from "../supabase/functions/_shared/ordys-checkout-cancellation";
+import { claimOrdysCheckoutCancellation } from "../edge-functions/_shared/ordys-checkout-cancellation";
 
 describe("ORDYS Checkout cancellation ownership claim", () => {
   it("accepts a successful compare-and-set only when the returned row has its owner token", async () => {

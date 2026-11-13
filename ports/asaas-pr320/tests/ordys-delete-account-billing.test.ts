@@ -1,12 +1,12 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
-import { AsaasApiError } from "../supabase/functions/_shared/ordys-billing";
+import { AsaasApiError } from "../edge-functions/_shared/ordys-billing";
 import {
   AccountDeletionProcessingError,
   BillingCancellationPendingError,
   CheckoutCreationInProgressError,
   cancelOrdysBillingBeforeAccountDeletion,
-} from "../supabase/functions/_shared/ordys-delete-account-billing";
+} from "../edge-functions/_shared/ordys-delete-account-billing";
 
 function makeDependencies(
   schemaStatus: string,

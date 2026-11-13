@@ -34,7 +34,7 @@ afterEach(() => {
 describe("Ordys Plus server-side entitlement gate", () => {
   it("fails closed and does not query subscription eligibility while the worker is partial", async () => {
     const fetcher = setupFetch(["partial"]);
-    const { isOrdysPlusEligible } = await import("../supabase/functions/_shared/ordys-billing.ts");
+    const { isOrdysPlusEligible } = await import("../edge-functions/_shared/ordys-billing.ts");
 
     await expect(isOrdysPlusEligible("00000000-0000-0000-0000-000000000001")).resolves.toBe(false);
 
@@ -46,7 +46,7 @@ describe("Ordys Plus server-side entitlement gate", () => {
 
   it("checks the payment ledger only after the webhook worker reports ready", async () => {
     const fetcher = setupFetch(["ready", true]);
-    const { isOrdysPlusEligible } = await import("../supabase/functions/_shared/ordys-billing.ts");
+    const { isOrdysPlusEligible } = await import("../edge-functions/_shared/ordys-billing.ts");
 
     await expect(isOrdysPlusEligible("00000000-0000-0000-0000-000000000001")).resolves.toBe(true);
 

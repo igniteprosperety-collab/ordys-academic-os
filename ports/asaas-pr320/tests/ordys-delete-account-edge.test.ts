@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   assertAsaasConfigured: vi.fn(),
 }));
 
-vi.mock("../supabase/functions/_shared/ordys-billing.ts", () => ({
+vi.mock("../edge-functions/_shared/ordys-billing.ts", () => ({
   serviceRest: mocks.serviceRest,
   asaasRequest: mocks.asaasRequest,
   assertAsaasConfigured: mocks.assertAsaasConfigured,
@@ -123,7 +123,7 @@ async function setup(options: {
     },
   });
 
-  await import("../supabase/functions/ordys-delete-account/index.ts");
+  await import("../edge-functions/ordys-delete-account/index.ts");
   const handler = readRegisteredHandler();
   if (typeof handler !== "function") {
     throw new Error("A função Edge de exclusão não registrou seu handler HTTP.");

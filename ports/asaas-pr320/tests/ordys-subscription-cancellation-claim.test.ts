@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { claimOrdysSubscriptionCancellation } from "../supabase/functions/_shared/ordys-subscription-cancellation";
+import { claimOrdysSubscriptionCancellation } from "../edge-functions/_shared/ordys-subscription-cancellation";
 
 function setup(options: {
   patchResult?: unknown;

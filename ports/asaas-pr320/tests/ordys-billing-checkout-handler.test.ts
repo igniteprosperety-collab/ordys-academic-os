@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { OutboundRequestTimeoutError } from "../supabase/functions/_shared/request-timeout";
+import { OutboundRequestTimeoutError } from "../edge-functions/_shared/request-timeout";
 
 const mocks = vi.hoisted(() => ({
   serviceRest: vi.fn(),
@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   authenticateBillingRequest: vi.fn(),
 }));
 
-vi.mock("../supabase/functions/_shared/ordys-billing.ts", () => ({
+vi.mock("../edge-functions/_shared/ordys-billing.ts", () => ({
   AsaasApiError: class AsaasApiError extends Error {
     constructor(readonly status: number) {
       super(`Asaas HTTP ${status}`);
@@ -47,7 +47,7 @@ vi.mock("../supabase/functions/_shared/ordys-billing.ts", () => ({
   authenticateBillingRequest: mocks.authenticateBillingRequest,
 }));
 
-vi.mock("../supabase/functions/_shared/request-body.ts", () => ({
+vi.mock("../edge-functions/_shared/request-body.ts", () => ({
   readRequestBodyWithLimit: async (request: Request, maxBytes: number) => {
     const body = await request.text();
     return new TextEncoder().encode(body).byteLength <= maxBytes ? body : null;
@@ -164,7 +164,7 @@ async function setup(options: {
   });
   mocks.asaasRequest.mockReset();
   if (options.providerErrorStatus !== undefined) {
-    const { AsaasApiError } = await import("../supabase/functions/_shared/ordys-billing.ts");
+    const { AsaasApiError } = await import("../edge-functions/_shared/ordys-billing.ts");
     mocks.asaasRequest.mockRejectedValue(new AsaasApiError(options.providerErrorStatus));
   } else if (options.providerError) {
     mocks.asaasRequest.mockRejectedValue(options.providerError);
@@ -175,7 +175,7 @@ async function setup(options: {
   vi.stubGlobal("Deno", {
     serve: (handler: CheckoutHandler) => { registeredHandler = handler; },
   });
-  await import("../supabase/functions/ordys-billing-checkout/index.ts");
+  await import("../edge-functions/ordys-billing-checkout/index.ts");
   if (!registeredHandler) throw new Error("Checkout Edge Function did not register its HTTP handler.");
   return { handler: registeredHandler, attempt };
 }

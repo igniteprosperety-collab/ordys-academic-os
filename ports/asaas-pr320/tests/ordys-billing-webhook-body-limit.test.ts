@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readRequestBodyWithLimit } from "../supabase/functions/_shared/request-body";
+import { readRequestBodyWithLimit } from "../edge-functions/_shared/request-body";
 
 describe("Bounded Edge request body reader", () => {
   it("decodes a UTF-8 body that stays within the byte limit", async () => {

@@ -13,7 +13,7 @@ import {
   serviceRestWithDeadline,
   isOrdysPlusEligible,
   getUserAgeProfile,
-} from "../supabase/functions/_shared/ordys-billing";
+} from "../edge-functions/_shared/ordys-billing";
 
 describe("shared billing security helpers", () => {
   describe("authenticateBillingRequest", () => {

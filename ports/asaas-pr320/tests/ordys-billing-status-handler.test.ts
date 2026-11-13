@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   authenticateBillingRequest: vi.fn(),
 }));
 
-vi.mock("../supabase/functions/_shared/ordys-billing.ts", () => ({
+vi.mock("../edge-functions/_shared/ordys-billing.ts", () => ({
   billingCorsHeaders: {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -50,7 +50,7 @@ async function setup(options: {
   vi.stubGlobal("Deno", {
     serve: (handler: BillingStatusHandler) => { registeredHandler = handler; },
   });
-  await import("../supabase/functions/ordys-billing-status/index.ts");
+  await import("../edge-functions/ordys-billing-status/index.ts");
   if (!registeredHandler) throw new Error("Billing status Edge Function did not register its HTTP handler.");
 
   return { handler: registeredHandler };

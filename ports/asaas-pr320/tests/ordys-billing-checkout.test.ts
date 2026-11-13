@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkoutAttemptDisposition } from "../supabase/functions/_shared/ordys-billing";
+import { checkoutAttemptDisposition } from "../edge-functions/_shared/ordys-billing";
 
 describe("Asaas checkout retry safety", () => {
   const now = Date.parse("2026-10-31T12:00:00.000Z");

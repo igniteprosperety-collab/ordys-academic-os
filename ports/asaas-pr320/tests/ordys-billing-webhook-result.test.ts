@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   parseOrdysBillingWebhookProcessorResult,
-} from "../supabase/functions/_shared/ordys-billing-webhook-result.ts";
+} from "../edge-functions/_shared/ordys-billing-webhook-result.ts";
 
 describe("Asaas webhook processor response", () => {
   it("accepts a completed event only when the event type is present", () => {

@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { OutboundRequestTimeoutError } from "../supabase/functions/_shared/request-timeout";
+import { OutboundRequestTimeoutError } from "../edge-functions/_shared/request-timeout";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
   authenticateBillingRequest: vi.fn(),
 }));
 
-vi.mock("../supabase/functions/_shared/ordys-billing.ts", () => ({
+vi.mock("../edge-functions/_shared/ordys-billing.ts", () => ({
   serviceRest: mocks.serviceRest,
   asaasRequest: mocks.asaasRequest,
   assertAsaasConfigured: mocks.assertAsaasConfigured,
@@ -109,7 +109,7 @@ async function setup(options: {
   vi.stubGlobal("Deno", {
     serve: (handler: ManageHandler) => { registeredHandler = handler; },
   });
-  await import("../supabase/functions/ordys-billing-manage/index.ts");
+  await import("../edge-functions/ordys-billing-manage/index.ts");
   if (!registeredHandler) throw new Error("Manage Edge Function did not register its HTTP handler.");
   return { handler: registeredHandler, subscription };
 }

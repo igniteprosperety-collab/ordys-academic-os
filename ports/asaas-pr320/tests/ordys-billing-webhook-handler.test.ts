@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   constantTimeEqual: vi.fn(),
 }));
 
-vi.mock("../supabase/functions/_shared/ordys-billing.ts", () => ({
+vi.mock("../edge-functions/_shared/ordys-billing.ts", () => ({
   serviceRestWithDeadline: mocks.serviceRestWithDeadline,
   getSupabaseUrl: mocks.getSupabaseUrl,
   getServiceRoleKey: mocks.getServiceRoleKey,
@@ -27,7 +27,7 @@ vi.mock("../supabase/functions/_shared/ordys-billing.ts", () => ({
     }),
 }));
 
-vi.mock("../supabase/functions/_shared/request-body.ts", () => ({
+vi.mock("../edge-functions/_shared/request-body.ts", () => ({
   readRequestBodyWithLimit: async (request: Request, maxBytes: number) => {
     const body = await request.text();
     return new TextEncoder().encode(body).byteLength <= maxBytes ? body : null;
@@ -97,7 +97,7 @@ async function setup(options: {
     },
   });
 
-  await import("../supabase/functions/ordys-billing-webhook/index.ts");
+  await import("../edge-functions/ordys-billing-webhook/index.ts");
   if (!registeredHandler) {
     throw new Error("Asaas webhook Edge Function did not register its HTTP handler.");
   }
