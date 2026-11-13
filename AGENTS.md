@@ -11,3 +11,4 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+- Asaas billing from PR #320 lives as an archive under `ports/asaas-pr320/` (Edge Functions cannot be created in this TanStack project); port handlers to server routes before enabling. Why: keeps the official source intact without deploying anything.
