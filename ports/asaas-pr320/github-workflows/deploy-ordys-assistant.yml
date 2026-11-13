@@ -1,0 +1,364 @@
+name: Deploy ORDYS Assistant
+
+on:
+  workflow_dispatch:
+    inputs:
+      production_backup_verified:
+        description: "Confirm only after a complete production backup/export has been downloaded, opened or integrity-checked, and stored outside Lovable."
+        required: true
+        type: boolean
+        default: false
+      email_confirmation_delivery_verified:
+        description: "Confirm only after an ordinary Gmail successfully receives and opens a new-account confirmation email."
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ordys-supabase-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.repository == 'igniteprosperety-collab/ordys-academy.app' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      ORDYS_PUBLIC_APP_URL: ${{ secrets.ORDYS_PUBLIC_APP_URL }}
+    steps:
+      - name: Checkout ORDYS
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2.0.5
+        with:
+          deno-version: 2.9.7
+
+      - name: Run ORDYS static security verification
+        run: node scripts/verify-ordys-static.mjs
+
+      - name: Validate Ordys Assistant Edge Function
+        run: deno check supabase/functions/ordys-assistant/index.ts
+
+      - name: Validate AI Content Report Edge Function
+        run: deno check supabase/functions/ordys-ai-report/index.ts
+
+      - name: Validate Ordys Video Transcription Edge Function
+        run: deno check supabase/functions/ordys-video-transcribe/index.ts
+
+      - name: Validate Ordys Password Recovery Edge Function
+        run: deno check supabase/functions/ordys-password-recovery/index.ts
+
+      - name: Validate Ordys Delete Account Edge Function
+        run: deno check supabase/functions/ordys-delete-account/index.ts
+
+      - name: Validate ORDYS Billing Checkout Edge Function
+        run: deno check supabase/functions/ordys-billing-checkout/index.ts
+
+      - name: Validate ORDYS Billing Status Edge Function
+        run: deno check supabase/functions/ordys-billing-status/index.ts
+
+      - name: Validate ORDYS Billing Management Edge Function
+        run: deno check supabase/functions/ordys-billing-manage/index.ts
+
+      - name: Validate ORDYS Asaas Webhook Edge Function
+        run: deno check supabase/functions/ordys-billing-webhook/index.ts
+
+      - name: Validate ORDYS Billing Return Edge Function
+        run: deno check supabase/functions/ordys-billing-return/index.ts
+
+      - name: Check deployment configuration
+        id: config
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=()
+          [ -n "${SUPABASE_ACCESS_TOKEN:-}" ] || missing+=("SUPABASE_ACCESS_TOKEN")
+          [ -n "${SUPABASE_PROJECT_ID:-}" ] || missing+=("SUPABASE_PROJECT_ID")
+          [ -n "${SUPABASE_DB_PASSWORD:-}" ] || missing+=("SUPABASE_DB_PASSWORD")
+          configured_project_id="$(grep -E '^project_id = "' supabase/config.toml | head -n 1 | cut -d '"' -f 2)"
+          if [[ "$configured_project_id" == "yqljcoukgpqdoxiispyn" || "${SUPABASE_PROJECT_ID:-}" == "yqljcoukgpqdoxiispyn" ]]; then
+            echo "::error::This repository targets the built-in Lovable Cloud project. Supabase CLI/Management API deployment is not a supported route for this managed backend. Use the Lovable Cloud migration and Edge Function workflow; no production changes were made."
+            exit 1
+          fi
+          if [ -n "${SUPABASE_PROJECT_ID:-}" ] && [ "$SUPABASE_PROJECT_ID" != "$configured_project_id" ]; then
+            echo "::error::SUPABASE_PROJECT_ID does not match the project pinned in supabase/config.toml."
+            exit 1
+          fi
+          if [ -z "$configured_project_id" ]; then
+            echo "::error::The repository does not declare a valid Supabase project_id."
+            exit 1
+          fi
+          if [ -n "${ORDYS_PUBLIC_APP_URL:-}" ]; then
+            node -e 'const u = new URL(process.argv[1]); const h = u.hostname.toLowerCase(); if (u.protocol !== "https:" || u.pathname !== "/" || u.search || u.hash || u.username || u.password || h.endsWith(".lovable.app") || h.endsWith(".lovableproject.com")) process.exit(1)' "$ORDYS_PUBLIC_APP_URL" || {
+              echo "ORDYS_PUBLIC_APP_URL must be the official HTTPS origin, not a temporary Lovable preview."
+              exit 1
+            }
+          else
+            echo "::notice::No web origin configured. Native deep-link recovery remains available; browser-based recovery stays closed until the official site origin is configured."
+          fi
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "Deployment secrets missing: ${missing[*]}"
+            echo "Refusing a successful-looking deployment run without production credentials."
+            exit 1
+          fi
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+
+      - name: Require verified off-platform production backup before deployment
+        shell: bash
+        env:
+          PRODUCTION_BACKUP_VERIFIED: ${{ inputs.production_backup_verified }}
+        run: |
+          set -euo pipefail
+          if [[ "${PRODUCTION_BACKUP_VERIFIED:-false}" != "true" ]]; then
+            echo "::error::Production deployment blocked. Verify that a complete database backup/export is downloaded, non-empty, readable or integrity-checked, and stored outside Lovable; then rerun and attest the backup input."
+            exit 1
+          fi
+          echo "Off-platform production backup attested. Continuing with read-only preflight and guarded deployment."
+
+      - name: Audit live Supabase Auth configuration before deployment
+        if: steps.config.outputs.configured == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          auth_config_file="$RUNNER_TEMP/ordys-auth-config.json"
+          umask 077
+          trap 'rm -f "$auth_config_file"' EXIT
+          printf 'header = "Authorization: Bearer %s"\n' "$SUPABASE_ACCESS_TOKEN" |
+            curl --config - --fail --silent --show-error \
+              "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_ID/config/auth" \
+              --output "$auth_config_file"
+          node scripts/verify-supabase-auth-config.mjs "$auth_config_file" "${ORDYS_PUBLIC_APP_URL:-}"
+          echo "Live Supabase Auth settings passed the deployment gate. Secret values were not printed."
+
+      - name: Setup Supabase CLI
+        if: steps.config.outputs.configured == 'true'
+        uses: supabase/setup-cli@v3.0.1
+        with:
+          version: 2.118.0
+
+      - name: Link Supabase production
+        if: steps.config.outputs.configured == 'true'
+        run: |
+          supabase link --project-ref "$SUPABASE_PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Inspect custom Auth user trigger (read only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          trigger_metadata="$(supabase db query --linked --yes --output json --file scripts/queries/auth-trigger-readiness.sql)"
+          if printf '%s' "$trigger_metadata" | grep -Fq '"trigger_name"'; then
+            if ! printf '%s' "$trigger_metadata" | jq -e '
+              [.. | objects | select(has("trigger_name"))] as $triggers
+              | ($triggers | length) > 0
+                and all($triggers[];
+                  .trigger_name == "ordys_auto_confirm_email_trigger"
+                  and .function_schema == "public"
+                  and .function_name == "ordys_auto_confirm_email"
+                )
+            ' >/dev/null; then
+              echo "::error::An unexpected auth.users trigger references email_confirmed_at. Refusing to deploy until the trigger/function is inspected."
+              exit 1
+            fi
+            echo "::warning::The known ORDYS auto-confirm trigger remains attached to auth.users. Keep its removal migration held until Gmail delivery is verified."
+          else
+            echo "No known or email_confirmed_at-related trigger was found on auth.users."
+          fi
+          unset trigger_metadata
+      - name: Verify required Edge Function secret names
+        if: steps.config.outputs.configured == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          secret_names_file="$RUNNER_TEMP/ordys-edge-secret-names.txt"
+          # Supabase prints only secret metadata here; values are never read or logged.
+          supabase secrets list --project-ref "$SUPABASE_PROJECT_ID" > "$secret_names_file"
+          if ! grep -Eq '(^|[^A-Za-z0-9_])OPENAI_API_KEY([^A-Za-z0-9_]|$)' "$secret_names_file"; then
+            echo "::error::Required Edge Function secret OPENAI_API_KEY is missing from the Supabase project."
+            exit 1
+          fi
+          echo "Required OpenAI runtime secret is configured; its value was not read."
+
+      - name: Configure canonical web origin for password recovery
+        if: steps.config.outputs.configured == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${ORDYS_PUBLIC_APP_URL:-}" ]]; then
+            supabase --yes secrets set "ORDYS_PUBLIC_APP_URL=$ORDYS_PUBLIC_APP_URL" --project-ref "$SUPABASE_PROJECT_ID"
+          else
+            echo "::notice::Skipped ORDYS_PUBLIC_APP_URL: native deep-link recovery is enabled; web recovery will reject unconfigured origins."
+          fi
+
+      - name: Preflight Supabase migration state
+        if: steps.config.outputs.configured == 'true'
+        env:
+          EMAIL_CONFIRMATION_DELIVERY_VERIFIED: ${{ inputs.email_confirmation_delivery_verified }}
+        run: |
+          set -euo pipefail
+          email_migration_version="20261029233000"
+          migration_state="$(supabase migration list)"
+          printf '%s\n' "$migration_state"
+
+          # The untracked trigger currently auto-confirms new users. Keep that
+          # migration AND every later migration out of this push until an ordinary
+          # Gmail signup confirms delivery; otherwise later versions would create
+          # a migration-history gap on the next deployment.
+          if [[ "${EMAIL_CONFIRMATION_DELIVERY_VERIFIED:-false}" != "true" ]]; then
+            # Supabase columns are LOCAL | REMOTE | TIME; awk field $2 is REMOTE.
+            remote_has_email_migration="$(
+              printf '%s\n' "$migration_state" |
+                awk -F '│' -v version="$email_migration_version" '$2 ~ version { found=1 } END { print found ? "yes" : "no" }'
+            )"
+            if [[ "$remote_has_email_migration" != "yes" ]]; then
+              held_migrations=0
+              while IFS= read -r migration_file; do
+                migration_name="$(basename "$migration_file")"
+                migration_version="${migration_name%%_*}"
+                if [[ "$migration_version" =~ ^[0-9]{14}$ ]] && [[ "$migration_version" -ge "$email_migration_version" ]]; then
+                  mv "$migration_file" "$RUNNER_TEMP/$migration_name"
+                  held_migrations=$((held_migrations + 1))
+                fi
+              done < <(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | sort)
+
+              if (( held_migrations > 0 )); then
+                echo "::notice::Holding the email-confirmation migration and $((held_migrations - 1)) later migration(s) until Gmail delivery is verified. Earlier migrations remain eligible to apply in order."
+              fi
+            fi
+          fi
+
+          supabase migration list
+          supabase db lint --linked --level error
+          supabase db push --linked --dry-run
+
+      - name: Apply Supabase database migrations
+        if: steps.config.outputs.configured == 'true'
+        run: |
+          set -euo pipefail
+          supabase --yes db push --linked
+      - name: Verify account-deletion schema-status RPC before deploying core deletion
+        id: account_deletion_schema
+        if: steps.config.outputs.configured == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          migration_version="20261029232950"
+          migration_state="$(supabase migration list)"
+          printf '%s\n' "$migration_state"
+          if printf '%s\n' "$migration_state" |
+            awk -F '│' -v version="$migration_version" '$2 ~ version { found=1 } END { exit !found }'; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "Account-deletion schema-status RPC migration is present in the remote database."
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping ORDYS Delete Account Edge Function until migration 20261029232950 (ordys_billing_schema_status RPC) is applied."
+          fi
+      - name: Verify AI content report schema before deploying report Edge Function
+        id: ai_report_schema
+        if: steps.config.outputs.configured == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          report_migration_version="20261031030000"
+          migration_state="$(supabase migration list)"
+          printf '%s\n' "$migration_state"
+          if printf '%s\n' "$migration_state" |
+            awk -F '│' -v version="$report_migration_version" '$2 ~ version { found=1 } END { exit !found }'; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "AI content report schema migration is present in the remote database."
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping AI content report Edge Function until migration 20261031030000 is applied to the remote database."
+          fi
+
+      - name: Verify Ordys billing schema before deploying billing Edge Functions
+        id: billing_schema
+        if: steps.config.outputs.configured == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          billing_migration_version="20261031010000"
+          migration_state="$(supabase migration list)"
+          printf '%s\n' "$migration_state"
+          if printf '%s\n' "$migration_state" |
+            awk -F '│' -v version="$billing_migration_version" '$2 ~ version { found=1 } END { exit !found }'; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "Ordys billing schema migration is present in the remote database."
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping Ordys billing Edge Functions until the billing schema migration is applied to the remote database."
+          fi
+
+      - name: Verify billing lifecycle and direct-deletion guard before deployment
+        id: billing_lifecycle_lock
+        if: steps.config.outputs.configured == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          required_lifecycle_migrations=("20261103010000" "20261103020000" "20261103030000" "20261105010000" "20261105020000" "20261105030000" "20261105040000" "20261105050000" "20261105060000" "20261111010000" "20261112010000")
+          migration_state="$(supabase migration list)"
+          printf '%s\n' "$migration_state"
+          missing_lifecycle_migrations=()
+          # Supabase migration list columns are LOCAL | REMOTE | TIME; field $2 is REMOTE.
+          for migration_version in "${required_lifecycle_migrations[@]}"; do
+            if ! printf '%s\n' "$migration_state" |
+              awk -F '│' -v version="$migration_version" '$2 ~ version { found=1 } END { exit !found }'; then
+              missing_lifecycle_migrations+=("$migration_version")
+            fi
+          done
+          if [ "${#missing_lifecycle_migrations[@]}" -eq 0 ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "ORDYS billing lifecycle, bounded replay and the PostgreSQL-native one-receipt Asaas worker are present in the remote database."
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            printf '::notice::Skipping billing lifecycle Edge Functions until migrations are applied: %s\n' "${missing_lifecycle_migrations[*]}"
+          fi
+
+      - name: Deploy Ordys Assistant Edge Function
+        if: steps.config.outputs.configured == 'true'
+        run: supabase --yes functions deploy ordys-assistant --project-ref "$SUPABASE_PROJECT_ID" --use-api
+
+      - name: Deploy ORDYS AI Content Report Edge Function
+        if: steps.config.outputs.configured == 'true' && steps.ai_report_schema.outputs.ready == 'true'
+        run: supabase --yes functions deploy ordys-ai-report --project-ref "$SUPABASE_PROJECT_ID" --use-api
+
+      - name: Deploy Ordys Video Transcription Edge Function
+        if: steps.config.outputs.configured == 'true'
+        run: supabase --yes functions deploy ordys-video-transcribe --project-ref "$SUPABASE_PROJECT_ID" --use-api
+
+      - name: Deploy Ordys Password Recovery Edge Function
+        if: steps.config.outputs.configured == 'true'
+        run: supabase --yes functions deploy ordys-password-recovery --project-ref "$SUPABASE_PROJECT_ID" --use-api
+
+      - name: Deploy Ordys Delete Account Edge Function
+        # Account deletion is part of the free core product. Both schema-status
+        # and lifecycle-reservation migrations must be present before publishing it.
+        if: steps.config.outputs.configured == 'true' && steps.account_deletion_schema.outputs.ready == 'true' && steps.billing_lifecycle_lock.outputs.ready == 'true'
+        run: supabase --yes functions deploy ordys-delete-account --project-ref "$SUPABASE_PROJECT_ID" --use-api
+
+      - name: Deploy ORDYS Billing Checkout Edge Function
+        if: steps.config.outputs.configured == 'true' && steps.billing_schema.outputs.ready == 'true' && steps.billing_lifecycle_lock.outputs.ready == 'true'
+        run: supabase --yes functions deploy ordys-billing-checkout --project-ref "$SUPABASE_PROJECT_ID" --use-api
+
+      - name: Deploy ORDYS Billing Status Edge Function
+        if: steps.config.outputs.configured == 'true' && steps.billing_schema.outputs.ready == 'true'
+        run: supabase --yes functions deploy ordys-billing-status --project-ref "$SUPABASE_PROJECT_ID" --use-api
+
+      - name: Deploy ORDYS Billing Management Edge Function
+        if: steps.config.outputs.configured == 'true' && steps.billing_schema.outputs.ready == 'true' && steps.billing_lifecycle_lock.outputs.ready == 'true'
+        run: supabase --yes functions deploy ordys-billing-manage --project-ref "$SUPABASE_PROJECT_ID" --use-api
+
+      - name: Deploy ORDYS Asaas Webhook Edge Function
+        if: steps.config.outputs.configured == 'true' && steps.billing_schema.outputs.ready == 'true' && steps.billing_lifecycle_lock.outputs.ready == 'true'
+        run: supabase --yes functions deploy ordys-billing-webhook --project-ref "$SUPABASE_PROJECT_ID" --use-api
+
+      - name: Deploy ORDYS Billing Return Edge Function
+        if: steps.config.outputs.configured == 'true' && steps.billing_schema.outputs.ready == 'true'
+        run: supabase --yes functions deploy ordys-billing-return --project-ref "$SUPABASE_PROJECT_ID" --use-api
