@@ -1,0 +1,23 @@
+name: Hosted runner availability control
+
+on:
+  push:
+    branches:
+      - diagnostics/private-runner-control-2026-11-13
+
+permissions: {}
+
+jobs:
+  ubuntu-24-04:
+    name: Public repository hosted-runner control
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Confirm hosted runner allocation
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "runner_os=${RUNNER_OS}"
+          echo "runner_arch=${RUNNER_ARCH}"
+          test -n "${RUNNER_NAME}"
+          echo "hosted_runner_allocation=confirmed"
