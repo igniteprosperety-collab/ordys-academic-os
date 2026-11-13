@@ -25,3 +25,6 @@
 - [ ] Ajustar metadados/PWA para futura embalagem, sem afirmar app nativo pronto
 - [ ] Validar navegação, formulários, persistência, erros, testes e build
 - [ ] Registrar limitações reais para APK/iOS
+
+## Billing Asaas Sandbox (PR #320) — somente código
+- [ ] Portar migrations, Edge Functions, frontend e testes da PR #320 (sem aplicar/deploy; billing desligado)
