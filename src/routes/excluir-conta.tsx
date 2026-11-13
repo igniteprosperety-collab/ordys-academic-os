@@ -30,11 +30,18 @@ function DeleteAccountPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState(false);
+  const deleteActionInFlightRef = useRef(false);
   const [deleteDialogStep, setDeleteDialogStep] = useState<0 | 1 | 2>(0);
   const [accountDeletedNeedsRestart, setAccountDeletedNeedsRestart] = useState(false);
+  const [deleteOutcomeUnknown, setDeleteOutcomeUnknown] = useState(false);
+  const [accountDeletionPartial, setAccountDeletionPartial] = useState(false);
+  const [checkoutCancellationPending, setCheckoutCancellationPending] = useState(false);
+  const [checkoutCreationInProgress, setCheckoutCreationInProgress] = useState(false);
+  const [accountDeletionInProgress, setAccountDeletionInProgress] = useState(false);
 
   async function deleteAccount() {
-    if (!user || busy) return;
+    if (!user || busy || deleteActionInFlightRef.current) return;
+    deleteActionInFlightRef.current = true;
     let accountDeleted = false;
     setBusy(true);
     try {
@@ -48,8 +55,15 @@ function DeleteAccountPage() {
         return;
       }
 
-      const { error } = await supabase.functions.invoke("ordys-delete-account", { body: {} });
+      const { data, error } = await withAuthRequestTimeout(() =>
+        supabase.functions.invoke("ordys-delete-account", { body: {} }),
+      );
       if (error) throw error;
+      if (!isConfirmedAccountDeletionResponse(data)) {
+        // A 2xx envelope without the endpoint's explicit deleted=true contract
+        // cannot be treated as proof of completed destructive cleanup.
+        throw new Error("O servidor não confirmou a conclusão da exclusão da conta.");
+      }
       accountDeleted = true;
       setDeleteDialogStep(0);
       await queryClient.cancelQueries();
@@ -57,6 +71,7 @@ function DeleteAccountPage() {
       toast.success("Sua conta e seus dados foram excluídos.");
       navigate({ to: "/auth", replace: true });
     } catch (error) {
+      const conflictCode = accountDeleted ? null : await getAccountDeletionConflictCode(error);
       if (accountDeleted) {
         console.error("[account-delete] account deleted but local sign-out could not be confirmed", error);
         await queryClient.cancelQueries().catch(() => undefined);
@@ -88,9 +103,111 @@ function DeleteAccountPage() {
       queryClient.clear();
       toast.error("A conta já foi excluída, mas a sessão deste aparelho ainda não foi encerrada. Verifique a conexão e tente novamente.");
     } finally {
+      deleteActionInFlightRef.current = false;
       setBusy(false);
     }
   }
+
+  if (accountDeletionPartial) {
+    return (
+      <div className="dark flex min-h-screen items-center justify-center bg-background px-5 py-10 text-foreground">
+        <main className="w-full max-w-[480px] panel px-6 py-7">
+          <OrdysBrandLockup />
+          <h1 className="mt-5 text-[21px] font-semibold tracking-tight">Exclusão parcialmente concluída</h1>
+          <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
+            Os dados do Ordys foram removidos, mas o servidor não confirmou se a conta de login foi excluída. O acesso pode continuar ativo.
+          </p>
+          <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
+            Não repita a exclusão agora. Encerre a sessão e verifique o acesso. Se ainda conseguir entrar, solicite novamente a exclusão para concluir o encerramento da conta.
+          </p>
+          <Button className="mt-5 w-full" onClick={verifyDeletionAccess} disabled={busy}>
+            {busy ? "Encerrando sessão…" : "Encerrar sessão e verificar"}
+          </Button>
+        </main>
+      </div>
+    );
+  }
+
+  if (deleteOutcomeUnknown) {
+    return (
+      <div className="dark flex min-h-screen items-center justify-center bg-background px-5 py-10 text-foreground">
+        <main className="w-full max-w-[480px] panel px-6 py-7">
+          <OrdysBrandLockup />
+          <h1 className="mt-5 text-[21px] font-semibold tracking-tight">Resultado não confirmado</h1>
+          <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
+            O servidor demorou a responder. A exclusão pode ter sido concluída ou interrompida antes de terminar.
+          </p>
+          <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
+            Não envie outro pedido de exclusão agora. Verifique primeiro se sua conta ainda permite acesso.
+          </p>
+          <Button className="mt-5 w-full" onClick={verifyDeletionAccess} disabled={busy}>
+            {busy ? "Preparando acesso…" : "Verificar acesso"}
+          </Button>
+        </main>
+      </div>
+    );
+  }
+
+  if (checkoutCreationInProgress) {
+    return (
+      <div className="dark flex min-h-screen items-center justify-center bg-background px-5 py-10 text-foreground">
+        <main className="w-full max-w-[480px] panel px-6 py-7">
+          <OrdysBrandLockup />
+          <h1 className="mt-5 text-[21px] font-semibold tracking-tight">Contratação em andamento</h1>
+          <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
+            Uma contratação ainda está sendo criada. O Ordys não excluirá sua conta enquanto não puder confirmar o estado do Checkout.
+          </p>
+          <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
+            Aguarde a atualização da cobrança e tente novamente. Nenhum dado foi apagado.
+          </p>
+          <Button className="mt-5 w-full" onClick={() => navigate({ to: "/perfil" })}>
+            Voltar ao perfil
+          </Button>
+        </main>
+      </div>
+    );
+  }
+
+  if (accountDeletionInProgress) {
+    return (
+      <div className="dark flex min-h-screen items-center justify-center bg-background px-5 py-10 text-foreground">
+        <main className="w-full max-w-[480px] panel px-6 py-7">
+          <OrdysBrandLockup />
+          <h1 className="mt-5 text-[21px] font-semibold tracking-tight">Exclusão em processamento</h1>
+          <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
+            Já existe uma solicitação de exclusão desta conta em andamento. O Ordys bloqueou uma segunda operação para evitar cancelamentos duplicados.
+          </p>
+          <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
+            Aguarde a conclusão ou a conciliação com o Asaas antes de tentar novamente. Nenhum dado foi apagado por esta tentativa.
+          </p>
+          <Button className="mt-5 w-full" onClick={() => navigate({ to: "/perfil" })}>
+            Voltar ao perfil
+          </Button>
+        </main>
+      </div>
+    );
+  }
+
+  if (checkoutCancellationPending) {
+    return (
+      <div className="dark flex min-h-screen items-center justify-center bg-background px-5 py-10 text-foreground">
+        <main className="w-full max-w-[480px] panel px-6 py-7">
+          <OrdysBrandLockup />
+          <h1 className="mt-5 text-[21px] font-semibold tracking-tight">Cancelamento não confirmado</h1>
+          <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
+            O Ordys não conseguiu confirmar o estado ou o encerramento de todas as cobranças no Asaas. Não repetirá automaticamente operações de cancelamento cujo resultado é incerto.
+          </p>
+          <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
+            Sua conta e seus dados ainda não foram excluídos. Não envie outra solicitação de exclusão enquanto os cancelamentos pendentes não forem conciliados com o Asaas.
+          </p>
+          <Button className="mt-5 w-full" onClick={() => navigate({ to: "/perfil" })}>
+            Voltar ao perfil
+          </Button>
+        </main>
+      </div>
+    );
+  }
+
 
   if (accountDeletedNeedsRestart) {
     return (
@@ -115,7 +232,14 @@ function DeleteAccountPage() {
   return (
     <div className="dark min-h-screen bg-background px-4 py-10 text-foreground">
       <main className="mx-auto w-full max-w-[600px]">
-        <Link to="/auth" className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-[11.5px] text-muted-foreground hover:bg-secondary hover:text-foreground">
+        <Link
+          to="/auth"
+          onClick={(event) => {
+            if (deleteActionInFlightRef.current) event.preventDefault();
+          }}
+          aria-disabled={busy}
+          className={`inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-[11.5px] text-muted-foreground hover:bg-secondary hover:text-foreground ${busy ? "pointer-events-none opacity-50" : ""}`}
+        >
           <ArrowLeft className="size-3.5" /> Voltar para acesso
         </Link>
 

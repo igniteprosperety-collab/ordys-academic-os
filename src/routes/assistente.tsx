@@ -127,7 +127,7 @@ function AssistantPage() {
   const [status, setStatus] = useState("");
   const { isDemo } = useAuth();
   const { data: profile, isLoading: profileLoading, error: profileError } = useProfile();
-  const aiEligibility = canUseOrdysAi(profile?.birth_date);
+  const aiEligibility = canUseOrdysAi(profile?.birth_date, profile?.timezone);
   const profileFailed = Boolean(profileError) && !profile;
   const aiUnavailable = profileLoading || profileFailed || !aiEligibility.allowed;
   const pollTimer = useRef<number | null>(null);
