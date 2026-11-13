@@ -481,11 +481,11 @@ export async function askOrdysAssistant(input: {
   const { accessToken, userId } = await getAccessContext();
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("birth_date")
+    .select("birth_date,timezone")
     .eq("id", userId)
     .maybeSingle();
   if (profileError) throw new Error("Não foi possível verificar a elegibilidade dos recursos de IA.");
-  const aiEligibility = canUseOrdysAi(profile?.birth_date);
+  const aiEligibility = canUseOrdysAi(profile?.birth_date, profile?.timezone);
   if (!aiEligibility.allowed) throw new Error(aiEligibility.reason);
   const videoAttachments = (input.attachments ?? []).filter((attachment) => attachment.kind === "video");
   const videoResults = await Promise.all(videoAttachments.map(transcribeOrdysVideo));

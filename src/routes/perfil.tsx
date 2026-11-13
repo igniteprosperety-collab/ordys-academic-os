@@ -19,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getNativeNotificationPermission, nativeNotificationsDisabled, isNativeAndroid, requestNativeNotificationPermission, syncNativeAcademicNotifications } from "@/lib/native-notifications";
 import { addLocalProfile, getActiveLocalProfileId, getLocalProfiles, stopDemoMode, switchLocalProfile } from "@/lib/demo-mode";
 import { signOutCurrentSession } from "@/lib/ordys-session";
+import { calculateAgeInTimeZone } from "@/lib/ai-eligibility";
 
 export const Route = createFileRoute("/perfil")({
   head: () => ({
@@ -451,18 +452,7 @@ function Perfil() {
   };
   const stageLabel = stageLabels[form.stage] ?? "Ensino médio";
 
-  const derivedAge = (() => {
-    if (!form.birth_date) return null;
-    const birth = new Date(form.birth_date + "T00:00:00");
-    const today = new Date();
-    if (Number.isNaN(birth.getTime()) || birth > today) return null;
-    let age = today.getFullYear() - birth.getFullYear();
-    const beforeBirthday =
-      today.getMonth() < birth.getMonth() ||
-      (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate());
-    if (beforeBirthday) age -= 1;
-    return age >= 0 && age <= 130 ? age : null;
-  })();
+  const derivedAge = calculateAgeInTimeZone(form.birth_date, form.timezone);
 
 
   function createLocalProfile() {
