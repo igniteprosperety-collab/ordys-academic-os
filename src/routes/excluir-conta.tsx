@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -7,9 +7,41 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { deleteLocalProfile, getActiveLocalProfileId, isDemoMode, stopDemoMode } from "@/lib/demo-mode";
 import { signOutCurrentSession } from "@/lib/ordys-session";
+import { withAuthRequestTimeout } from "@/lib/auth-request-timeout";
+import { isInconclusiveFunctionRequestError } from "@/lib/function-request-outcome";
 import { edgeFunctionUnavailableMessage } from "@/lib/edge-function-errors";
+import {
+  isConfirmedAccountDeletionResponse,
+  isUnconfirmedAuthIdentityDeletionPayload,
+} from "@/lib/account-deletion-outcome";
 import { Button, ConfirmDialog } from "@/components/ordys/form";
 import { OrdysBrandLockup } from "@/components/ordys/brand-lockup";
+
+async function isAuthIdentityDeletionUnconfirmed(error: unknown): Promise<boolean> {
+  if (!error || typeof error !== "object" || !("context" in error)) return false;
+  const context = (error as { context?: unknown }).context;
+  if (typeof Response === "undefined" || !(context instanceof Response) || context.status !== 502) {
+    return false;
+  }
+  const payload = await withAuthRequestTimeout(
+    () => context.clone().json(),
+    3_000,
+  ).catch(() => null);
+  return isUnconfirmedAuthIdentityDeletionPayload(payload);
+}
+
+async function getAccountDeletionConflictCode(error: unknown): Promise<string | null> {
+  if (!error || typeof error !== "object" || !("context" in error)) return null;
+  const context = (error as { context?: unknown }).context;
+  if (typeof Response === "undefined" || !(context instanceof Response) || context.status !== 409) {
+    return null;
+  }
+  const payload = await withAuthRequestTimeout(
+    () => context.clone().json(),
+    3_000,
+  ).catch(() => null) as { code?: unknown } | null;
+  return typeof payload?.code === "string" ? payload.code : null;
+}
 
 export const Route = createFileRoute("/excluir-conta")({
   head: () => ({
@@ -80,17 +112,73 @@ function DeleteAccountPage() {
         toast.error(
           "A conta foi excluída, mas não foi possível confirmar o encerramento da sessão neste dispositivo. Tente novamente.",
         );
+      } else if (conflictCode === "checkout_creation_in_progress") {
+        setDeleteDialogStep(0);
+        setCheckoutCreationInProgress(true);
+        toast.message("Uma contratação ainda está sendo iniciada. Nenhum dado foi apagado.");
+      } else if (conflictCode === "account_deletion_in_progress") {
+        setDeleteDialogStep(0);
+        setAccountDeletionInProgress(true);
+        toast.message("Já existe uma solicitação de exclusão em processamento. Nenhum dado foi apagado.");
+      } else if (
+        conflictCode === "checkout_cancellation_processing" ||
+        conflictCode === "billing_cancellation_processing" ||
+        conflictCode === "billing_reconciliation_required"
+      ) {
+        setDeleteDialogStep(0);
+        setCheckoutCancellationPending(true);
+        toast.message("O estado ou cancelamento das cobranças está aguardando confirmação do Asaas. Nenhum dado foi apagado.");
+      } else if (await isAuthIdentityDeletionUnconfirmed(error)) {
+        await queryClient.cancelQueries().catch(() => undefined);
+        queryClient.clear();
+        setDeleteDialogStep(0);
+        setAccountDeletionPartial(true);
+        toast.error("Os dados do Ordys foram removidos, mas a exclusão do login não foi confirmada. Verifique o acesso antes de repetir.");
+      } else if (isInconclusiveFunctionRequestError(error)) {
+        // A transport failure or server-side timeout may happen after the
+        // deletion request has already reached the Edge Function. Do not allow
+        // a second destructive request until the account state is verified.
+        await queryClient.cancelQueries().catch(() => undefined);
+        queryClient.clear();
+        setDeleteOutcomeUnknown(true);
+        toast.error(
+          "O servidor não confirmou o resultado da exclusão. A solicitação pode ter sido concluída; verifique o acesso antes de tentar novamente.",
+        );
       } else {
         toast.error(edgeFunctionUnavailableMessage(error, "account-deletion") ??
           (error instanceof Error ? error.message : "Não foi possível concluir a exclusão."));
       }
     } finally {
+      deleteActionInFlightRef.current = false;
+      setBusy(false);
+    }
+  }
+
+  async function verifyDeletionAccess() {
+    if (busy || deleteActionInFlightRef.current) return;
+    deleteActionInFlightRef.current = true;
+    setBusy(true);
+    try {
+      // Drop the possibly stale local session before asking the person to
+      // verify the account again. /auth redirects authenticated users home.
+      await queryClient.cancelQueries();
+      await signOutCurrentSession();
+      queryClient.clear();
+      navigate({ to: "/auth", replace: true });
+    } catch (error) {
+      console.error("[account-delete] could not clear the session for verification", error);
+      toast.error(
+        "Não foi possível encerrar a sessão deste aparelho. O resultado da exclusão continua sem confirmação; tente verificar novamente.",
+      );
+    } finally {
+      deleteActionInFlightRef.current = false;
       setBusy(false);
     }
   }
 
   async function retryDeletedAccountSessionCleanup() {
-    if (busy) return;
+    if (busy || deleteActionInFlightRef.current) return;
+    deleteActionInFlightRef.current = true;
     setBusy(true);
     try {
       await queryClient.cancelQueries();
