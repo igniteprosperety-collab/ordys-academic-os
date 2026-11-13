@@ -108,7 +108,7 @@ Deno.serve(async (request) => {
       if (receipt.processing_status === "quarantined" || receipt.event_id_conflict === true) {
         console.error("ORDYS Asaas webhook is durably quarantined; billing access was not granted.");
       }
-      return billingResponse({ received: true, processed: false }, 200);
+      return billingResponse({ received: true, queued: false, processed: false }, 200);
     }
 
     // The durable inbox receipt is the acknowledgement boundary. The scheduled

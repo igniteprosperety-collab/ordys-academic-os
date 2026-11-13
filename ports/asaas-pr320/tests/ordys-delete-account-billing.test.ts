@@ -1058,7 +1058,7 @@ describe("account deletion deployment gates", () => {
   });
 
   it("verifies the account-deletion schema-status RPC after migrations and before deploying the function", () => {
-    const workflow = readFileSync(".github/workflows/deploy-ordys-assistant.yml", "utf8");
+    const workflow = readFileSync("ports/asaas-pr320/github-workflows/deploy-ordys-assistant.yml", "utf8");
     const migrationApply = workflow.indexOf("- name: Apply Supabase database migrations");
     const schemaGateStart = workflow.indexOf("- name: Verify account-deletion schema-status RPC before deploying core deletion");
     const deletionStart = workflow.indexOf("- name: Deploy Ordys Delete Account Edge Function");

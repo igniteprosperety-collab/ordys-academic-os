@@ -371,7 +371,7 @@ describe("ORDYS billing subscription cancellation", () => {
 describe("direct account-data deletion billing guard", () => {
   it("locks the authenticated RPC to provider-reconciled billing state", () => {
     const migration = readFileSync(
-      new URL("../supabase/migrations/20261103030000_guard_delete_own_data_billing_reconciliation.sql", import.meta.url),
+      new URL("../../../supabase/migrations/20261103030000_guard_delete_own_data_billing_reconciliation.sql", import.meta.url),
       "utf8",
     );
     for (const required of [
