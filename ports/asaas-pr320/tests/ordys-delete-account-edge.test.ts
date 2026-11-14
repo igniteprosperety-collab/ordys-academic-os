@@ -81,7 +81,8 @@ async function setup(options: {
       return options.reservationStatus ?? "reserved";
     }
     if (path === "rpc/ordys_claim_account_deletion_processing") return options.processingStatus ?? "claimed";
-    if (path === "rpc/ordys_release_account_deletion_processing") return "not_reserved";
+    if (path === "rpc/ordys_has_unreconciled_billing_events") return false;
+      if (path === "rpc/ordys_release_account_deletion_processing") return "not_reserved";
     if (path.startsWith("ordys_billing_checkout_attempts?")) return [];
     if (path.startsWith("ordys_billing_subscriptions?")) return [];
     throw new Error(`Unexpected serviceRest path: ${path}`);
@@ -266,11 +267,12 @@ describe("ORDYS account deletion Edge Function", () => {
 
   it("does not depend on the cron worker heartbeat when the core billing schema is ready", async () => {
     const { handler, fetchMock } = await setup({ billingSchemaStatus: "ready" });
-    mocks.serviceRest.mockImplementation(async (path: string) => {
+    mocks.serviceRest.mockImplementation(async (path: string, init?: RequestInit) => {
       if (path === "rpc/ordys_billing_core_schema_status") return "ready";
       if (path === "rpc/ordys_billing_schema_status") return "partial";
       if (path === "rpc/ordys_reserve_account_deletion") return "reserved";
       if (path === "rpc/ordys_claim_account_deletion_processing") return "claimed";
+      if (path === "rpc/ordys_has_unreconciled_billing_events") return false;
       if (path === "rpc/ordys_release_account_deletion_processing") return "released";
       if (path.startsWith("ordys_billing_checkout_attempts?")) return [];
       if (path.startsWith("ordys_billing_subscriptions?")) return [];
@@ -334,6 +336,7 @@ describe("ORDYS account deletion Edge Function", () => {
       if (path === "rpc/ordys_billing_core_schema_status") return "ready";
       if (path === "rpc/ordys_reserve_account_deletion") return "reserved";
       if (path === "rpc/ordys_claim_account_deletion_processing") return "claimed";
+      if (path === "rpc/ordys_has_unreconciled_billing_events") return false;
       if (path === "rpc/ordys_release_account_deletion_processing") return "released";
       if (path.includes("cancellation_requested_at=is.null")) {
         const patch = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
@@ -378,10 +381,11 @@ describe("ORDYS account deletion Edge Function", () => {
 
   it("returns the reconciliation-specific code when a paid Checkout has no linked subscription", async () => {
     const { handler, fetchMock } = await setup({ billingSchemaStatus: "ready" });
-    mocks.serviceRest.mockImplementation(async (path: string) => {
+    mocks.serviceRest.mockImplementation(async (path: string, init?: RequestInit) => {
       if (path === "rpc/ordys_billing_core_schema_status") return "ready";
       if (path === "rpc/ordys_reserve_account_deletion") return "reserved";
       if (path === "rpc/ordys_claim_account_deletion_processing") return "claimed";
+      if (path === "rpc/ordys_has_unreconciled_billing_events") return false;
       if (path === "rpc/ordys_release_account_deletion_processing") return "released";
       if (path.startsWith("ordys_billing_checkout_attempts?")) {
         return [{ id: "paid-checkout-without-subscription", status: "paid" }];
@@ -402,11 +406,12 @@ describe("ORDYS account deletion Edge Function", () => {
 
   it("cancels an active subscription before clearing the account and deleting Auth identity", async () => {
     const { handler, fetchMock, timeline } = await setup({ billingSchemaStatus: "ready" });
-    mocks.serviceRest.mockImplementation(async (path: string) => {
+    mocks.serviceRest.mockImplementation(async (path: string, init?: RequestInit) => {
       timeline.push(`serviceRest:${path}`);
       if (path === "rpc/ordys_billing_core_schema_status") return "ready";
       if (path === "rpc/ordys_reserve_account_deletion") return "reserved";
       if (path === "rpc/ordys_claim_account_deletion_processing") return "claimed";
+      if (path === "rpc/ordys_has_unreconciled_billing_events") return false;
       if (path === "rpc/ordys_release_account_deletion_processing") return "not_reserved";
       if (path === "rpc/ordys_confirm_subscription_cancellation") return "confirmed";
       if (path.startsWith("ordys_billing_checkout_attempts?")) return [];
@@ -415,7 +420,7 @@ describe("ORDYS account deletion Edge Function", () => {
           id: "subscription-1",
           status: "active",
           provider_subscription_id: "asaas-subscription-1",
-          cancellation_requested_at: "2026-11-03T20:00:00.000Z",
+          ...JSON.parse(String(init?.body ?? "{}")),
         }];
       }
       if (path.startsWith("ordys_billing_subscriptions?")) {
@@ -528,6 +533,7 @@ describe("ORDYS account deletion Edge Function", () => {
       if (path === "rpc/ordys_billing_core_schema_status") return "ready";
       if (path === "rpc/ordys_reserve_account_deletion") return "reserved";
       if (path === "rpc/ordys_claim_account_deletion_processing") return "claimed";
+      if (path === "rpc/ordys_has_unreconciled_billing_events") return false;
       if (path === "rpc/ordys_release_account_deletion_processing") return "released";
       if (path.startsWith("ordys_billing_checkout_attempts?select=id,status,provider_checkout_id")) {
         return [{ id: "checkout-attempt-1", status: "pending", provider_checkout_id: "asaas-checkout-1" }];
@@ -566,10 +572,11 @@ describe("ORDYS account deletion Edge Function", () => {
       billingSchemaStatus: "ready",
       asaasNeverSettles: true,
     });
-    mocks.serviceRest.mockImplementation(async (path: string) => {
+    mocks.serviceRest.mockImplementation(async (path: string, init?: RequestInit) => {
       if (path === "rpc/ordys_billing_core_schema_status") return "ready";
       if (path === "rpc/ordys_reserve_account_deletion") return "reserved";
       if (path === "rpc/ordys_claim_account_deletion_processing") return "claimed";
+      if (path === "rpc/ordys_has_unreconciled_billing_events") return false;
       if (path === "rpc/ordys_release_account_deletion_processing") return "released";
       if (path.startsWith("ordys_billing_checkout_attempts?")) return [];
       if (path.startsWith("ordys_billing_subscriptions?select=id,status,checkout_attempt_id")) {
@@ -584,7 +591,7 @@ describe("ORDYS account deletion Edge Function", () => {
       if (path.includes("cancellation_requested_at=is.null")) {
         return [{
           id: "subscription-1",
-          cancellation_requested_at: "2026-11-04T10:00:00.000Z",
+          ...JSON.parse(String(init?.body ?? "{}")),
           cancellation_confirmed_at: null,
         }];
       }
@@ -672,6 +679,7 @@ describe("ORDYS account deletion Edge Function", () => {
       if (path === "rpc/ordys_billing_core_schema_status") return Promise.resolve("ready");
       if (path === "rpc/ordys_reserve_account_deletion") return Promise.resolve("reserved");
       if (path === "rpc/ordys_claim_account_deletion_processing") return Promise.resolve("claimed");
+      if (path === "rpc/ordys_has_unreconciled_billing_events") return false;
       if (path === "rpc/ordys_release_account_deletion_processing") return Promise.resolve("released");
       if (path === "rpc/ordys_has_unreconciled_billing_events") return Promise.resolve(false);
 
@@ -745,6 +753,7 @@ describe("ORDYS account deletion Edge Function", () => {
       if (path === "rpc/ordys_billing_core_schema_status") return "ready";
       if (path === "rpc/ordys_reserve_account_deletion") return "reserved";
       if (path === "rpc/ordys_claim_account_deletion_processing") return "claimed";
+      if (path === "rpc/ordys_has_unreconciled_billing_events") return false;
       if (path === "rpc/ordys_release_account_deletion_processing") return "released";
       if (path === "rpc/ordys_has_unreconciled_billing_events") return false;
 
@@ -820,6 +829,7 @@ describe("ORDYS account deletion Edge Function", () => {
       if (path === "rpc/ordys_billing_core_schema_status") return "ready";
       if (path === "rpc/ordys_reserve_account_deletion") return "reserved";
       if (path === "rpc/ordys_claim_account_deletion_processing") return "claimed";
+      if (path === "rpc/ordys_has_unreconciled_billing_events") return false;
       if (path === "rpc/ordys_release_account_deletion_processing") return "released";
       if (path === "rpc/ordys_has_unreconciled_billing_events") return false;
 
@@ -897,6 +907,7 @@ describe("ORDYS account deletion Edge Function", () => {
       if (path === "rpc/ordys_billing_core_schema_status") return "ready";
       if (path === "rpc/ordys_reserve_account_deletion") return "reserved";
       if (path === "rpc/ordys_claim_account_deletion_processing") return "claimed";
+      if (path === "rpc/ordys_has_unreconciled_billing_events") return false;
       if (path === "rpc/ordys_release_account_deletion_processing") return "released";
       if (path === "rpc/ordys_has_unreconciled_billing_events") return false;
       if (path === "rpc/ordys_confirm_subscription_cancellation") return "confirmed";
@@ -962,6 +973,7 @@ describe("ORDYS account deletion Edge Function", () => {
       if (path === "rpc/ordys_billing_core_schema_status") return "ready";
       if (path === "rpc/ordys_reserve_account_deletion") return "reserved";
       if (path === "rpc/ordys_claim_account_deletion_processing") return "claimed";
+      if (path === "rpc/ordys_has_unreconciled_billing_events") return false;
       if (path === "rpc/ordys_release_account_deletion_processing") return "released";
       if (path === "rpc/ordys_has_unreconciled_billing_events") return false;
       if (path === "rpc/ordys_confirm_subscription_cancellation") return "confirmed";
