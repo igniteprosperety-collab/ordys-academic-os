@@ -42,5 +42,6 @@ jobs:
       - name: Run ESLint
         run: bun run lint
 
-      - name: Build production bundle
+      - name: Build production bundle (run even if lint fails)
+        if: always()
         run: bun run build
