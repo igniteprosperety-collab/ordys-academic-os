@@ -22,6 +22,11 @@ import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as RedefinirSenhaRouteImport } from './routes/redefinir-senha'
 import { Route as SimuladoRouteImport } from './routes/simulado'
 import { Route as TarefasRouteImport } from './routes/tarefas'
+import { Route as ApiAsaasCheckoutRouteImport } from './routes/api/asaas/checkout'
+import { Route as ApiAsaasDeleteAccountRouteImport } from './routes/api/asaas/delete-account'
+import { Route as ApiAsaasManageRouteImport } from './routes/api/asaas/manage'
+import { Route as ApiAsaasStatusRouteImport } from './routes/api/asaas/status'
+import { Route as ApiPublicAsaasWebhookRouteImport } from './routes/api/public/asaas/webhook'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -88,6 +93,31 @@ const TarefasRoute = TarefasRouteImport.update({
   path: '/tarefas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAsaasCheckoutRoute = ApiAsaasCheckoutRouteImport.update({
+  id: '/api/asaas/checkout',
+  path: '/api/asaas/checkout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAsaasDeleteAccountRoute = ApiAsaasDeleteAccountRouteImport.update({
+  id: '/api/asaas/delete-account',
+  path: '/api/asaas/delete-account',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAsaasManageRoute = ApiAsaasManageRouteImport.update({
+  id: '/api/asaas/manage',
+  path: '/api/asaas/manage',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAsaasStatusRoute = ApiAsaasStatusRouteImport.update({
+  id: '/api/asaas/status',
+  path: '/api/asaas/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicAsaasWebhookRoute = ApiPublicAsaasWebhookRouteImport.update({
+  id: '/api/public/asaas/webhook',
+  path: '/api/public/asaas/webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -103,6 +133,11 @@ export interface FileRoutesByFullPath {
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/simulado': typeof SimuladoRoute
   '/tarefas': typeof TarefasRoute
+  '/api/asaas/checkout': typeof ApiAsaasCheckoutRoute
+  '/api/asaas/delete-account': typeof ApiAsaasDeleteAccountRoute
+  '/api/asaas/manage': typeof ApiAsaasManageRoute
+  '/api/asaas/status': typeof ApiAsaasStatusRoute
+  '/api/public/asaas/webhook': typeof ApiPublicAsaasWebhookRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -118,6 +153,11 @@ export interface FileRoutesByTo {
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/simulado': typeof SimuladoRoute
   '/tarefas': typeof TarefasRoute
+  '/api/asaas/checkout': typeof ApiAsaasCheckoutRoute
+  '/api/asaas/delete-account': typeof ApiAsaasDeleteAccountRoute
+  '/api/asaas/manage': typeof ApiAsaasManageRoute
+  '/api/asaas/status': typeof ApiAsaasStatusRoute
+  '/api/public/asaas/webhook': typeof ApiPublicAsaasWebhookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -134,6 +174,11 @@ export interface FileRoutesById {
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/simulado': typeof SimuladoRoute
   '/tarefas': typeof TarefasRoute
+  '/api/asaas/checkout': typeof ApiAsaasCheckoutRoute
+  '/api/asaas/delete-account': typeof ApiAsaasDeleteAccountRoute
+  '/api/asaas/manage': typeof ApiAsaasManageRoute
+  '/api/asaas/status': typeof ApiAsaasStatusRoute
+  '/api/public/asaas/webhook': typeof ApiPublicAsaasWebhookRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -151,6 +196,11 @@ export interface FileRouteTypes {
     | '/redefinir-senha'
     | '/simulado'
     | '/tarefas'
+    | '/api/asaas/checkout'
+    | '/api/asaas/delete-account'
+    | '/api/asaas/manage'
+    | '/api/asaas/status'
+    | '/api/public/asaas/webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -166,6 +216,11 @@ export interface FileRouteTypes {
     | '/redefinir-senha'
     | '/simulado'
     | '/tarefas'
+    | '/api/asaas/checkout'
+    | '/api/asaas/delete-account'
+    | '/api/asaas/manage'
+    | '/api/asaas/status'
+    | '/api/public/asaas/webhook'
   id:
     | '__root__'
     | '/'
@@ -181,6 +236,11 @@ export interface FileRouteTypes {
     | '/redefinir-senha'
     | '/simulado'
     | '/tarefas'
+    | '/api/asaas/checkout'
+    | '/api/asaas/delete-account'
+    | '/api/asaas/manage'
+    | '/api/asaas/status'
+    | '/api/public/asaas/webhook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -197,6 +257,11 @@ export interface RootRouteChildren {
   RedefinirSenhaRoute: typeof RedefinirSenhaRoute
   SimuladoRoute: typeof SimuladoRoute
   TarefasRoute: typeof TarefasRoute
+  ApiAsaasCheckoutRoute: typeof ApiAsaasCheckoutRoute
+  ApiAsaasDeleteAccountRoute: typeof ApiAsaasDeleteAccountRoute
+  ApiAsaasManageRoute: typeof ApiAsaasManageRoute
+  ApiAsaasStatusRoute: typeof ApiAsaasStatusRoute
+  ApiPublicAsaasWebhookRoute: typeof ApiPublicAsaasWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -292,6 +357,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TarefasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/asaas/checkout': {
+      id: '/api/asaas/checkout'
+      path: '/api/asaas/checkout'
+      fullPath: '/api/asaas/checkout'
+      preLoaderRoute: typeof ApiAsaasCheckoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/asaas/delete-account': {
+      id: '/api/asaas/delete-account'
+      path: '/api/asaas/delete-account'
+      fullPath: '/api/asaas/delete-account'
+      preLoaderRoute: typeof ApiAsaasDeleteAccountRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/asaas/manage': {
+      id: '/api/asaas/manage'
+      path: '/api/asaas/manage'
+      fullPath: '/api/asaas/manage'
+      preLoaderRoute: typeof ApiAsaasManageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/asaas/status': {
+      id: '/api/asaas/status'
+      path: '/api/asaas/status'
+      fullPath: '/api/asaas/status'
+      preLoaderRoute: typeof ApiAsaasStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/asaas/webhook': {
+      id: '/api/public/asaas/webhook'
+      path: '/api/public/asaas/webhook'
+      fullPath: '/api/public/asaas/webhook'
+      preLoaderRoute: typeof ApiPublicAsaasWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -309,6 +409,11 @@ const rootRouteChildren: RootRouteChildren = {
   RedefinirSenhaRoute: RedefinirSenhaRoute,
   SimuladoRoute: SimuladoRoute,
   TarefasRoute: TarefasRoute,
+  ApiAsaasCheckoutRoute: ApiAsaasCheckoutRoute,
+  ApiAsaasDeleteAccountRoute: ApiAsaasDeleteAccountRoute,
+  ApiAsaasManageRoute: ApiAsaasManageRoute,
+  ApiAsaasStatusRoute: ApiAsaasStatusRoute,
+  ApiPublicAsaasWebhookRoute: ApiPublicAsaasWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
