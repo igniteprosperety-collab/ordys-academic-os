@@ -1078,8 +1078,13 @@ describe("account deletion deployment gates", () => {
     expect(schemaGate).toContain("id: account_deletion_schema");
     expect(schemaGate).toContain('migration_version="20261029232950"');
     expect(schemaGate).toContain(
-      'required_lifecycle_migrations=("20261103010000" "20261103020000" "20261103030000" "20261105010000" "20261105020000" "20261105030000" "20261105040000" "20261105050000" "20261105060000")',
+      'required_lifecycle_migrations=("20261103010000" "20261103020000" "20261103030000" "20261105010000" "20261105020000" "20261105030000" "20261105040000" "20261105050000" "20261105060000" "20261111010000" "20261112010000")',
     );
+    const requiredVersions = schemaGate.match(/required_lifecycle_migrations=\(([^)]+)\)/)?.[1].match(/\d{14}/g) ?? [];
+    expect(requiredVersions).toHaveLength(11);
+    for (const version of requiredVersions) {
+      expect(readdirSync("supabase/migrations").some(name => name.startsWith(`${version}_`))).toBe(true);
+    }
     expect(schemaGate).toContain("id: billing_lifecycle_lock");
     expect(deletionStart).toBeGreaterThan(schemaGateStart);
     expect(deletionStep).toContain("steps.account_deletion_schema.outputs.ready == 'true'");

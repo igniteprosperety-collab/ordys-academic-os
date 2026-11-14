@@ -1,5 +1,4 @@
 import { readFileSync } from "node:fs";
-import { OutboundRequestTimeoutError } from "../edge-functions/_shared/request-timeout";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -297,6 +296,7 @@ describe("ORDYS billing subscription cancellation", () => {
 
   it("keeps cancellation processing when the Asaas DELETE times out", async () => {
     const { handler, subscription } = await setup();
+    const { OutboundRequestTimeoutError } = await import("../edge-functions/_shared/request-timeout.ts");
     mocks.asaasRequest.mockRejectedValueOnce(new OutboundRequestTimeoutError());
 
     const result = await handler(requestWithSession());
@@ -371,18 +371,18 @@ describe("ORDYS billing subscription cancellation", () => {
 describe("direct account-data deletion billing guard", () => {
   it("locks the authenticated RPC to provider-reconciled billing state", () => {
     const migration = readFileSync(
-      new URL("../../../supabase/migrations/20261103030000_guard_delete_own_data_billing_reconciliation.sql", import.meta.url),
+      new URL("../../../supabase/migrations/20261112010000_ordys_asaas_cron_worker.sql", import.meta.url),
       "utf8",
     );
     for (const required of [
-      "public.ordys_billing_schema_status()",
+      "public.ordys_billing_core_schema_status()",
       "pg_advisory_xact_lock(",
       "'ordys:billing-lifecycle:' || uid::TEXT",
       "processing_token IS NOT NULL",
       "processing_until > now()",
       "status IN ('creating', 'pending', 'paid', 'linked')",
       "public.ordys_billing_payments AS payment",
-      "payment.provider_subscription_id = subscription.provider_subscription_id",
+      "subscription.provider_subscription_id = payment.provider_subscription_id",
       "billing payment cannot be reconciled",
       "cancellation_confirmed_at IS NULL",
       "GRANT EXECUTE ON FUNCTION public.delete_own_data() TO authenticated",

@@ -317,11 +317,12 @@ describe("Shared billing outbound request deadlines", () => {
       { method: "POST", body: JSON.stringify({ p_event: { id: "event-1" } }) },
       7_000,
     );
-    await vi.advanceTimersByTimeAsync(7_000);
-
-    await expect(pending).rejects.toMatchObject({
+    const rejection = expect(pending).rejects.toMatchObject({
       name: "OutboundRequestTimeoutError",
     });
+    await vi.advanceTimersByTimeAsync(7_000);
+
+    await rejection;
     expect(capturedSignal?.aborted).toBe(true);
     expect(fetchMock).toHaveBeenCalledOnce();
   });
@@ -345,14 +346,15 @@ describe("Shared billing outbound request deadlines", () => {
       { method: "POST", body: JSON.stringify({ p_event: { id: "event-1" } }) },
       7_000,
     );
+    const rejection = expect(pending).rejects.toMatchObject({
+      name: "OutboundRequestTimeoutError",
+    });
     await vi.advanceTimersByTimeAsync(5_000);
     await vi.advanceTimersByTimeAsync(1_999);
     expect(fetchMock).toHaveBeenCalledOnce();
     await vi.advanceTimersByTimeAsync(1);
 
-    await expect(pending).rejects.toMatchObject({
-      name: "OutboundRequestTimeoutError",
-    });
+    await rejection;
   });
 
   it("aborts a stalled PostgREST lookup and propagates the timeout", async () => {
@@ -368,9 +370,10 @@ describe("Shared billing outbound request deadlines", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const pending = serviceRest("ordys_billing_subscriptions?select=id");
+    const rejection = expect(pending).rejects.toMatchObject({ name: "OutboundRequestTimeoutError" });
     await vi.advanceTimersByTimeAsync(8_000);
 
-    await expect(pending).rejects.toMatchObject({ name: "OutboundRequestTimeoutError" });
+    await rejection;
     expect(capturedSignal?.aborted).toBe(true);
     expect(fetchMock).toHaveBeenCalledOnce();
   });
@@ -425,9 +428,10 @@ describe("Shared billing outbound request deadlines", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const pending = getUserAgeProfile("user-123", "Bearer valid-test-token");
+    const rejection = expect(pending).rejects.toMatchObject({ name: "OutboundRequestTimeoutError" });
     await vi.advanceTimersByTimeAsync(8_000);
 
-    await expect(pending).rejects.toMatchObject({ name: "OutboundRequestTimeoutError" });
+    await rejection;
     expect(capturedSignal?.aborted).toBe(true);
     expect(fetchMock).toHaveBeenCalledOnce();
   });
@@ -448,9 +452,10 @@ describe("Shared billing outbound request deadlines", () => {
       method: "POST",
       body: JSON.stringify({ externalReference: "ordys-timeout-test" }),
     });
+    const rejection = expect(pending).rejects.toMatchObject({ name: "OutboundRequestTimeoutError" });
     await vi.advanceTimersByTimeAsync(12_000);
 
-    await expect(pending).rejects.toMatchObject({ name: "OutboundRequestTimeoutError" });
+    await rejection;
     expect(capturedSignal?.aborted).toBe(true);
     expect(fetchMock).toHaveBeenCalledOnce();
   });
@@ -512,9 +517,10 @@ describe("Ordys Plus subscription eligibility lookup", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const pending = isOrdysPlusEligible("user-123");
+    const rejection = expect(pending).rejects.toThrow("Não foi possível validar a assinatura desta conta agora. Tente novamente.");
     await vi.advanceTimersByTimeAsync(8_000);
 
-    await expect(pending).rejects.toThrow("Não foi possível validar a assinatura desta conta agora. Tente novamente.");
+    await rejection;
     expect(capturedSignal?.aborted).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
