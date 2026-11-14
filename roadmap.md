@@ -28,4 +28,6 @@
 
 ## Billing Asaas Sandbox (PR #320) — somente código
 - [x] Portar arquivos da PR #320 (migrations em supabase/migrations, funções arquivadas em ports/asaas-pr320, frontend, testes)
-- [ ] Portar funções Asaas para rotas do servidor e aplicar migrations (bloqueado: autorização do dono, CI #318, age assurance #323, secrets Sandbox)
+- [ ] Concluir as nove falhas unitárias arquivadas e executar regressão local sem rede
+- [ ] Portar checkout, manage, status, webhook e exclusão para rotas TanStack somente locais
+- [ ] Aplicar migrations e habilitar Sandbox (bloqueado: backup, reconciliação, autorização do dono, CI #318, worker ativo, age assurance #323 e secrets Sandbox; fora desta etapa)
