@@ -81,7 +81,7 @@ export async function responseJsonWithOutboundTimeout<T = unknown>(
   response: Response,
   timeoutMs: number,
 ): Promise<T> {
-  const reader = response.body?.getReader();
+  const reader = response.body?.["getReader"]();
   if (!reader) return JSON.parse("") as T;
 
   let timedOut = false;
@@ -99,7 +99,7 @@ export async function responseJsonWithOutboundTimeout<T = unknown>(
       const body = new Uint8Array(totalBytes);
       let offset = 0;
       for (const chunk of chunks) {
-        body.set(chunk, offset);
+        body["set"](chunk, offset);
         offset += chunk.byteLength;
       }
       return JSON.parse(new TextDecoder().decode(body)) as T;

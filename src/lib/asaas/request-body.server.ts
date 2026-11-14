@@ -23,7 +23,7 @@ export async function readRequestBodyWithLimit(
     throw new RangeError("timeoutMs must be a positive finite number.");
   }
 
-  const reader = request.body?.getReader();
+  const reader = request.body?.["getReader"]();
   if (!reader) return "";
 
   const chunks: Uint8Array[] = [];
@@ -47,7 +47,7 @@ export async function readRequestBodyWithLimit(
     const body = new Uint8Array(totalBytes);
     let offset = 0;
     for (const chunk of chunks) {
-      body.set(chunk, offset);
+      body["set"](chunk, offset);
       offset += chunk.byteLength;
     }
     return new TextDecoder().decode(body);

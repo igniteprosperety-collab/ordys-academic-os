@@ -1,5 +1,5 @@
 import "@tanstack/react-start/server-only";
-import { readRequestBodyWithLimit } from "./request-body.server";
+import { readRequestBodyWithLimit } from "./request-body["server"]";
 import {
   billingCorsHeaders,
   billingResponse,
@@ -48,7 +48,7 @@ export async function handleWebhook(request: Request): Promise<Response> {
       return billingResponse({ error: "Evento inválido." }, 400);
     }
 
-    if (typeof payload.id !== "string" || !payload.id || payload.id.length > 255 || typeof payload.event !== "string" || !payload.event || payload.event.length > 128) {
+    if (typeof payload["id"] !== "string" || !payload["id"] || payload["id"].length > 255 || typeof payload["event"] !== "string" || !payload["event"] || payload["event"].length > 128) {
       return billingResponse({ error: "Evento inválido." }, 400);
     }
 
@@ -90,11 +90,11 @@ export async function handleWebhook(request: Request): Promise<Response> {
     const receiptKeys = Object.keys(receipt);
     const receiptStatuses = ["received", "processed", "ignored", "quarantined"];
     if (
-      receipt.accepted !== true ||
-      typeof receipt.processing_status !== "string" ||
-      !receiptStatuses.includes(receipt.processing_status) ||
-      typeof receipt.duplicate !== "boolean" ||
-      typeof receipt.event_id_conflict !== "boolean" ||
+      receipt["accepted"] !== true ||
+      typeof receipt["processing_status"] !== "string" ||
+      !receiptStatuses.includes(receipt["processing_status"]) ||
+      typeof receipt["duplicate"] !== "boolean" ||
+      typeof receipt["event_id_conflict"] !== "boolean" ||
       receiptKeys.length !== 4 ||
       !receiptKeys.every((key) =>
         ["accepted", "processing_status", "duplicate", "event_id_conflict"].includes(key)
@@ -105,8 +105,8 @@ export async function handleWebhook(request: Request): Promise<Response> {
 
     // A duplicate or quarantined receipt is already durable. Never process a
     // conflicting event ID/payload pair or reopen an already terminal event.
-    if (receipt.processing_status !== "received") {
-      if (receipt.processing_status === "quarantined" || receipt.event_id_conflict === true) {
+    if (receipt["processing_status"] !== "received") {
+      if (receipt["processing_status"] === "quarantined" || receipt["event_id_conflict"] === true) {
         console.error("ORDYS Asaas webhook is durably quarantined; billing access was not granted.");
       }
       return billingResponse({ received: true, queued: false, processed: false }, 200);
@@ -116,7 +116,7 @@ export async function handleWebhook(request: Request): Promise<Response> {
     // worker applies billing state after this HTTP 200, independently of Asaas.
     return billingResponse({
       received: true,
-      queued: receipt.processing_status === "received",
+      queued: receipt["processing_status"] === "received",
       processed: false,
     }, 200);
   } catch (error) {

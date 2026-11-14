@@ -7,7 +7,7 @@ import {
   serviceRest,
   authenticateBillingRequest,
 } from "./ordys-billing.server";
-import { readRequestBodyWithLimit } from "./request-body.server";
+import { readRequestBodyWithLimit } from "./request-body["server"]";
 import { claimOrdysSubscriptionCancellation } from "./ordys-subscription-cancellation.server";
 import { OutboundRequestTimeoutError, withAbortableOutboundRequestTimeout } from "./request-timeout.server";
 
@@ -62,7 +62,7 @@ export async function handleManage(request: Request): Promise<Response> {
       return billingResponse({ error: "Solicitação inválida." }, 400);
     }
 
-    if (body.action !== "cancel") {
+    if (body["action"] !== "cancel") {
       return billingResponse({ error: "Ação não permitida." }, 400);
     }
 
@@ -71,12 +71,12 @@ export async function handleManage(request: Request): Promise<Response> {
     ) as Array<Record<string, unknown>> | null;
     const subscription = rows?.[0];
     const providerSubscriptionId =
-      typeof subscription?.provider_subscription_id === "string"
-        ? subscription.provider_subscription_id
+      typeof subscription?.["provider_subscription_id"] === "string"
+        ? subscription["provider_subscription_id"]
         : "";
-    const localId = typeof subscription?.id === "string" ? subscription.id : "";
-    const accessUntil = typeof subscription?.current_period_end === "string"
-      ? subscription.current_period_end
+    const localId = typeof subscription?.["id"] === "string" ? subscription["id"] : "";
+    const accessUntil = typeof subscription?.["current_period_end"] === "string"
+      ? subscription["current_period_end"]
       : null;
 
     if (!subscription || !providerSubscriptionId || !localId) {
@@ -105,18 +105,18 @@ export async function handleManage(request: Request): Promise<Response> {
     // whose chargeback restriction intentionally keeps local status suspended.
     // Re-run the local transaction when the intent marker exists so a record
     // written by an older release also closes its linked Checkout attempt.
-    if (typeof subscription.cancellation_confirmed_at === "string") {
-      const requestedAt = typeof subscription.cancellation_requested_at === "string"
-        ? subscription.cancellation_requested_at
+    if (typeof subscription["cancellation_confirmed_at"] === "string") {
+      const requestedAt = typeof subscription["cancellation_requested_at"] === "string"
+        ? subscription["cancellation_requested_at"]
         : null;
       await confirmLocalCancellation(requestedAt);
       return successResponse();
     }
-    if (subscription.provider_status === "DELETED") {
+    if (subscription["provider_status"] === "DELETED") {
       await confirmLocalCancellation(null);
       return successResponse();
     }
-    if (typeof subscription.cancellation_requested_at === "string") {
+    if (typeof subscription["cancellation_requested_at"] === "string") {
       return billingResponse({
         error: "O cancelamento desta assinatura já foi solicitado e aguarda confirmação do Asaas. Não envie outra solicitação.",
         code: "subscription_cancellation_processing",

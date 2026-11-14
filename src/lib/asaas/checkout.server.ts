@@ -11,7 +11,7 @@ import {
   serviceRest,
   authenticateBillingRequest,
 } from "./ordys-billing.server";
-import { readRequestBodyWithLimit } from "./request-body.server";
+import { readRequestBodyWithLimit } from "./request-body["server"]";
 import { claimOrdysCheckoutCancellation, type CheckoutCancellationClaim } from "./ordys-checkout-cancellation.server";
 import { OutboundRequestTimeoutError, withAbortableOutboundRequestTimeout } from "./request-timeout.server";
 
@@ -44,9 +44,9 @@ function formatAsaasDateTimeInBrazil(date: Date) {
 function hasCurrentAccess(row: Record<string, unknown> | undefined) {
   if (!row) return false;
   const now = Date.now();
-  const status = typeof row.status === "string" ? row.status : "";
-  const periodEnd = typeof row.current_period_end === "string" ? Date.parse(row.current_period_end) : 0;
-  const graceUntil = typeof row.grace_until === "string" ? Date.parse(row.grace_until) : 0;
+  const status = typeof row["status"] === "string" ? row["status"] : "";
+  const periodEnd = typeof row["current_period_end"] === "string" ? Date.parse(row["current_period_end"]) : 0;
+  const graceUntil = typeof row["grace_until"] === "string" ? Date.parse(row["grace_until"]) : 0;
   if (status === "active" || status === "cancelled") return Number.isFinite(periodEnd) && periodEnd > now;
   if (status === "past_due") return Number.isFinite(periodEnd) && periodEnd > 0 && Number.isFinite(graceUntil) && graceUntil > now;
   return false;
@@ -82,7 +82,7 @@ export async function handleCheckout(request: Request): Promise<Response> {
       return billingResponse({ error: "Solicitação inválida." }, 400);
     }
 
-    const planCode = parsePlanCode(body.planCode);
+    const planCode = parsePlanCode(body["planCode"]);
     if (!planCode) return billingResponse({ error: "Selecione um plano válido." }, 400);
 
     const subscriptions = await serviceRest(
@@ -100,9 +100,9 @@ export async function handleCheckout(request: Request): Promise<Response> {
     // confirmed the provider-side cancellation. Do not create another
     // recurring subscription while that old provider resource may still bill.
     const unconfirmedLocalCancellation = subscriptions?.some((row) =>
-      row.status === "cancelled" &&
-      row.provider_status !== "DELETED" &&
-      typeof row.cancellation_confirmed_at !== "string"
+      row["status"] === "cancelled" &&
+      row["provider_status"] !== "DELETED" &&
+      typeof row["cancellation_confirmed_at"] !== "string"
     );
     if (unconfirmedLocalCancellation) {
       return billingResponse({
@@ -112,9 +112,9 @@ export async function handleCheckout(request: Request): Promise<Response> {
     }
 
     const openSubscriptions = subscriptions?.filter((row) =>
-      row.status === "pending" || row.status === "active" || row.status === "past_due" || row.status === "suspended"
+      row["status"] === "pending" || row["status"] === "active" || row["status"] === "past_due" || row["status"] === "suspended"
     ) ?? [];
-    if (openSubscriptions.some((row) => row.status === "suspended")) {
+    if (openSubscriptions.some((row) => row["status"] === "suspended")) {
       return billingResponse({
         error: "Sua assinatura foi suspensa após um estorno ou contestação e precisa de análise antes de uma nova contratação.",
         code: "subscription_suspended",
@@ -131,14 +131,14 @@ export async function handleCheckout(request: Request): Promise<Response> {
       `ordys_billing_plans?select=plan_code,title,description,billing_cycle,price_cents,currency,enabled&plan_code=eq.${planCode}&enabled=eq.true&limit=1`,
     ) as Array<Record<string, unknown>> | null;
     const plan = plans?.[0];
-    const amountCents = Number(plan?.price_cents);
-    const cycle = plan?.billing_cycle === "YEARLY" ? "YEARLY" : plan?.billing_cycle === "MONTHLY" ? "MONTHLY" : "";
+    const amountCents = Number(plan?.["price_cents"]);
+    const cycle = plan?.["billing_cycle"] === "YEARLY" ? "YEARLY" : plan?.["billing_cycle"] === "MONTHLY" ? "MONTHLY" : "";
     if (
       !plan ||
       !cycle ||
       !Number.isSafeInteger(amountCents) ||
       amountCents <= 0 ||
-      plan.currency !== "BRL"
+      plan["currency"] !== "BRL"
     ) {
       return billingResponse({
         error: "Este plano ainda não está disponível para contratação.",
@@ -165,19 +165,19 @@ export async function handleCheckout(request: Request): Promise<Response> {
     const existingAttempt = pendingAttempts?.[0];
     if (existingAttempt) {
       const disposition = checkoutAttemptDisposition(
-        String(existingAttempt.status ?? ""),
-        String(existingAttempt.expires_at ?? ""),
+        String(existingAttempt["status"] ?? ""),
+        String(existingAttempt["expires_at"] ?? ""),
         now.getTime(),
       );
 
       if (disposition === "reuse") {
         if (
-          existingAttempt.plan_code === planCode &&
-          typeof existingAttempt.checkout_url === "string" &&
-          existingAttempt.checkout_url.startsWith("https://")
+          existingAttempt["plan_code"] === planCode &&
+          typeof existingAttempt["checkout_url"] === "string" &&
+          existingAttempt["checkout_url"].startsWith("https://")
         ) {
           return billingResponse({
-            checkoutUrl: existingAttempt.checkout_url,
+            checkoutUrl: existingAttempt["checkout_url"],
             planCode,
             amountCents,
             currency: "BRL",
@@ -191,8 +191,8 @@ export async function handleCheckout(request: Request): Promise<Response> {
       }
 
       if (disposition === "cancel_remote") {
-        const providerCheckoutId = typeof existingAttempt.provider_checkout_id === "string"
-          ? existingAttempt.provider_checkout_id
+        const providerCheckoutId = typeof existingAttempt["provider_checkout_id"] === "string"
+          ? existingAttempt["provider_checkout_id"]
           : "";
         if (!providerCheckoutId) {
           return billingResponse({
@@ -200,14 +200,14 @@ export async function handleCheckout(request: Request): Promise<Response> {
             code: "checkout_reconciliation_required",
           }, 409);
         }
-        if (typeof existingAttempt.cancellation_requested_at === "string") {
+        if (typeof existingAttempt["cancellation_requested_at"] === "string") {
           return billingResponse({
             error: "O cancelamento deste checkout já foi solicitado e aguarda confirmação do Asaas. Não envie outra solicitação.",
             code: "checkout_cancellation_processing",
           }, 409);
         }
 
-        const attemptId = typeof existingAttempt.id === "string" ? existingAttempt.id : "";
+        const attemptId = typeof existingAttempt["id"] === "string" ? existingAttempt["id"] : "";
         if (!attemptId) {
           return billingResponse({
             error: "Não foi possível identificar o checkout anterior para cancelamento.",
@@ -352,8 +352,8 @@ export async function handleCheckout(request: Request): Promise<Response> {
             expiredUrl: `${returnUrl}?status=expired`,
           },
           items: [{
-            name: typeof plan.title === "string" ? plan.title.slice(0, 80) : "Ordys Plus",
-            description: typeof plan.description === "string" ? plan.description.slice(0, 500) : "Assinatura Ordys Plus",
+            name: typeof plan["title"] === "string" ? plan["title"].slice(0, 80) : "Ordys Plus",
+            description: typeof plan["description"] === "string" ? plan["description"].slice(0, 500) : "Assinatura Ordys Plus",
             quantity: 1,
             value: Number((amountCents / 100).toFixed(2)),
           }],
@@ -364,7 +364,7 @@ export async function handleCheckout(request: Request): Promise<Response> {
         }),
       });
 
-      providerCheckoutId = typeof checkout.id === "string" ? checkout.id : "";
+      providerCheckoutId = typeof checkout["id"] === "string" ? checkout["id"] : "";
       checkoutUrl = providerCheckoutId
         ? `https://asaas.com/checkoutSession/show?id=${encodeURIComponent(providerCheckoutId)}`
         : "";

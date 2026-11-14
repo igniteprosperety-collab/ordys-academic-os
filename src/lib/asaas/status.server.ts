@@ -37,12 +37,12 @@ export async function handleStatus(request: Request): Promise<Response> {
     ]);
     const subscription = subscriptions?.[0] ?? null;
     const now = Date.now();
-    const status = typeof subscription?.status === "string" ? subscription.status : "";
-    const periodEnd = typeof subscription?.current_period_end === "string"
-      ? Date.parse(subscription.current_period_end)
+    const status = typeof subscription?.["status"] === "string" ? subscription["status"] : "";
+    const periodEnd = typeof subscription?.["current_period_end"] === "string"
+      ? Date.parse(subscription["current_period_end"])
       : 0;
-    const graceUntil = typeof subscription?.grace_until === "string"
-      ? Date.parse(subscription.grace_until)
+    const graceUntil = typeof subscription?.["grace_until"] === "string"
+      ? Date.parse(subscription["grace_until"])
       : 0;
     const hasAccess = (
       ((status === "active" || status === "cancelled") && Number.isFinite(periodEnd) && periodEnd > now) ||
@@ -53,13 +53,13 @@ export async function handleStatus(request: Request): Promise<Response> {
       enabled: billingEnabled,
       plans: plans ?? [],
       subscription: subscription ? {
-        planCode: subscription.plan_code,
-        status: subscription.status,
+        planCode: subscription["plan_code"],
+        status: subscription["status"],
         amountCents: null,
-        currency: subscription.currency,
-        currentPeriodEnd: subscription.current_period_end,
-        graceUntil: subscription.grace_until,
-        cancelledAt: subscription.cancelled_at,
+        currency: subscription["currency"],
+        currentPeriodEnd: subscription["current_period_end"],
+        graceUntil: subscription["grace_until"],
+        cancelledAt: subscription["cancelled_at"],
         hasAccess: false,
       } : null,
     });
