@@ -1,5 +1,5 @@
 import "@tanstack/react-start/server-only";
-import { readRequestBodyWithLimit } from "./request-body["server"]";
+import { readRequestBodyWithLimit } from "./request-body.server";
 import {
   billingCorsHeaders,
   billingResponse,

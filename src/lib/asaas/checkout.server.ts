@@ -11,7 +11,7 @@ import {
   serviceRest,
   authenticateBillingRequest,
 } from "./ordys-billing.server";
-import { readRequestBodyWithLimit } from "./request-body["server"]";
+import { readRequestBodyWithLimit } from "./request-body.server";
 import { claimOrdysCheckoutCancellation, type CheckoutCancellationClaim } from "./ordys-checkout-cancellation.server";
 import { OutboundRequestTimeoutError, withAbortableOutboundRequestTimeout } from "./request-timeout.server";
 
