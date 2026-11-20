@@ -14,11 +14,18 @@ export type OrdysAiAgeBand = "under_13" | "13_15" | "16_17" | "18_plus" | "unkno
 export type OrdysAgeAssuranceStatus =
   "verified" | "supervised" | "declared" | "unknown" | "revoked";
 export type OrdysAgeAssuranceSource =
-  "google_play" | "apple_declared_age_range" | "external_provider" | "operator_review" | "unknown";
+  | "google_play_tier_d"
+  | "google_play_tier_b_supervised"
+  | "apple_confirmed_age_range"
+  | "apple_guardian_declared_age_range"
+  | "external_provider_verified"
+  | "unknown";
 export type OrdysGuardianConsentStatus =
   "granted" | "pending" | "denied" | "revoked" | "expired" | "not_required" | "unknown";
 export type OrdysGuardianConsentSource =
-  "verified_guardian_portal" | "external_provider" | "operator_review" | "unknown";
+  | "verified_guardian_portal"
+  | "external_provider_verified"
+  | "unknown";
 
 export type OrdysAiAssuranceRecord = {
   age_band: OrdysAiAgeBand;
@@ -53,17 +60,20 @@ export type OrdysAiAccessDecision =
         | "policy_version_outdated";
     };
 
-const TRUSTED_AGE_SOURCES = new Set<OrdysAgeAssuranceSource>([
-  "google_play",
-  "apple_declared_age_range",
-  "external_provider",
-  "operator_review",
+const VERIFIED_AGE_SOURCES = new Set<OrdysAgeAssuranceSource>([
+  "google_play_tier_d",
+  "apple_confirmed_age_range",
+  "external_provider_verified",
+]);
+
+const SUPERVISED_AGE_SOURCES = new Set<OrdysAgeAssuranceSource>([
+  "google_play_tier_b_supervised",
+  "apple_guardian_declared_age_range",
 ]);
 
 const TRUSTED_GUARDIAN_SOURCES = new Set<OrdysGuardianConsentSource>([
   "verified_guardian_portal",
-  "external_provider",
-  "operator_review",
+  "external_provider_verified",
 ]);
 
 function isValidTimestamp(value: string | null, nowMs: number): value is string {
@@ -83,10 +93,16 @@ function hasEvidenceReference(value: string | null): boolean {
 }
 
 function hasCurrentAgeAssurance(record: OrdysAiAssuranceRecord, nowMs: number): boolean {
+  const verified =
+    record.age_assurance_status === "verified" &&
+    VERIFIED_AGE_SOURCES.has(record.age_assurance_source);
+  const supervised =
+    record.age_assurance_status === "supervised" &&
+    SUPERVISED_AGE_SOURCES.has(record.age_assurance_source);
+
   return (
     hasEvidenceReference(record.age_evidence_reference) &&
-    (record.age_assurance_status === "verified" || record.age_assurance_status === "supervised") &&
-    TRUSTED_AGE_SOURCES.has(record.age_assurance_source) &&
+    (verified || supervised) &&
     isValidTimestamp(record.age_assurance_verified_at, nowMs) &&
     isFutureTimestamp(record.age_assurance_expires_at, nowMs)
   );
