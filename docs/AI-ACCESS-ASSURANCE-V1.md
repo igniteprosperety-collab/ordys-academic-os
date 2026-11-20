@@ -23,19 +23,19 @@ A profile birth date, timezone, self-attestation, local-storage flag, client-sup
 
 Use the current Play Age Signals two-step flow: `requestAgeSignalsAccess()`, then `checkAgeSignals()`. For SDK 0.0.4+, read `ageRangeSource`, age bounds and significant-change status; do not rely on deprecated `userStatus`.
 
-- `TIER_A`: user-provided age information. It is not verified adult evidence.
-- `TIER_B`: age is managed by a parent/guardian. It can support a supervised age-band state, but it is **not by itself explicit consent to send academic data to OpenAI**.
-- `TIER_C`: age assessed using methods such as credit card, email, selfie assessment, government ID or tax ID. Returned only in regulated regions where age verification is mandatory.
-- `TIER_D`: age checked through a combination of government ID and selfie assessment, or Digital ID. Returned only in regulated regions where age verification is mandatory.
-- Missing/unshared signals remain unknown.
+- `TIER_A`: self-declared. Not accepted as age assurance for OpenAI access.
+- `TIER_B`: parent/guardian-managed age range. Maps only to `supervised`; it still requires a separate verified guardian consent for the specific AI data flow.
+- `TIER_C`: estimated/assessed age. Not accepted as verified age evidence in this V1 policy.
+- `TIER_D`: verified via ID check. Maps to verified age evidence after Play Integrity is verified server-side.
+- Missing/unshared signals remain unknown and blocked.
 
-Use Play Integrity with the native signal flow and verify its result on the server before trusting a submitted native signal. The API can return `TIER_A` outside regulated regions even when the lower bound is 18; never map that to `verified`.
+Use Play Integrity with the native signal flow and verify its result on the server before trusting a submitted native signal. The API can return `TIER_A` outside regulated regions even when the lower bound is 18; never map that to `verified`. The mapping helper accepts only `TIER_D` as verified and `TIER_B` as supervised.
 
 The platform's significant-change approval is not automatically interchangeable with the product's separate AI consent. Use it only if the platform configuration explicitly describes the AI data-processing change and the consent meaning is reviewed.
 
 ### Apple
 
-For a future iOS client, support the Declared Age Range API and PermissionKit according to OS, region and sharing state. On iOS/iPadOS 26.5+, the API may return `confirmed` when the age range was confirmed through a credit card or government ID; do not infer the verification method when Apple no longer returns it. Self-declared and guardian-declared ranges are not equivalent to a confirmed adult signal.
+For a future iOS client, support the Declared Age Range API and PermissionKit according to OS, region and sharing state. On iOS/iPadOS 26.5+, only `confirmed` maps to verified age evidence. `guardianDeclared` maps to supervised age evidence and still requires separate, verified guardian consent. `selfDeclared` does not grant access. Do not infer the verification method when Apple no longer returns it.
 
 ### Web and direct APK
 
