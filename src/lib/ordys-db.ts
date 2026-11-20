@@ -160,13 +160,15 @@ export function useGoals() {
   return useOwnedQuery<Goal[]>(["goals"], (db) => db.from("goals").select("*").order("created_at"));
 }
 export function useNotifications() {
-  return useOwnedQuery<NotificationRow[]>(["notifications"], (db) =>
-    db
-      .from("notifications")
-      .select("*")
-      .is("dismissed_at", null)
-      .order("created_at", { ascending: false })
-      .limit(60),
+  return useOwnedQuery<NotificationRow[]>(
+    ["notifications"],
+    (db) =>
+      db
+        .from("notifications")
+        .select("*")
+        .is("dismissed_at", null)
+        .order("created_at", { ascending: false })
+        .limit(60),
     {
       // Realtime is the primary path; polling recovers missed events and reconnect gaps.
       refetchInterval: 30_000,
