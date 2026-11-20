@@ -214,24 +214,15 @@ export function createOrdysDemoDataset(
   const portugueseLanguage = topic("Funções da linguagem");
   const biologyGenetics = topic("Genética mendeliana");
   const historyVargas = topic("Era Vargas");
-  if (
-    !mathFunctions ||
-    !mathRatio ||
-    !portugueseLanguage ||
-    !biologyGenetics ||
-    !historyVargas
-  ) {
-    throw new Error(
-      "Não foi possível relacionar os conteúdos de demonstração.",
-    );
+  if (!mathFunctions || !mathRatio || !portugueseLanguage || !biologyGenetics || !historyVargas) {
+    throw new Error("Não foi possível relacionar os conteúdos de demonstração.");
   }
 
   const tasks = [
     {
       id: uid(),
       title: "Lista de exercícios — funções",
-      description:
-        "Resolver os exercícios 1 a 12 e registrar as dúvidas para a próxima aula.",
+      description: "Resolver os exercícios 1 a 12 e registrar as dúvidas para a próxima aula.",
       subject_id: math.id,
       topic_id: mathFunctions.id,
       due_at: dateTime(now, -1, "18:00"),
@@ -255,8 +246,7 @@ export function createOrdysDemoDataset(
     {
       id: uid(),
       title: "Revisar genética mendeliana",
-      description:
-        "Revisar os cruzamentos e resolver cinco questões de fixação.",
+      description: "Revisar os cruzamentos e resolver cinco questões de fixação.",
       subject_id: biology.id,
       topic_id: biologyGenetics.id,
       due_at: dateTime(now, 3, "19:00"),
@@ -280,8 +270,7 @@ export function createOrdysDemoDataset(
     {
       id: uid(),
       title: "Linha do tempo: Era Vargas",
-      description:
-        "Organizar os principais acontecimentos em ordem cronológica.",
+      description: "Organizar os principais acontecimentos em ordem cronológica.",
       subject_id: history.id,
       topic_id: historyVargas.id,
       due_at: dateTime(now, 5, "18:00"),
@@ -297,12 +286,8 @@ export function createOrdysDemoDataset(
     updated_at: updatedAt,
   }));
 
-  const lateTask = tasks.find(
-    (row) => row.title === "Lista de exercícios — funções",
-  );
-  const upcomingTask = tasks.find(
-    (row) => row.title === "Resumo: funções da linguagem",
-  );
+  const lateTask = tasks.find((row) => row.title === "Lista de exercícios — funções");
+  const upcomingTask = tasks.find((row) => row.title === "Resumo: funções da linguagem");
 
   const subtasks = [
     {
@@ -402,8 +387,7 @@ export function createOrdysDemoDataset(
       subject_id: subject.id,
       class_date: dateKey(dateAfter(now, days)),
       status:
-        (subjectIndex === 2 && index === 1) ||
-        (subjectIndex === 3 && index === 0)
+        (subjectIndex === 2 && index === 1) || (subjectIndex === 3 && index === 0)
           ? "falta"
           : "presente",
       note: null,
@@ -420,10 +404,7 @@ export function createOrdysDemoDataset(
   }
   const scheduleOffsets = [0, 1, 2, 3];
   const schedules = subjects.map((subject, index) => {
-    const scheduledDate = dateAfter(
-      currentClassDate,
-      scheduleOffsets[index] ?? index,
-    );
+    const scheduledDate = dateAfter(currentClassDate, scheduleOffsets[index] ?? index);
     const scheduledWeekday = weekday(scheduledDate);
     const hour = index === 0 ? currentClassDate.getHours() : 8 + index;
     const start = `${String(hour).padStart(2, "0")}:00:00`;
@@ -729,8 +710,7 @@ export function createOrdysDemoDataset(
       correct_answer: "Duas grandezas por divisão",
       given_answer: "Duas grandezas por divisão",
       is_correct: true,
-      explanation:
-        "A razão é a comparação entre duas grandezas por meio de uma divisão.",
+      explanation: "A razão é a comparação entre duas grandezas por meio de uma divisão.",
       seconds_spent: 48,
     },
   ].map((answer) => ({
