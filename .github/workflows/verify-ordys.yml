@@ -82,9 +82,14 @@ jobs:
           status="$(supabase status -o env)"
           api_url="$(printf '%s\n' "$status" | sed -n 's/^API_URL=//p' | head -n 1 | sed -e 's/^"//' -e 's/"$//')"
           anon_key="$(printf '%s\n' "$status" | sed -n 's/^ANON_KEY=//p' | head -n 1 | sed -e 's/^"//' -e 's/"$//')"
+          service_role_key="$(printf '%s\n' "$status" | sed -n 's/^SERVICE_ROLE_KEY=//p' | head -n 1 | sed -e 's/^"//' -e 's/"$//')"
           test -n "$api_url"
           test -n "$anon_key"
+          test -n "$service_role_key"
           {
+            printf 'SUPABASE_URL=%s\n' "$api_url"
+            printf 'SUPABASE_PUBLISHABLE_KEY=%s\n' "$anon_key"
+            printf 'SUPABASE_SERVICE_ROLE_KEY=%s\n' "$service_role_key"
             printf 'VITE_SUPABASE_URL=%s\n' "$api_url"
             printf 'VITE_SUPABASE_PUBLISHABLE_KEY=%s\n' "$anon_key"
           } >> "$GITHUB_ENV"
@@ -99,6 +104,9 @@ jobs:
 
       - name: Verify anonymous Data API isolation against local Supabase
         run: bun run test tests/data-isolation.test.ts
+
+      - name: Verify signup, login, session refresh and password update against local Auth
+        run: bun run test tests/auth-session.integration.test.ts
 
       - name: Run database security and integrity tests (pgTAP)
         run: supabase test db
