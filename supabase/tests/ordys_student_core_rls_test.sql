@@ -1,6 +1,6 @@
 begin;
 
-select plan(15);
+select plan(18);
 
 -- Deterministic synthetic identities. The whole test runs in one transaction
 -- and is rolled back at the end; no real user or remote project is touched.
@@ -268,11 +268,21 @@ select lives_ok(
   'student B delete is filtered by RLS without touching student A data'
 );
 
+select lives_ok(
+  'update public.subjects set name = ''Alteração indevida do aluno B'' where id = ''20000000-0000-4000-8000-000000000001''',
+  'student B update of student A is filtered by RLS'
+);
+
+select lives_ok(
+  'update public.subjects set name = ''História atualizada pelo aluno B'' where id = ''20000000-0000-4000-8000-000000000002''',
+  'student B can update their own subject'
+);
+
 select is(
-  (select count(*)::int from public.subjects
+  (select name from public.subjects
    where id = '20000000-0000-4000-8000-000000000002'),
-  1,
-  'student B can read their own subject'
+  'História atualizada pelo aluno B',
+  'student B own subject update is persisted'
 );
 
 -- Confirm denied operations did not damage either student's data.
@@ -290,10 +300,10 @@ select set_config(
 );
 
 select is(
-  (select count(*)::int from public.subjects
+  (select name from public.subjects
    where id = '20000000-0000-4000-8000-000000000001'),
-  1,
-  'student A subject remains intact after rejected operations'
+  'Matemática do aluno A',
+  'student A subject value remains unchanged after B delete and update attempts'
 );
 
 select is(
