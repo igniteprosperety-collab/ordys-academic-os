@@ -127,6 +127,8 @@ function Tarefas() {
   const [form, setForm] = useState(emptyForm);
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
+  const [editingSubtaskId, setEditingSubtaskId] = useState<string | null>(null);
+  const [editingSubtaskTitle, setEditingSubtaskTitle] = useState("");
   const [subtaskBusy, setSubtaskBusy] = useState(false);
   const [subtaskToDelete, setSubtaskToDelete] = useState<Subtask | null>(null);
   const [subtaskDeleting, setSubtaskDeleting] = useState(false);
@@ -242,6 +244,34 @@ function Tarefas() {
       toast.success("Etapa adicionada");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível adicionar a etapa.");
+    } finally {
+      setSubtaskBusy(false);
+    }
+  }
+
+  function beginEditSubtask(subtask: Subtask) {
+    setEditingSubtaskId(subtask.id);
+    setEditingSubtaskTitle(subtask.title);
+  }
+
+  async function saveSubtaskEdit(subtask: Subtask) {
+    const title = editingSubtaskTitle.trim();
+    if (!title) {
+      toast.error("A etapa precisa ter um título.");
+      return;
+    }
+    if (title.length > 160) {
+      toast.error("A etapa deve ter no máximo 160 caracteres.");
+      return;
+    }
+    setSubtaskBusy(true);
+    try {
+      await update("subtasks", subtask.id, { title });
+      setEditingSubtaskId(null);
+      setEditingSubtaskTitle("");
+      toast.success("Etapa corrigida.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível editar a etapa.");
     } finally {
       setSubtaskBusy(false);
     }
@@ -429,21 +459,73 @@ function Tarefas() {
                             >
                               {subtask.done ? <Check className="size-[13px]" /> : null}
                             </button>
-                            <span
-                              className={`min-w-0 flex-1 text-[11.5px] ${
-                                subtask.done ? "text-muted-foreground line-through" : ""
-                              }`}
-                            >
-                              {subtask.title}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => setSubtaskToDelete(subtask)}
-                              aria-label={`Remover etapa ${subtask.title}`}
-                              className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-destructive"
-                            >
-                              <Trash2 className="size-[12px]" />
-                            </button>
+                            {editingSubtaskId === subtask.id ? (
+                              <>
+                                <TextInput
+                                  value={editingSubtaskTitle}
+                                  maxLength={160}
+                                  autoFocus
+                                  onChange={(event) => setEditingSubtaskTitle(event.target.value)}
+                                  onKeyDown={(event) => {
+                                    if (event.key === "Enter") {
+                                      event.preventDefault();
+                                      void saveSubtaskEdit(subtask);
+                                    }
+                                    if (event.key === "Escape") {
+                                      setEditingSubtaskId(null);
+                                      setEditingSubtaskTitle("");
+                                    }
+                                  }}
+                                />
+                                <button
+                                  type="button"
+                                  disabled={subtaskBusy || !editingSubtaskTitle.trim()}
+                                  onClick={() => void saveSubtaskEdit(subtask)}
+                                  aria-label="Salvar etapa"
+                                  className="grid size-8 shrink-0 place-items-center rounded-md text-success hover:bg-success/10 disabled:opacity-40"
+                                >
+                                  <Check className="size-[13px]" />
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={subtaskBusy}
+                                  onClick={() => {
+                                    setEditingSubtaskId(null);
+                                    setEditingSubtaskTitle("");
+                                  }}
+                                  aria-label="Cancelar edição"
+                                  className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary disabled:opacity-40"
+                                >
+                                  <X className="size-[13px]" />
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <span
+                                  className={`min-w-0 flex-1 text-[11.5px] ${
+                                    subtask.done ? "text-muted-foreground line-through" : ""
+                                  }`}
+                                >
+                                  {subtask.title}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => beginEditSubtask(subtask)}
+                                  aria-label={`Editar etapa ${subtask.title}`}
+                                  className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground"
+                                >
+                                  <Pencil className="size-[12px]" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setSubtaskToDelete(subtask)}
+                                  aria-label={`Remover etapa ${subtask.title}`}
+                                  className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-destructive"
+                                >
+                                  <Trash2 className="size-[12px]" />
+                                </button>
+                              </>
+                            )}
                           </div>
                         ))}
                         <div className="flex min-w-0 gap-2 pt-1">
