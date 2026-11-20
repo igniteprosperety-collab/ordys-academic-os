@@ -32,7 +32,10 @@ const NOTIFICATION_IDS = {
   event: 600000,
   focusTimer: 700000,
 };
-const NOTIFICATION_PREFIXES = Object.values(NOTIFICATION_IDS);
+// Focus timer alarms are account-scoped and managed by the timer, not by academic reminder sync.
+const NOTIFICATION_PREFIXES = Object.entries(NOTIFICATION_IDS)
+  .filter(([key]) => key !== "focusTimer")
+  .map(([, value]) => value);
 
 function stableId(prefix: number, value: string) {
   let hash = 0;
@@ -159,17 +162,19 @@ export async function scheduleNativeNotification(params: {
   return true;
 }
 
-export async function scheduleNativeFocusTimerAlarm(endsAtMs: number) {
+export async function scheduleNativeFocusTimerAlarm(userId: string, endsAtMs: number) {
+  if (!userId) return false;
   return scheduleNativeNotification({
-    id: NOTIFICATION_IDS.focusTimer,
+    id: stableId(NOTIFICATION_IDS.focusTimer, userId),
     title: "Tempo de foco concluído",
     body: "Sua sessão de estudo terminou. Registre seu progresso no ORDYS.",
     at: new Date(endsAtMs),
   });
 }
 
-export async function cancelNativeFocusTimerAlarm() {
-  await cancelNativeNotifications([NOTIFICATION_IDS.focusTimer]);
+export async function cancelNativeFocusTimerAlarm(userId: string) {
+  if (!userId) return;
+  await cancelNativeNotifications([stableId(NOTIFICATION_IDS.focusTimer, userId)]);
 }
 
 export async function cancelNativeNotifications(ids: number[]) {
