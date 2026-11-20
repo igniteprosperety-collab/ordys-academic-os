@@ -586,7 +586,18 @@ function FocusPanel({
         setSaving(false);
       }
     },
-    [elapsedMinutes, left, minutes, onSave, persistTimer, planId, saving, subjectId, topicId, userId],
+    [
+      elapsedMinutes,
+      left,
+      minutes,
+      onSave,
+      persistTimer,
+      planId,
+      saving,
+      subjectId,
+      topicId,
+      userId,
+    ],
   );
 
   useEffect(() => {
