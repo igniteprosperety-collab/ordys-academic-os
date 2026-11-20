@@ -506,8 +506,8 @@ function AssistantPage() {
           </section>
         ) : null}
         {!isDemo &&
-          (!ORDYS_AI_ACCESS_POLICY_READY ||
-            (!profileLoading && !profileFailed && !aiEligibility.allowed)) ? (
+        (!ORDYS_AI_ACCESS_POLICY_READY ||
+          (!profileLoading && !profileFailed && !aiEligibility.allowed)) ? (
           <section className="mt-6 rounded-xl border border-primary/20 bg-primary-soft px-4 py-3 text-[12px]">
             <p className="font-medium">Recursos de IA temporariamente indisponíveis</p>
             <p className="mt-1 leading-5 text-muted-foreground">
