@@ -267,6 +267,10 @@ function Estudos() {
       toast.error("Selecione uma data válida.");
       return;
     }
+    if (planDraft.session_date < todayKey) {
+      toast.error("Uma nova sessão precisa ser marcada para hoje ou uma data futura.");
+      return;
+    }
     if (
       planDraft.start_time &&
       !/^(?:[01]\\d|2[0-3]):[0-5]\\d$/.test(planDraft.start_time)
