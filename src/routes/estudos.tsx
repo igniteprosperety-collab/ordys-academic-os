@@ -144,7 +144,7 @@ function Estudos() {
   const { data: checkins = [] } = useCheckins();
   const { data: schedules = [] } = useSchedules();
   const { data: calendarEvents = [] } = useCalendarEvents();
-  const { insert, update, userId, refresh } = useOrdysMutations();
+  const { insert, update, remove, userId, refresh } = useOrdysMutations();
   const [busy, setBusy] = useState(false);
   const [planModal, setPlanModal] = useState<{ open: boolean; editing?: PlanSession }>({
     open: false,
