@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { ORDYS_REALTIME_TABLES } from "@/lib/ordys-realtime";
+import {
+  matchesOrdysRealtimeQueryKey,
+  ORDYS_REALTIME_TABLES,
+} from "@/lib/ordys-realtime";
 
 describe("ORDYS realtime coverage", () => {
   it("covers each student-facing data area exactly once", () => {
@@ -19,6 +22,21 @@ describe("ORDYS realtime coverage", () => {
       expect(item.queryKeys.length).toBeGreaterThan(0);
       for (const key of item.queryKeys) expect(key.length).toBeGreaterThan(0);
     }
+  });
+
+  it("invalidates parameterized queries without crossing student accounts", () => {
+    expect(
+      matchesOrdysRealtimeQueryKey(["subjects", false, "student-a", "cloud"], "student-a", "subjects"),
+    ).toBe(true);
+    expect(
+      matchesOrdysRealtimeQueryKey(["topics", "subject-1", "student-a", "cloud"], "student-a", "topics"),
+    ).toBe(true);
+    expect(
+      matchesOrdysRealtimeQueryKey(["topics", "all", "student-b", "cloud"], "student-a", "topics"),
+    ).toBe(false);
+    expect(
+      matchesOrdysRealtimeQueryKey(["subjects", false, "student-a", "demo"], "student-a", "subjects"),
+    ).toBe(false);
   });
 
   it("uses the profile primary key instead of a user_id column", () => {
