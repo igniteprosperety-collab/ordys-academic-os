@@ -39,6 +39,8 @@ function accessMessage(reason: string): string {
       return "A autorização do responsável está ausente, expirada ou foi revogada.";
     case "policy_version_outdated":
       return "É necessário atualizar a autorização de IA desta conta para a política atual do Ordys.";
+    case "policy_not_deployed":
+      return ORDYS_AI_ACCESS_POLICY_LOCK_MESSAGE;
     default:
       return "Não foi possível confirmar a autorização de IA desta conta.";
   }
