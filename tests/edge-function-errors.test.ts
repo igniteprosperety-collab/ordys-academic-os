@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { edgeFunctionUnavailableMessage } from "../src/lib/edge-function-errors";
+import {
+  edgeFunctionResponseErrorMessage,
+  edgeFunctionUnavailableMessage,
+} from "../src/lib/edge-function-errors";
 
 const messages = {
   assistant:
@@ -64,5 +67,38 @@ describe("edge function infrastructure errors", () => {
       (feature) => edgeFunctionUnavailableMessage({ context: { status: 404 } }, feature),
     );
     expect(new Set(actual).size).toBe(3);
+  });
+});
+
+describe("edge function response messages", () => {
+  it("preserves a meaningful server error from a non-success HTTP response", async () => {
+    const message = "Limite de uso atingido. Aguarde antes de usar esta função novamente.";
+    const error = {
+      context: new Response(JSON.stringify({ status: "failed", error: message }), {
+        status: 429,
+        headers: { "Content-Type": "application/json" },
+      }),
+    };
+
+    await expect(edgeFunctionResponseErrorMessage(error)).resolves.toBe(message);
+  });
+
+  it("bounds server-provided messages to 500 characters", async () => {
+    const error = {
+      context: new Response(JSON.stringify({ error: "x".repeat(600) }), { status: 413 }),
+    };
+
+    await expect(edgeFunctionResponseErrorMessage(error)).resolves.toHaveLength(500);
+  });
+
+  it("returns null for unreadable responses and ordinary errors", async () => {
+    await expect(
+      edgeFunctionResponseErrorMessage({
+        context: new Response("not-json", { status: 503 }),
+      }),
+    ).resolves.toBeNull();
+    await expect(
+      edgeFunctionResponseErrorMessage(new Error("ordinary failure")),
+    ).resolves.toBeNull();
   });
 });

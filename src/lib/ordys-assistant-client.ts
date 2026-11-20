@@ -1,6 +1,8 @@
-import { Capacitor } from "@capacitor/core";
 import { supabase } from "@/integrations/supabase/client";
-import { edgeFunctionUnavailableMessage } from "@/lib/edge-function-errors";
+import {
+  edgeFunctionResponseErrorMessage,
+  edgeFunctionUnavailableMessage,
+} from "@/lib/edge-function-errors";
 import { dateKey } from "@/lib/ordys-engine";
 import type { OrdysAttachment } from "@/lib/ordys-assistant-media";
 import { canUseOrdysAi } from "@/lib/ai-eligibility";
@@ -74,7 +76,7 @@ async function getAccessContext() {
   if (error || !data.session?.access_token) {
     throw new Error("Sua sessão não está disponível. Entre novamente no ORDYS.");
   }
-  return { accessToken: data.session.access_token, userId: data.session.user.id };
+  return { userId: data.session.user.id };
 }
 
 export type OrdysQuizQuestion = {
@@ -154,42 +156,26 @@ function readFunctionResult(data: unknown, error: unknown) {
 }
 
 async function invokeAssistant(options: { body: Record<string, unknown> }) {
+  let result;
   try {
-    const result = await supabase.functions.invoke("ordys-assistant", options);
-    const status = result.error?.context?.status;
-    if (status === 400 || status === 401 || status === 403) {
-      throw result.error;
-    }
-    return result;
+    result = await supabase.functions.invoke("ordys-assistant", options);
   } catch (error) {
     const unavailable = edgeFunctionUnavailableMessage(error, "assistant");
     if (unavailable) throw new Error(unavailable);
+    const responseMessage = await edgeFunctionResponseErrorMessage(error);
+    if (responseMessage) throw new Error(responseMessage);
     throw error;
   }
-}
 
-function nativeAssistantFailure(error: unknown) {
-  return new Error(
-    edgeFunctionUnavailableMessage(error, "assistant") ??
-      "O Assistente Ordys não respondeu pelo serviço seguro. Verifique sua conexão e tente novamente.",
-  );
-}
-
-async function assistantFetch(url: string, options: RequestInit) {
-  let response: Response;
-  try {
-    response = await fetch(url, options);
-  } catch (error) {
-    const unavailable = edgeFunctionUnavailableMessage(
-      error instanceof TypeError ? { name: "FunctionsFetchError" } : error,
-      "assistant",
-    );
+  if (result.error) {
+    const unavailable = edgeFunctionUnavailableMessage(result.error, "assistant");
     if (unavailable) throw new Error(unavailable);
-    throw error;
+    const responseMessage = await edgeFunctionResponseErrorMessage(result.error);
+    if (responseMessage) throw new Error(responseMessage);
+    throw result.error;
   }
-  const unavailable = edgeFunctionUnavailableMessage({ context: response }, "assistant");
-  if (unavailable) throw new Error(unavailable);
-  return response;
+
+  return result;
 }
 
 function compactDate(value: string | null | undefined) {
@@ -709,31 +695,6 @@ async function transcribeOrdysVideo(
   }
 }
 
-async function fallbackPost(accessToken: string, body: Record<string, unknown>) {
-  const response = await assistantFetch("/api/ordys-assistant", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-    body: JSON.stringify(body),
-  });
-  const payload = (await response.json().catch(() => null)) as OrdysAssistantResult | null;
-  if (!response.ok)
-    throw new Error(payload?.error ?? "Não foi possível falar com o Assistente Ordys.");
-  return payload ?? { status: "failed", error: "Resposta inválida do servidor." };
-}
-
-async function fallbackPoll(accessToken: string, responseId: string) {
-  const response = await assistantFetch(
-    `/api/ordys-assistant?responseId=${encodeURIComponent(responseId)}`,
-    {
-      method: "GET",
-      headers: { Authorization: `Bearer ${accessToken}` },
-    },
-  );
-  const payload = (await response.json().catch(() => null)) as OrdysAssistantResult | null;
-  if (!response.ok) throw new Error(payload?.error ?? "Não foi possível consultar a pesquisa.");
-  return payload ?? { status: "failed", error: "Resposta inválida do servidor." };
-}
-
 export async function askOrdysAssistant(input: {
   message: string;
   mode: OrdysAssistantMode;
@@ -741,7 +702,7 @@ export async function askOrdysAssistant(input: {
   attachments?: OrdysAttachment[];
   academicContext?: readonly OrdysAcademicContextScope[];
 }): Promise<OrdysAssistantResult> {
-  const { accessToken, userId } = await getAccessContext();
+  const { userId } = await getAccessContext();
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("birth_date,timezone")
@@ -751,6 +712,7 @@ export async function askOrdysAssistant(input: {
     throw new Error("Não foi possível verificar a elegibilidade dos recursos de IA.");
   const aiEligibility = canUseOrdysAi(profile?.birth_date, profile?.timezone);
   if (!aiEligibility.allowed) throw new Error(aiEligibility.reason);
+
   const videoAttachments = (input.attachments ?? []).filter(
     (attachment) => attachment.kind === "video",
   );
@@ -790,52 +752,32 @@ export async function askOrdysAssistant(input: {
   const { data, error } = await invokeAssistant({ body });
   const functionResult = readFunctionResult(data, error);
   if (functionResult) return functionResult;
-  // The packaged Android client is static and has no TanStack server route at /api.
-  if (Capacitor.isNativePlatform()) throw nativeAssistantFailure(error);
-
-  return fallbackPost(accessToken, body);
+  throw new Error("O Assistente Ordys retornou uma resposta inválida. Tente novamente.");
 }
 
 export async function pollOrdysResearch(responseId: string): Promise<OrdysAssistantResult> {
-  const { accessToken } = await getAccessContext();
+  await getAccessContext();
   const body = { action: "poll", responseId };
   const { data, error } = await invokeAssistant({ body });
   const functionResult = readFunctionResult(data, error);
   if (functionResult) return functionResult;
-  // Never send a native WebView request to a server route that is not packaged.
-  if (Capacitor.isNativePlatform()) throw nativeAssistantFailure(error);
-  return fallbackPoll(accessToken, responseId);
+  throw new Error("Não foi possível consultar a pesquisa: resposta inválida do serviço.");
 }
 
 export async function cancelOrdysResearch(responseId: string): Promise<OrdysAssistantResult> {
-  const { accessToken } = await getAccessContext();
+  await getAccessContext();
   const body = { action: "cancel", responseId };
   const { data, error } = await invokeAssistant({ body });
   const functionResult = readFunctionResult(data, error);
   if (functionResult) return functionResult;
-  if (Capacitor.isNativePlatform()) throw nativeAssistantFailure(error);
-  return fallbackPost(accessToken, body);
+  throw new Error("Não foi possível cancelar a pesquisa: resposta inválida do serviço.");
 }
 
 export async function applyOrdysConfiguration(plan: OrdysConfigurationPlan) {
-  const { accessToken } = await getAccessContext();
+  await getAccessContext();
   const body = { action: "apply-config", plan };
   const { data, error } = await invokeAssistant({ body });
   const functionResult = readFunctionResult(data, error);
   if (functionResult) return functionResult;
-  // Keep the relative API fallback for web only; Android uses the Edge Function.
-  if (Capacitor.isNativePlatform()) throw nativeAssistantFailure(error);
-
-  const response = await assistantFetch("/api/ordys-assistant", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-    body: JSON.stringify(body),
-  });
-  const payload = (await response.json().catch(() => null)) as {
-    status?: string;
-    error?: string;
-    applied?: string[];
-  } | null;
-  if (!response.ok) throw new Error(payload?.error ?? "Não foi possível aplicar a configuração.");
-  return payload ?? { status: "failed", error: "Resposta inválida do servidor." };
+  throw new Error("Não foi possível aplicar a configuração: resposta inválida do serviço.");
 }
