@@ -40,7 +40,6 @@ describe("Ordys server-owned AI access assurance", () => {
     });
   });
 
-
   it("accepts a supervised minor only after separate verified guardian consent", () => {
     expect(
       evaluateOrdysAiAccess(
@@ -67,9 +66,11 @@ describe("Ordys server-owned AI access assurance", () => {
   });
 
   it("does not treat a supervised account as an adult", () => {
-    expect(
-      evaluateOrdysAiAccess(record({ age_assurance_status: "supervised" }), now),
-    ).toEqual({ allowed: false, tier: "blocked", reason: "age_assurance_invalid" });
+    expect(evaluateOrdysAiAccess(record({ age_assurance_status: "supervised" }), now)).toEqual({
+      allowed: false,
+      tier: "blocked",
+      reason: "age_assurance_invalid",
+    });
   });
 
   it("does not allow a self-declared adult, even when the profile says 18+", () => {
@@ -120,7 +121,7 @@ describe("Ordys server-owned AI access assurance", () => {
             guardian_consent_expires_at: future,
             guardian_consent_policy_version: ORDYS_AI_GUARDIAN_CONSENT_POLICY_VERSION,
           guardian_evidence_reference: "guardian-evidence-reference",
-          }),
+        }),
           now,
         ).allowed,
       ).toBe(false);
@@ -211,9 +212,11 @@ describe("Ordys server-owned AI access assurance", () => {
   });
 
   it("requires an explicit current AI-safety policy version", () => {
-    expect(
-      evaluateOrdysAiAccess(record({ ai_safety_policy_version: null }), now),
-    ).toEqual({ allowed: false, tier: "blocked", reason: "policy_version_outdated" });
+    expect(evaluateOrdysAiAccess(record({ ai_safety_policy_version: null }), now)).toEqual({
+      allowed: false,
+      tier: "blocked",
+      reason: "policy_version_outdated",
+    });
   });
 
   it("never allows an account with no server-owned assurance record", () => {
