@@ -30,6 +30,7 @@ import {
   useTasks,
   useTopics,
   type Subject,
+  type SubjectSchedule,
   type Topic,
 } from "@/lib/ordys-db";
 import {
@@ -130,6 +131,19 @@ function Disciplinas() {
     label: string;
   } | null>(null);
   const [recordDeleting, setRecordDeleting] = useState(false);
+  const [scheduleModal, setScheduleModal] = useState<{
+    open: boolean;
+    editing?: SubjectSchedule;
+  }>({ open: false });
+  const [scheduleForm, setScheduleForm] = useState({
+    weekday: "0",
+    start_time: "",
+    end_time: "",
+    room: "",
+  });
+  const [scheduleSaving, setScheduleSaving] = useState(false);
+  const [scheduleToDelete, setScheduleToDelete] = useState<SubjectSchedule | null>(null);
+  const [scheduleDeleting, setScheduleDeleting] = useState(false);
 
   const scale = Number(profile?.grade_scale_max ?? 10);
   const average = selected ? subjectAverage(grades, selected.id, scale) : null;
@@ -138,6 +152,81 @@ function Disciplinas() {
     () => schedules.filter((s) => s.subject_id === selected?.id),
     [schedules, selected?.id],
   );
+
+  function openCreateSchedule() {
+    if (!selected) return;
+    setScheduleForm({
+      weekday: "0",
+      start_time: "",
+      end_time: "",
+      room: selected.room ?? "",
+    });
+    setScheduleModal({ open: true });
+  }
+
+  function openEditSchedule(schedule: SubjectSchedule) {
+    setScheduleForm({
+      weekday: String(schedule.weekday),
+      start_time: schedule.start_time.slice(0, 5),
+      end_time: schedule.end_time.slice(0, 5),
+      room: schedule.room ?? "",
+    });
+    setScheduleModal({ open: true, editing: schedule });
+  }
+
+  async function saveSchedule() {
+    if (!selected) return;
+    const weekday = Number(scheduleForm.weekday);
+    if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6) {
+      toast.error("Selecione um dia válido.");
+      return;
+    }
+    if (!scheduleForm.start_time || !scheduleForm.end_time) {
+      toast.error("Informe o início e o fim da aula.");
+      return;
+    }
+    if (scheduleForm.end_time <= scheduleForm.start_time) {
+      toast.error("O fim da aula deve ser depois do início.");
+      return;
+    }
+
+    setScheduleSaving(true);
+    try {
+      const payload = {
+        subject_id: selected.id,
+        weekday,
+        start_time: scheduleForm.start_time,
+        end_time: scheduleForm.end_time,
+        room: scheduleForm.room.trim() || null,
+      };
+      if (scheduleModal.editing) {
+        await update("subject_schedules", scheduleModal.editing.id, payload);
+        toast.success("Horário atualizado.");
+      } else {
+        await insert("subject_schedules", payload);
+        toast.success("Horário adicionado.");
+      }
+      setScheduleModal({ open: false });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível salvar o horário.");
+    } finally {
+      setScheduleSaving(false);
+    }
+  }
+
+  async function confirmDeleteSchedule() {
+    if (!scheduleToDelete || scheduleDeleting) return;
+    setScheduleDeleting(true);
+    try {
+      await remove("subject_schedules", scheduleToDelete.id);
+      toast.success("Horário removido.");
+      setScheduleToDelete(null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível remover o horário.");
+    } finally {
+      setScheduleDeleting(false);
+    }
+  }
 
   function openCreate() {
     setForm(emptySubject);
@@ -480,6 +569,64 @@ function Disciplinas() {
                   sub={selected.term ?? "sem período"}
                 />
               </div>
+
+              <Panel className="mt-4">
+                <PanelHeader
+                  title="Horários das aulas"
+                  hint={`${subjectSchedules.length} horário(s) cadastrados`}
+                  action={
+                    <Button variant="ghost" onClick={openCreateSchedule}>
+                      <Plus className="size-[13px]" strokeWidth={2} /> Novo horário
+                    </Button>
+                  }
+                />
+                <div className="border-t border-border">
+                  {subjectSchedules.length ? (
+                    subjectSchedules
+                      .slice()
+                      .sort(
+                        (a, b) =>
+                          a.weekday - b.weekday || a.start_time.localeCompare(b.start_time),
+                      )
+                      .map((schedule) => (
+                        <div
+                          key={schedule.id}
+                          className="flex min-w-0 items-center gap-3 border-b border-border px-4 py-2.5 last:border-b-0 sm:px-5"
+                        >
+                          <Dot color={selected.color} />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[12px] font-medium">
+                              {weekdayLong[schedule.weekday] ?? "Dia não definido"}
+                              {" · "}
+                              {schedule.start_time.slice(0, 5)}–{schedule.end_time.slice(0, 5)}
+                            </p>
+                            <p className="text-[10.5px] text-muted-foreground">
+                              {schedule.room ?? selected.room ?? "Sala não informada"}
+                            </p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            onClick={() => openEditSchedule(schedule)}
+                            aria-label="Editar horário"
+                          >
+                            <Pencil className="size-[13px]" strokeWidth={1.8} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            onClick={() => setScheduleToDelete(schedule)}
+                            aria-label="Remover horário"
+                          >
+                            <Trash2 className="size-[13px]" strokeWidth={1.8} />
+                          </Button>
+                        </div>
+                      ))
+                  ) : (
+                    <p className="px-5 py-5 text-[11.5px] text-muted-foreground">
+                      Nenhum horário cadastrado. Adicione os dias e períodos das suas aulas.
+                    </p>
+                  )}
+                </div>
+              </Panel>
 
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button variant="ghost" onClick={() => openEdit(selected)}>
@@ -924,6 +1071,87 @@ function Disciplinas() {
         </div>
       </Modal>
 
+      <Modal
+        open={scheduleModal.open}
+        onClose={() => {
+          if (!scheduleSaving) setScheduleModal({ open: false });
+        }}
+        title={scheduleModal.editing ? "Editar horário" : "Novo horário"}
+        subtitle={selected ? `Horário de ${selected.name}` : "Horário da disciplina"}
+        width={480}
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Dia da semana">
+            <Select
+              value={scheduleForm.weekday}
+              onChange={(event) =>
+                setScheduleForm((current) => ({ ...current, weekday: event.target.value }))
+              }
+            >
+              {weekdayLong.map((day, index) => (
+                <option key={day} value={index}>
+                  {day}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Sala (opcional)">
+            <TextInput
+              maxLength={80}
+              value={scheduleForm.room}
+              onChange={(event) =>
+                setScheduleForm((current) => ({ ...current, room: event.target.value }))
+              }
+            />
+          </Field>
+          <Field label="Início">
+            <TextInput
+              type="time"
+              value={scheduleForm.start_time}
+              onChange={(event) =>
+                setScheduleForm((current) => ({ ...current, start_time: event.target.value }))
+              }
+            />
+          </Field>
+          <Field label="Fim">
+            <TextInput
+              type="time"
+              value={scheduleForm.end_time}
+              onChange={(event) =>
+                setScheduleForm((current) => ({ ...current, end_time: event.target.value }))
+              }
+            />
+          </Field>
+        </div>
+        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button
+            variant="ghost"
+            disabled={scheduleSaving}
+            onClick={() => setScheduleModal({ open: false })}
+          >
+            Cancelar
+          </Button>
+          <Button disabled={scheduleSaving} onClick={() => void saveSchedule()}>
+            {scheduleSaving ? "Salvando…" : "Salvar horário"}
+          </Button>
+        </div>
+      </Modal>
+      <ConfirmDialog
+        open={scheduleToDelete !== null}
+        title="Remover este horário?"
+        description={
+          scheduleToDelete
+            ? `${weekdayLong[scheduleToDelete.weekday] ?? "Este dia"} · ${scheduleToDelete.start_time.slice(0, 5)}–${scheduleToDelete.end_time.slice(0, 5)} será removido da agenda.`
+            : ""
+        }
+        confirmLabel="Remover horário"
+        loading={scheduleDeleting}
+        loadingLabel="Removendo…"
+        onClose={() => {
+          if (!scheduleDeleting) setScheduleToDelete(null);
+        }}
+        onConfirm={() => void confirmDeleteSchedule()}
+      />
       <Modal
         open={topicModal.open}
         onClose={() => setTopicModal({ open: false })}
