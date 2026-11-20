@@ -83,12 +83,8 @@ export async function getOrdysAiAccessStatus(): Promise<OrdysAiAccessStatus> {
   const access = rawAccess as Record<string, unknown>;
   const rawAllowed = access["allowed"] === true;
   const reason = typeof access["reason"] === "string" ? access["reason"] : "assurance_missing";
-  const adultDecision =
-    rawAllowed && access["tier"] === "adult" && reason === "verified_adult";
-  const minorDecision =
-    rawAllowed &&
-    access["tier"] === "minor_protected" &&
-    reason === "verified_guardian_consent";
+  const adultDecision = rawAllowed && access["tier"] === "adult" && reason === "verified_adult";
+  const minorDecision = rawAllowed && access["tier"] === "minor_protected" && reason === "verified_guardian_consent";
   const allowed = adultDecision || minorDecision;
   const tier: OrdysAiAccessTier = adultDecision
     ? "adult"
