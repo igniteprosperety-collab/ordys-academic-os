@@ -8,7 +8,7 @@ BEGIN;
 CREATE TABLE IF NOT EXISTS public.ordys_ai_access_assurance (
   user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   age_band TEXT NOT NULL DEFAULT 'unknown'
-    CHECK (age_band IN ('under_13', '13_15', '16_17', '18_plus', 'unknown')),
+    CHECK (age_band IN ('under_14', '14_15', '16_17', '18_plus', 'unknown')),
   age_assurance_status TEXT NOT NULL DEFAULT 'unknown'
     CHECK (age_assurance_status IN ('verified', 'supervised', 'declared', 'unknown', 'revoked')),
   age_assurance_source TEXT NOT NULL DEFAULT 'unknown'
@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS public.ordys_ai_access_audit (
   actor_type TEXT NOT NULL CHECK (
     actor_type IN ('student', 'guardian', 'provider', 'operator', 'system')
   ),
-  age_band TEXT CHECK (age_band IS NULL OR age_band IN ('under_13', '13_15', '16_17', '18_plus', 'unknown')),
+  age_band TEXT CHECK (age_band IS NULL OR age_band IN ('under_14', '14_15', '16_17', '18_plus', 'unknown')),
   age_assurance_source TEXT CHECK (age_assurance_source IS NULL OR age_assurance_source IN ('google_play_tier_d', 'google_play_tier_b_supervised', 'apple_confirmed_age_range', 'apple_guardian_declared_age_range', 'external_provider_verified', 'unknown')),
   guardian_consent_status TEXT CHECK (guardian_consent_status IS NULL OR guardian_consent_status IN ('granted', 'pending', 'denied', 'revoked', 'expired', 'not_required', 'unknown')),
   guardian_consent_source TEXT CHECK (guardian_consent_source IS NULL OR guardian_consent_source IN ('verified_guardian_portal', 'external_provider_verified', 'unknown')),
