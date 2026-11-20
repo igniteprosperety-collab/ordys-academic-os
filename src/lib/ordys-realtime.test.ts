@@ -37,11 +37,7 @@ describe("ORDYS realtime coverage", () => {
       ),
     ).toBe(true);
     expect(
-      matchesOrdysRealtimeQueryKey(
-        ["topics", "all", "student-b", "cloud"],
-        "student-a",
-        "topics",
-      ),
+      matchesOrdysRealtimeQueryKey(["topics", "all", "student-b", "cloud"], "student-a", "topics"),
     ).toBe(false);
     expect(
       matchesOrdysRealtimeQueryKey(
