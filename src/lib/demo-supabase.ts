@@ -321,7 +321,7 @@ class DemoQuery implements PromiseLike<Result> {
       const setNull = (table: string, column: string, ids: Set<unknown>) => {
         if (!ids.size) return;
         store[table] = (store[table] ?? []).map((row) =>
-          ids.has(row[column]) ? { ...row, [column]: null, updated_at: now() } : row,
+          ids.has(row[column]) ? { ...row, [column]: null } : row,
         );
       };
 
