@@ -76,6 +76,48 @@ const TRUSTED_GUARDIAN_SOURCES = new Set<OrdysGuardianConsentSource>([
   "external_provider_verified",
 ]);
 
+/**
+ * Map the current Google Play Age Signals source after Play Integrity has been
+ * verified server-side. TIER_A (declared) and TIER_C (estimated) are not used
+ * to unlock OpenAI access in this policy.
+ */
+export function mapOrdysGooglePlayAgeSource(source: string | null | undefined) {
+  if (source === "TIER_D") {
+    return {
+      status: "verified" as const,
+      source: "google_play_tier_d" as const,
+    };
+  }
+  if (source === "TIER_B") {
+    return {
+      status: "supervised" as const,
+      source: "google_play_tier_b_supervised" as const,
+    };
+  }
+  return null;
+}
+
+/**
+ * Map Apple's Declared Age Range declaration. The app must separately check
+ * platform entitlement, sharing state and applicable OS availability.
+ * Self-declared ranges do not grant AI access.
+ */
+export function mapOrdysAppleAgeDeclaration(declaration: string | null | undefined) {
+  if (declaration === "confirmed") {
+    return {
+      status: "verified" as const,
+      source: "apple_confirmed_age_range" as const,
+    };
+  }
+  if (declaration === "guardianDeclared") {
+    return {
+      status: "supervised" as const,
+      source: "apple_guardian_declared_age_range" as const,
+    };
+  }
+  return null;
+}
+
 function isValidTimestamp(value: string | null, nowMs: number): value is string {
   if (typeof value !== "string" || !value.trim()) return false;
   const timestamp = Date.parse(value);
