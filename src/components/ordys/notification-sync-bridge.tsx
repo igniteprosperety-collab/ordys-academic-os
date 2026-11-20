@@ -67,7 +67,6 @@ export function NotificationSyncBridge() {
     planQuery,
     gradesQuery,
     attendanceQuery,
-    eventsQuery,
     focusQuery,
     prefsQuery,
   ];
