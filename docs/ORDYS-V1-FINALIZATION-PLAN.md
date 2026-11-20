@@ -1,125 +1,178 @@
-# Ordys Academy — Plano acelerado de finalização da V1
+# Ordys Academy — plano acelerado de finalização da V1
 
-**Atualizado:** 20/11/2026  
-**Branch de referência:** `main`  
-**Escopo escolhido:** V1 individual do estudante. Não ampliar o produto enquanto os fluxos essenciais não forem aceitos.
+**Atualização:** 20/11/2026  
+**Objetivo:** liberar uma V1 utilizável sem reconstruir o que já existe, sem perder dados e sem criar uma terceira origem de código.
 
-## Decisão de execução
+## Decisão executiva
 
-Finalizar primeiro uma versão web/PWA confiável do espaço individual do estudante. Não iniciar reescrita de framework, não trocar Supabase e não ativar cobrança, IA Plus ou conexões professor–estudante nesta rodada.
+A V1 será o núcleo individual do estudante. A ordem é: estabilizar a origem do código, reconciliar o banco real, provar autenticação e persistência, testar a versão de distribuição e só então publicar.
 
-A base atual já contém as telas e o modelo de dados individual. O trabalho restante deve se concentrar em segurança do banco real, autenticação, persistência e aceite de uso. O pacote Android será uma frente separada: a árvore atual tem manifest PWA e componentes Capacitor como dependências, mas não contém `capacitor.config.ts`, diretório Android, CLI Capacitor ou workflow de APK/AAB. Não anunciar distribuição Android até existir uma cadeia de build e assinatura verificável.
+Não ampliar o escopo enquanto os fluxos centrais não forem aceitos. Não trocar framework, banco ou hospedagem. Não aplicar migrations remotas por lote. Não mesclar código de um repositório no outro sem revisão seletiva.
 
-## O que entra na V1
+## Arquitetura real e fontes de código
 
-- Criar conta, confirmar e-mail, entrar, recuperar senha e sair.
-- Perfil do estudante e preferências acadêmicas.
-- Disciplinas, tópicos e andamento do conteúdo.
+Há duas origens diferentes; não devem ser tratadas como repositórios intercambiáveis.
+
+| Origem | Função atual | Regra |
+| --- | --- | --- |
+| `igniteprosperety-collab/ordys-academic-os` | Espelho público conectado ao projeto Lovable; contém o front-end TanStack, rotas web/API, as migrations e os testes que foram validados nesta rodada | É a origem que o Lovable reconhece hoje. Preservar integração de preview, autenticação gerada e variáveis próprias. |
+| `igniteprosperety-collab/ordys-academy.app` | Repositório privado oficial; contém Edge Functions Supabase, código de backend, Capacitor, configuração Android e workflows de APK direto/Google Play | É a origem privada para backend e distribuição Android. Não torná-la pública nem sobrescrevê-la com o espelho. |
+
+O projeto Lovable continua sem créditos de edição e não está publicado. A sincronização de commits anteriormente observada não prova deploy, estado do banco ou execução de Edge Functions.
+
+**Proibido:** copiar integralmente um repositório sobre o outro; substituir `src/integrations/*`, `src/start.ts`, `src/server.ts` ou arquivos de ambiente do Lovable com versões da origem privada; assumir que Git Sync publica migrations ou Edge Functions.
+
+A reconciliação deve ser seletiva, com commits pequenos, diff revisado e caminho de rollback.
+
+## Escopo da V1
+
+### Entra na primeira entrega
+
+- Cadastro, confirmação de e-mail, login, recuperação de senha e logout.
+- Perfil e preferências do estudante.
+- Disciplinas, tópicos e progresso.
 - Tarefas e subtarefas.
 - Provas, notas e frequência.
-- Agenda, plano de estudos e sessões de foco.
-- Revisões, metas, check-in e desempenho.
-- Histórico pessoal e persistência depois de fechar e reabrir a aplicação.
+- Agenda, planejamento, sessões de foco e revisões.
+- Metas, check-in e desempenho.
+- Persistência após fechar/reabrir e isolamento entre contas.
+- Exclusão de conta sem perda parcial silenciosa ou repetição insegura.
 
-## O que fica desligado ou fora desta entrega
+### Fica fora da liberação inicial
 
-- Ordys Plus, cobrança recorrente e criação de checkout Asaas.
-- Recursos avançados de IA que dependem de entitlement pago.
-- Uploads de arquivos/fotos de estudantes.
-- Workspace docente, turmas, convites, entregas e devolutivas.
-- Notificações nativas/Push e publicação Android até haver build, assinatura e teste em aparelho.
+- Ordys Plus, checkout, cobranças e ativação comercial Asaas.
+- Recursos avançados pagos e entitlement Plus.
+- Workspace docente, turmas, convites, submissões e devolutivas.
+- Upload de fotos/arquivos de estudantes.
+- Push/notificações Android até o perfil de distribuição e permissões estarem aceitos em aparelho.
+- Recursos que enviam conteúdo acadêmico à OpenAI até que a questão de idade/consentimento tenha uma solução verificável e revisada.
 
-Esses itens podem existir no código ou em documentação, mas não podem ser apresentados como funcionalidades liberadas da V1.
+A exclusão desses fluxos da V1 não autoriza apagar tabelas, colunas, relações ou dados docentes que já existem.
 
-## Evidência já obtida
+## Evidências técnicas obtidas em 20/11/2026
 
-| Item | Estado | Evidência |
+| Verificação | Resultado | Escopo exato |
 | --- | --- | --- |
-| TypeScript, testes unitários, lint e build | **Passou** | GitHub Actions, execução no SHA `313e6547358cf88bacff448ee5737e5f964fec18` |
-| Cadeia limpa de migrations | **Passou** | 46 migrations aplicadas do zero em Supabase local descartável, SHA `0dcb5fc52bc948375cbfdb8bf72923d3a182c8a2` |
-| Proteções RLS do núcleo estudantil | **Implementadas e em validação** | Teste pgTAP com dois usuários sintéticos em `supabase/tests/ordys_student_core_rls_test.sql`; workflow atualizado para executar `supabase test db` |
-| Código sincronizado com o projeto Lovable | **Sincronização de commit confirmada anteriormente** | O SHA principal foi reconhecido no projeto conectado; não prova preview nem deploy |
-| Banco Supabase remoto | **Não verificado** | O limite de ações gratuitas do ambiente Lovable impediu consultas read-only nesta rodada |
-| Fluxos de Auth e persistência no navegador real | **Não aceitos ainda** | O preview identificado redirecionou para o login do Lovable; não foi possível executar teste autenticado |
-| Distribuição Android | **Não preparada nesta árvore** | Sem configuração Capacitor, projeto Android ou workflow de APK/AAB |
+| TypeScript | **PASS** | `bun run typecheck` no espelho público |
+| Testes unitários | **PASS** | `bun run test` |
+| Lint e formatação | **PASS** | `bun run lint` |
+| Build de produção | **PASS** | `bun run build` |
+| Migrations | **PASS** | 46 migrations aplicadas em Supabase local, descartável, partindo de banco vazio |
+| RLS / isolamento | **PASS** | 17 asserções pgTAP com dois usuários sintéticos; leitura, inserção, atualização, exclusão, identidade forjada e vínculo entre contas |
+| CI completo do espelho | **PASS** | Execução [44693029274](https://github.com/igniteprosperety-collab/ordys-academic-os/actions/runs/44693029274), SHA `20baa7087533e7c557fb20f73f43a6bb967853b2` |
+| Notificações nativas no espelho | **PASS** | Padrão desligado; opt-in explícito; kill-switch de desativação; testes unitários |
+| CI do repositório privado | **BLOQUEADO** | Jobs falham antes de alocar runner; Issue #318. Nenhuma etapa de teste/build foi executada nessa origem. |
+| Banco Supabase remoto | **NÃO VERIFICADO** | Nenhuma migration ou escrita remota foi feita nesta rodada |
+| Auth/persistência em sessão real | **NÃO ACEITO** | Preview autenticado não foi acessível; o endereço de preview redirecionou ao login do Lovable |
+| APK assinado e aparelho | **NÃO ACEITO** | Workflows e configuração Android existem na origem privada, mas nenhum artefato final foi construído/instalado nesta rodada |
+| Publicação | **NÃO FEITA** | O projeto Lovable permanece não publicado |
 
-## Ordem de execução — caminho crítico
+Execução de CI aprovada: https://github.com/igniteprosperety-collab/ordys-academic-os/actions/runs/44693029274
 
-### 1. Fechar a segurança do núcleo individual
+O teste de banco mais recente terminou com:
+- 46 migrations aplicadas sem erro em base descartável;
+- `ordys_student_core_rls_test.sql`: 17 testes;
+- `Result: PASS`;
+- stack local parada ao final.
 
-Critério de saída:
-- pgTAP passa no banco local descartável.
-- As 22 tabelas de dados individuais têm RLS e policy para authenticated.
-- anon não recebe acesso direto às tabelas privadas.
-- Usuário A lê e altera somente seus dados.
-- Usuário B não lê nem apaga dados de A.
-- Inserções não conseguem atribuir dados a outro usuário nem referenciar disciplina/tópico de outra conta.
+Isso prova que a cadeia SQL é executável em uma base limpa e que as regras testadas isolam as duas identidades sintéticas. **Não prova** que o schema remoto corresponda à cadeia atual nem que todas as tabelas/fluxos estejam corretos em produção.
 
-Não usar mocks como prova de RLS. A prova deve executar no Postgres.
+## Correções entregues nesta rodada
 
-### 2. Reconciliar o banco remoto sem alterar dados
+1. Tratamento do bloqueio temporário na exclusão de conta: erro original de conciliação/cancelamento é preservado se a tentativa de liberar o lease falhar.
+2. Teste de regressão para o cenário de erro primário seguido de falha de liberação.
+3. Workflow de CI permanente com typecheck, testes, lint, build, aplicação local das migrations e pgTAP.
+4. CLI Supabase fixado na versão 3.2.0 e ações de CI fixadas por SHA para evitar consultas variáveis a `latest`.
+5. Notificações nativas passaram a exigir opt-in explícito no espelho público. O Google Play deve ativá-las explicitamente; o APK direto permanece desativado por padrão.
 
-Procedimento obrigatório quando o ambiente read-only estiver acessível:
-1. Confirmar o ID do projeto Supabase usado pela aplicação.
-2. Obter backup e verificar que há procedimento de restauração.
-3. Exportar schema e ledger de migrations do projeto remoto.
-4. Comparar cada uma das 46 migrations com o estado real do banco.
-5. Classificar cada versão como aplicada, ausente, divergente, parcial ou não verificável.
-6. Só então preparar uma migration corretiva mínima, validá-la no banco descartável e executar pelo fluxo suportado.
+A correção equivalente de notificações está na PR Draft [#331](https://github.com/igniteprosperety-collab/ordys-academy.app/pull/331) do repositório privado. A correção equivalente do lease de exclusão e o teste estão na branch Draft da PR [#320](https://github.com/igniteprosperety-collab/ordys-academy.app/pull/320). Essas PRs não foram mescladas porque a CI privada ainda não executa etapas.
 
-**Proibido:** reset remoto, aplicar as 46 migrations em lote, editar o ledger por suposição ou executar migrations de cobrança no banco de produção.
+## Caminho crítico — sem repetir trabalho aprovado
 
-### 3. Aceitar autenticação e persistência
+### Gate 1 — fechar a origem oficial
 
-Testar com contas sintéticas novas, sem dados pessoais reais:
-- cadastro → confirmação de e-mail → login;
-- recuperação → troca de senha → novo login;
-- logout → login novamente;
-- criar/editar/excluir disciplina e tarefa;
-- registrar nota, frequência e sessão de estudo;
-- fechar e reabrir a aplicação e confirmar que tudo permanece;
-- trocar entre duas contas e confirmar que os dados nunca se misturam;
-- verificar estados de erro, rede lenta e sessão expirada.
+- Obter um mecanismo suportado para reconciliar o espelho Lovable com a origem privada.
+- Manter o projeto conectado ao espelho enquanto não houver plano testado de troca/rollback.
+- Portar apenas mudanças aprovadas, preservando os arquivos gerados pelo Lovable.
+- Confirmar que as Edge Functions, rotas web e versão de front-end correspondem ao mesmo contrato.
 
-### 4. Escolher o canal de entrega mais rápido
+Critério de saída: um commit de referência documentado para front-end, backend, migrations e configuração Android; nenhuma origem sendo tratada como substituta integral da outra.
 
-**Recomendação atual:** aceitar primeiro a versão web/PWA, porque esse é o formato efetivamente descrito pela árvore atual. Não atrasar a entrega tentando gerar um APK a partir de uma configuração Android que não existe no branch.
+### Gate 2 — reconciliar o banco remoto, sem alterar dados
 
-Android só entra no critério de lançamento quando houver:
-- Capacitor configurado e compatível com o build TanStack Start;
-- workflow de build reproduzível;
-- chave de assinatura permanente e protegida;
-- instalação/atualização testada em aparelho real.
+Procedimento:
+1. Confirmar o ID do projeto Supabase realmente usado pelo runtime.
+2. Capturar backup/export e verificar como restaurá-lo.
+3. Obter o ledger remoto atual e exportar o schema real.
+4. Comparar objetos, funções, constraints, triggers, políticas, grants e migrations com a cadeia versionada.
+5. Classificar cada versão/objeto como aplicado, ausente, idêntico sem registro, divergente, parcial ou não verificável.
+6. Preparar somente a menor correção necessária, testar em banco descartável e usar o mecanismo suportado pelo ambiente.
 
-### 5. Fechar a liberação
+Um snapshot interno de 13/11/2026 registrava 18 migrations no ledger remoto contra 35 arquivos na origem privada daquela data. Esse número é histórico, não um retrato confirmado de 20/11; precisa ser lido novamente antes de qualquer decisão.
 
-Publicar a V1 apenas quando:
-- CI verde no SHA final;
-- teste RLS positivo e negativo aprovado;
-- banco remoto reconciliado e backup restaurável;
-- Auth e persistência aprovados em ambiente real;
-- nenhuma chave privilegiada no bundle público;
-- os recursos fora do escopo continuarem desativados;
-- política de privacidade e fluxo de exclusão de conta conferidos.
+**Não fazer:** reset remoto, aplicar 46 migrations em lote, editar ledger por suposição, executar migrations financeiras em produção ou remover o trigger de confirmação de e-mail antes de comprovar entrega normal de Gmail com Auto-confirm desativado.
 
-## O que pode avançar sem acesso do proprietário
+### Gate 3 — autenticação e persistência ponta a ponta
 
-- Revisar e corrigir código independente.
-- Criar e executar testes unitários, estáticos, de tipagem e pgTAP local.
-- Testar a cadeia completa de migrations em banco descartável.
-- Revisar exposição de segredos, rotas, feature flags e dependências.
-- Preparar workflows, documentação de aceite e scripts reproduzíveis.
+Usar contas sintéticas:
+- cadastro → e-mail de confirmação → login;
+- recuperação → nova senha → login;
+- logout → login;
+- criar/editar/excluir disciplinas, tarefas, provas e registros acadêmicos;
+- fechar/reabrir e confirmar persistência;
+- alternar entre duas contas e comprovar que nenhuma vê ou altera dados da outra;
+- validar expiração de sessão, falha de rede e recuperação.
 
-## O que não deve ser simulado
+O pgTAP atual é uma base forte para isolamento, mas não substitui E2E com o Auth e o front-end reais.
 
-- Estado do banco remoto, secrets, domínio ou deploy.
-- Login em conta real e confirmação de e-mail.
-- Resultado de compra ou entitlement Asaas.
-- Teste em aparelho Android.
-- Aceite de privacidade/jurídico para IA e dados de menores.
+### Gate 4 — distribuição correta
 
-Esses itens exigem ambiente ou credenciais reais. Até lá, devem permanecer explicitamente como pendências, não como funcionalidades concluídas.
+O repositório privado já possui `capacitor.config.ts`, geração do Android e workflows separados:
+- APK de instalação direta;
+- cliente Google Play.
 
-## Regra para evitar ciclos
+Não recriar esse pipeline no espelho público. Antes do release privado:
+- resolver CI/runner privado;
+- validar configuração de signing e fingerprint;
+- gerar artefato a partir de SHA aprovado;
+- conferir hash e permissões;
+- instalar e atualizar em aparelho Android real com Play Protect ativo;
+- concluir o roteiro `docs/ANDROID-DEVICE-ACCEPTANCE.md`.
 
-Cada rodada deve terminar com um artefato verificável: commit, teste, relatório de comparação ou aceite. Não reabrir pesquisa já encerrada sem evidência nova. Não reescrever o que já passou. Corrigir somente a falha observada no SHA atual e reexecutar o gate correspondente.
+Notificações: o APK direto deve permanecer sem as permissões de notificação. O Google Play só habilita notificações por opt-in explícito e após aceite do manifesto.
+
+### Gate 5 — idade, IA e privacidade
+
+A data de nascimento em `profiles.birth_date` é editável pelo próprio usuário; por isso, não é prova confiável de idade. O gate de 18+ que depende desse campo pode ser contornado por alteração do perfil.
+
+Até haver um modelo de age assurance/consentimento adequado à audiência real e revisão de privacidade/ECA Digital:
+- não habilitar Plus nem cobrança;
+- não liberar novas capacidades que enviem dados acadêmicos à OpenAI;
+- não declarar que a proteção etária está concluída;
+- manter política, termos, retenção e canal de suporte como itens de aceite da V1.
+
+Issues internas relevantes: #318 (runner privado), #322 (reconciliação de origem), #323 (age assurance), #324 (worker Asaas) e #92 (privacidade, termos e menores).
+
+## O que pode ser concluído sem acesso do proprietário ou do Lovable
+
+- Código isolado, testes unitários, typecheck, lint e build.
+- Testes pgTAP e migrations em Supabase local descartável.
+- Correções nas branches públicas ou Drafts privados, sem merge/publicação.
+- Revisão estática de rotas, secrets, flags, permissões e contratos entre front-end/Edge Functions.
+- Scripts e documentação de aceite para E2E e Android.
+
+## Dependências que não podem ser simuladas
+
+- Acesso read-only ao banco real e backup restaurável.
+- Configuração/entrega real de e-mail de confirmação.
+- Sessão autenticada no preview ou ambiente de homologação.
+- Runner privado e execução de CI no repositório oficial.
+- Secrets de release e fingerprint da chave Android.
+- Instalação/atualização num aparelho físico.
+- Decisão e revisão sobre idade, consentimento, privacidade e IA.
+
+Essas dependências não foram alteradas nesta rodada. Nenhum banco remoto, secret, Edge Function, cobrança Asaas, publicação Lovable ou aparelho foi modificado.
+
+## Regra de execução
+
+Não repetir os gates verdes. Cada rodada seguinte deve atuar no primeiro bloqueio ainda aberto e terminar com evidência: commit, resultado de teste, comparação de schema, execução E2E ou aceite de dispositivo. Código compilado, PR mergeable, migration criada ou build configurado nunca contam como deploy ou lançamento.
