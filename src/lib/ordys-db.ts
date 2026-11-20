@@ -71,12 +71,20 @@ function dataClient() {
   return isDemoMode() ? getOrdysDataClient() : supabase;
 }
 
+type OwnedQueryOptions = {
+  refetchInterval?: number | false;
+  refetchIntervalInBackground?: boolean;
+  refetchOnWindowFocus?: boolean | "always";
+};
+
 function useOwnedQuery<T>(
   key: unknown[],
   run: (client: ReturnType<typeof dataClient>) => PromiseLike<Result<T>>,
+  options: OwnedQueryOptions = {},
 ) {
   const { userId, loading } = useAuth();
   return useQuery({
+    ...options,
     queryKey: [...key, userId, isDemoMode() ? "demo" : "cloud"],
     enabled: !loading && !!userId,
     queryFn: async () => unwrap<T>(await run(dataClient())),
@@ -159,6 +167,12 @@ export function useNotifications() {
       .is("dismissed_at", null)
       .order("created_at", { ascending: false })
       .limit(60),
+    {
+      // Realtime is the primary path; polling recovers missed events and reconnect gaps.
+      refetchInterval: 30_000,
+      refetchIntervalInBackground: false,
+      refetchOnWindowFocus: "always",
+    },
   );
 }
 export function useNotificationPrefs() {
