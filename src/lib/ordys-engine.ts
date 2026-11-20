@@ -3,6 +3,7 @@ import { getOrdysDataClient } from "@/lib/demo-supabase";
 import { getActiveLocalProfileId, isDemoMode } from "@/lib/demo-mode";
 import type {
   AttendanceRecord,
+  CalendarEvent,
   Exam,
   FocusSession,
   Grade,
@@ -269,6 +270,29 @@ export function buildCandidates(input: PlanInput): Candidate[] {
         reason: `Prova de ${subject?.name ?? "disciplina"} em ${left === 0 ? "hoje" : left === 1 ? "1 dia" : `${left} dias`} · domínio ${topic.mastery}% em ${topic.title}`,
         priority: urgency,
         latest: dateKey(new Date(exam.exam_at)),
+      });
+    }
+  }
+
+  if (!prefs || prefs.classes) {
+    for (const event of events) {
+      const startsAt = new Date(event.starts_at);
+      const distance = startsAt.getTime() - now.getTime();
+      if (!Number.isFinite(startsAt.getTime()) || distance <= 0 || distance > 24 * 60 * 60 * 1000) {
+        continue;
+      }
+      const when =
+        distance < 60 * 60 * 1000
+          ? `em ${Math.max(1, Math.ceil(distance / 60_000))} minuto(s)`
+          : dateKey(startsAt) === dateKey(now)
+            ? "hoje"
+            : "amanhã";
+      rows.push({
+        category: "agenda",
+        title: `${event.title} — compromisso ${when}`,
+        body: event.location ?? (event.kind === "compromisso" ? "Seu compromisso está chegando." : event.kind),
+        link: "/agenda",
+        dedupe_key: `event:${event.id}:${startsAt.toISOString()}`,
       });
     }
   }
@@ -590,6 +614,7 @@ type NotifyInput = {
   plan: PlanSession[];
   grades: Grade[];
   attendance: AttendanceRecord[];
+  events?: CalendarEvent[];
   focus?: FocusSession[];
   profile: Profile | null;
   prefs: {
@@ -615,6 +640,7 @@ export function buildNotificationRules(input: NotifyInput) {
     plan,
     grades,
     attendance,
+    events = [],
     focus = [],
     profile,
     prefs,
