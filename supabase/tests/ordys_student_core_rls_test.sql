@@ -1,6 +1,6 @@
 begin;
 
-select plan(18);
+select plan(17);
 
 -- Deterministic synthetic identities. The whole test runs in one transaction
 -- and is rolled back at the end; no real user or remote project is touched.
