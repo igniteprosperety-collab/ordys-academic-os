@@ -230,7 +230,7 @@ function Disciplinas() {
     setScheduleSaving(true);
     try {
       const payload = {
-        subject_id: selected.id,
+        subject_id: scheduleModal.editing?.subject_id ?? selected.id,
         weekday,
         start_time: scheduleForm.start_time,
         end_time: scheduleForm.end_time,
@@ -302,7 +302,7 @@ function Disciplinas() {
     try {
       const payload = {
         title,
-        subject_id: selected.id,
+        subject_id: examModal.editing?.subject_id ?? selected.id,
         exam_at: examDate.toISOString(),
         kind: examForm.kind,
         weight: examForm.weight.trim() || null,
@@ -519,7 +519,7 @@ function Disciplinas() {
     }
     try {
       const payload = {
-        subject_id: selected.id,
+        subject_id: editingGrade?.subject_id ?? selected.id,
         title: gradeForm.title.trim() || "Avaliação",
         score,
         max_score: maxScore,
