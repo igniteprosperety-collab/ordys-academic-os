@@ -526,7 +526,7 @@ function FocusPanel({
       timerEndAt.current = saved.endsAtMs;
       setRunning(saved.status === "running");
       if (saved.status === "running" && saved.endsAtMs !== null) {
-        void scheduleNativeFocusTimerAlarm(saved.endsAtMs).catch((error) => {
+        void scheduleNativeFocusTimerAlarm(userId, saved.endsAtMs).catch((error) => {
           console.error("[focus] could not restore Android timer alarm", error);
         });
       }
@@ -719,7 +719,7 @@ function FocusPanel({
                     timerEndAt.current = null;
                     setLeft(remaining);
                     setRunning(false);
-                    void cancelNativeFocusTimerAlarm().catch((error) => {
+                    void cancelNativeFocusTimerAlarm(userId ?? "").catch((error) => {
                       console.error("[focus] could not cancel Android timer alarm", error);
                     });
                     persistTimer("paused", remaining, null);
@@ -742,7 +742,7 @@ function FocusPanel({
                   const deadline = Date.now() + left * 1000;
                   timerEndAt.current = deadline;
                   persistTimer("running", left, deadline);
-                  void scheduleNativeFocusTimerAlarm(deadline).catch((error) => {
+                  void scheduleNativeFocusTimerAlarm(userId ?? "", deadline).catch((error) => {
                     console.error("[focus] could not schedule Android timer alarm", error);
                   });
                   setRunning(true);
