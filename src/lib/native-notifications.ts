@@ -1,11 +1,14 @@
 import { Capacitor } from "@capacitor/core";
 import { supabase } from "@/integrations/supabase/client";
 import { dateKey, ordysWeekdayToJsDay, parseTimeOfDay } from "@/lib/ordys-engine";
+import { nativeNotificationsEnabledForBuild } from "@/lib/native-notifications-config";
 
 // Native reminders are enabled only in distribution profiles that explicitly opt in.
 // The direct-install APK v1 disables this feature; Google Play keeps it available.
-export const nativeNotificationsDisabled =
-  import.meta.env["VITE_ORDYS_DISABLE_NATIVE_NOTIFICATIONS"] === "1";
+export const nativeNotificationsDisabled = !nativeNotificationsEnabledForBuild(
+  import.meta.env["VITE_ORDYS_ENABLE_NATIVE_NOTIFICATIONS"],
+  import.meta.env["VITE_ORDYS_DISABLE_NATIVE_NOTIFICATIONS"],
+);
 const NATIVE_NOTIFICATIONS_DISABLED = nativeNotificationsDisabled;
 type LocalNotificationsApi = typeof import("@capacitor/local-notifications").LocalNotifications;
 let localNotifications: LocalNotificationsApi | null = null;
