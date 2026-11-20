@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { ArrowUpRight, Clock, Play } from "lucide-react";
 import { Shell } from "@/components/ordys/shell";
 import { Bar, Chip, Dot, Panel, PanelHeader, Ring, Stat } from "@/components/ordys/primitives";
@@ -14,7 +14,6 @@ import {
   useExams,
   useFocusSessions,
   useGrades,
-  useNotificationPrefs,
   usePlanSessions,
   useProfile,
   useReviews,
@@ -30,7 +29,6 @@ import {
   formatDateTime,
   startOfWeek,
   summarize,
-  syncNotifications,
   weekdayShort,
 } from "@/lib/ordys-engine";
 
@@ -76,67 +74,6 @@ function Home() {
   const { data: reviews = [] } = useReviews();
   const { data: events = [] } = useCalendarEvents();
   const { data: prefs } = useNotificationPrefs();
-
-  const notificationSyncRef = useRef("");
-  const notificationSyncSignature = [
-    profile?.id ?? "",
-    prefs
-      ? JSON.stringify({
-          enabled: prefs.enabled,
-          exams: prefs.exams,
-          tasks: prefs.tasks,
-          overdue: prefs.overdue,
-          classes: prefs.classes,
-          study_sessions: prefs.study_sessions,
-          goals: prefs.goals,
-          daily_summary: prefs.daily_summary,
-          weekly_summary: prefs.weekly_summary,
-          monthly_summary: prefs.monthly_summary,
-        })
-      : "no-prefs",
-    JSON.stringify(subjects.map((item) => [item.id, item.name, item.archived])),
-    JSON.stringify(topics.map((item) => [item.id, item.status, item.mastery, item.last_review])),
-    JSON.stringify(tasks.map((item) => [item.id, item.status, item.due_at, item.completed_at])),
-    JSON.stringify(exams.map((item) => [item.id, item.exam_at])),
-    JSON.stringify(plan.map((item) => [item.id, item.status, item.session_date, item.start_time])),
-    JSON.stringify(
-      grades.map((item) => [item.id, item.score, item.max_score, item.weight, item.graded_on]),
-    ),
-    JSON.stringify(attendance.map((item) => [item.id, item.status, item.class_date])),
-    JSON.stringify(
-      focus.map((item) => [item.id, item.status, item.started_at, item.actual_minutes]),
-    ),
-  ].join("|");
-
-  useEffect(() => {
-    if (!profile || notificationSyncRef.current === notificationSyncSignature) return;
-    notificationSyncRef.current = notificationSyncSignature;
-    void syncNotifications({
-      userId: profile.id,
-      subjects,
-      topics,
-      tasks,
-      exams,
-      plan,
-      grades,
-      attendance,
-      focus,
-      profile,
-      prefs: prefs ?? null,
-    }).catch(() => undefined);
-  }, [
-    notificationSyncSignature,
-    profile,
-    subjects,
-    topics,
-    tasks,
-    exams,
-    plan,
-    grades,
-    attendance,
-    focus,
-    prefs,
-  ]);
 
   const now = new Date();
   const todayKey = dateKey(now);
