@@ -908,11 +908,14 @@ export async function syncNotifications(input: NotifyInput) {
     .is("dismissed_at", null);
   if (readError) throw new Error(readError.message);
 
-  const staleIds = (activeRows ?? [])
+  const staleIds = ((activeRows ?? []) as Array<{
+    id: string;
+    dedupe_key: string | null;
+  }>)
     .filter(
       (notification) =>
         isManagedOrdysNotificationKey(notification.dedupe_key) &&
-        !activeKeys.has(notification.dedupe_key),
+        !activeKeys.has(notification.dedupe_key ?? ""),
     )
     .map((notification) => notification.id)
     .filter((id): id is string => typeof id === "string" && id.length > 0);
