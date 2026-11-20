@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Check, ChevronDown, ChevronUp, ListChecks, Pencil, Plus, Trash2 } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, ListChecks, Pencil, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Shell } from "@/components/ordys/shell";
 import { Chip, Dot, Panel, PanelHeader, PageTitle, Stat } from "@/components/ordys/primitives";
