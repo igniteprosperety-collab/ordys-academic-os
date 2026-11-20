@@ -100,10 +100,7 @@ export function writeFocusTimerState(
   }
 }
 
-export function clearFocusTimerState(
-  userId: string,
-  storage?: FocusTimerStorage | null,
-): void {
+export function clearFocusTimerState(userId: string, storage?: FocusTimerStorage | null): void {
   if (!userId) return;
   const target = resolveStorage(storage);
   if (!target) return;
@@ -114,10 +111,7 @@ export function clearFocusTimerState(
   }
 }
 
-export function getFocusTimerRemainingSeconds(
-  state: FocusTimerState,
-  nowMs = Date.now(),
-): number {
+export function getFocusTimerRemainingSeconds(state: FocusTimerState, nowMs = Date.now()): number {
   if (state.status === "paused" || state.endsAtMs === null) {
     return state.remainingSeconds;
   }
