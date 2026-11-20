@@ -15,6 +15,10 @@ import {
   useTopics,
 } from "@/lib/ordys-db";
 import { dateKey, syncNotifications } from "@/lib/ordys-engine";
+import {
+  isNativeAndroid,
+  syncNativeAcademicNotifications,
+} from "@/lib/native-notifications";
 
 const EMPTY_ROWS: never[] = [];
 
@@ -136,6 +140,11 @@ export function NotificationSyncBridge() {
     })
       .then(() => {
         lastSyncedSignature.current = signature;
+        if (isNativeAndroid()) {
+          void syncNativeAcademicNotifications().catch((error) => {
+            console.error("[notifications] Android schedule refresh failed", error);
+          });
+        }
       })
       .catch((error) => {
         console.error("[notifications] automatic sync failed", error);
