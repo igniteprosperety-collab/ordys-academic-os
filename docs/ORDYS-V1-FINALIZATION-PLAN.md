@@ -30,6 +30,22 @@ Assim, a PR #2 mesclada no `main` pode aparecer no preview apenas se `main` for 
 
 A reconciliação deve ser seletiva, com commits pequenos, diff revisado e caminho de rollback.
 
+## Auditoria estática dos contratos Edge Function — 20/11/2026
+
+Os cinco endpoints invocados pelo espelho público foram cruzados com as funções e a configuração versionadas em `ordys-academy.app/main`. Isso confirma compatibilidade de nomes/payloads no código, não confirma que as versões estejam implantadas no projeto gerenciado.
+
+| Função | Payload do frontend | Proteção/configuração em código | Estado funcional observado |
+| --- | --- | --- | --- |
+| `ordys-assistant` | Ações `ask`, `quiz`, `poll`, `cancel`, `apply-config`; sessão Supabase | `verify_jwt=true`; função também valida usuário e propriedade dos jobs | Assistência gratuita ainda chama OpenAI com gate de 18 anos baseado em `profiles.birth_date` editável; Plus continua desligado |
+| `ordys-video-transcribe` | `filename`, `mimeType`, `dataUrl` | `verify_jwt=true`; valida sessão, idade e entitlement no servidor | Plus desligado; o cliente não envia transcrição e o servidor a rejeita |
+| `ordys-ai-report` | `source`, `reason`, `content`, `details` | `verify_jwt=true`; valida usuário e tamanho, grava por RPC | Botão do frontend está oculto por feature flag `false`; o endpoint armazena relato, não chama OpenAI |
+| `ordys-password-recovery` | `email`, `redirectTo` | `verify_jwt=false` intencional; valida formato, destino permitido e rate limit via RPC; sempre usa Auth para e-mails válidos não limitados | Fluxo público com proteção própria contra enumeração e abuso; requer configuração `ORDYS_PUBLIC_APP_URL` correta para redirect web |
+| `ordys-delete-account` | Corpo vazio `{}` | `verify_jwt=true`; valida sessão do usuário, cancela/concilia billing se instalado e só então chama `delete_own_data` e Auth Admin | Contrato de exclusão depende do pareamento correto entre migrations e Edge Function; ver Gate 2 e Issue #322 |
+
+A configuração verificada em Git define `verify_jwt=false` apenas para recuperação de senha e endpoints financeiros públicos (webhook/return), que estão fora deste conjunto V1. Não tratar a presença dessas definições no repositório como confirmação de deployment. Os nomes dos secrets e suas permissões foram revisados estaticamente; valores secretos não foram lidos nem expostos.
+
+**Risco que permanece:** o gate de 18+ do Assistente usa data de nascimento editável pelo titular. O servidor repete a checagem, mas a fonte de idade não é verificação independente. Não declarar a questão de idade/consentimento resolvida.
+
 ## Escopo da V1
 
 ### Entra na primeira entrega
