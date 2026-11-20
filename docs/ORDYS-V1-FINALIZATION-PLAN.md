@@ -58,9 +58,11 @@ A exclusão desses fluxos da V1 não autoriza apagar tabelas, colunas, relaçõe
 | Lint e formatação | **PASS** | `bun run lint` |
 | Build de produção | **PASS** | `bun run build` |
 | Migrations | **PASS** | 46 migrations aplicadas em Supabase local, descartável, partindo de banco vazio |
-| RLS / isolamento | **PASS** | 17 asserções pgTAP com dois usuários sintéticos; leitura, inserção, atualização, exclusão, identidade forjada e vínculo entre contas |
-| CI completo do espelho | **PASS** | Execução [44693029274](https://github.com/igniteprosperety-collab/ordys-academic-os/actions/runs/44693029274), SHA `20baa7087533e7c557fb20f73f43a6bb967853b2` |
+| Data API anônima | **PASS** | 49/49 testes REST contra Supabase local, sem sessão de usuário |
+| RLS / isolamento autenticado | **PASS** | 17/17 asserções pgTAP com dois usuários sintéticos; leitura, inserção, atualização, exclusão, identidade forjada e vínculo entre contas |
+| CI completo do espelho | **PASS** | Execução [44693888138](https://github.com/igniteprosperety-collab/ordys-academic-os/actions/runs/44693888138), SHA `bb6b3edc98d4176e1d5dc66dbb87a4f9bc4a0c84a9` |
 | Notificações nativas no espelho | **PASS** | Padrão desligado; opt-in explícito; kill-switch de desativação; testes unitários |
+| Arquivo de ambiente versionado | **PASS** | Os seis nomes existentes são públicos e allowlisted; novos nomes não permitidos bloqueiam a CI; `.env` é ignorado para novos arquivos locais |
 | CI do repositório privado | **BLOQUEADO** | Jobs falham antes de alocar runner; Issue #318. Nenhuma etapa de teste/build foi executada nessa origem. |
 | Banco Supabase remoto | **NÃO VERIFICADO** | Nenhuma migration ou escrita remota foi feita nesta rodada |
 | Auth/persistência em sessão real | **NÃO ACEITO** | Preview autenticado não foi acessível; o endereço de preview redirecionou ao login do Lovable |
