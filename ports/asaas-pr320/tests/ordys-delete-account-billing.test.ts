@@ -969,7 +969,7 @@ it("requires the final billing readiness function to verify all 16 webhook error
     ];
 
     for (const code of guardedCodes) {
-      expect(readiness).toContain(`prosrc LIKE \'%${code}%\'`);
+      expect(readiness).toContain(`prosrc LIKE '%${code}%'`);
     }
   });
   it("requires the final durable-inbox migration to serialize every account-deletion RPC before the per-user lock", () => {
