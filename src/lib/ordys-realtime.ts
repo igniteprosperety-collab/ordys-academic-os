@@ -32,6 +32,22 @@ export const ORDYS_REALTIME_TABLES = [
   { table: "quiz_answers", ownerColumn: "user_id", queryKeys: [["quiz-answers"]] },
 ] as const;
 
+export function matchesOrdysRealtimeQueryKey(
+  queryKey: readonly unknown[],
+  userId: string,
+  tableName: string,
+): boolean {
+  const definition = ORDYS_REALTIME_TABLES.find((item) => item.table === tableName);
+  if (!definition || queryKey.length < 3) return false;
+
+  const matchesResource = definition.queryKeys.some(([prefix]) => queryKey[0] === prefix);
+  return (
+    matchesResource &&
+    queryKey[queryKey.length - 2] === userId &&
+    queryKey[queryKey.length - 1] === "cloud"
+  );
+}
+
 export function invalidateOrdysRealtimeTable(
   queryClient: QueryClient,
   userId: string,
@@ -40,12 +56,9 @@ export function invalidateOrdysRealtimeTable(
   const definition = ORDYS_REALTIME_TABLES.find((item) => item.table === tableName);
   if (!definition) return false;
 
-  for (const key of definition.queryKeys) {
-    void queryClient.invalidateQueries({
-      queryKey: [...key, userId, "cloud"],
-      exact: false,
-    });
-  }
+  void queryClient.invalidateQueries({
+    predicate: (query) => matchesOrdysRealtimeQueryKey(query.queryKey, userId, tableName),
+  });
   return true;
 }
 
