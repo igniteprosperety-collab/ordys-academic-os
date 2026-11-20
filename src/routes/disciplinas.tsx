@@ -124,6 +124,12 @@ function Disciplinas() {
   const [gradeForm, setGradeForm] = useState({ title: "", score: "", max_score: "", weight: "1" });
   const [subjectToDelete, setSubjectToDelete] = useState<Subject | null>(null);
   const [deleteSubjectBusy, setDeleteSubjectBusy] = useState(false);
+  const [recordToDelete, setRecordToDelete] = useState<{
+    table: "topics" | "grades" | "attendance_records";
+    id: string;
+    label: string;
+  } | null>(null);
+  const [recordDeleting, setRecordDeleting] = useState(false);
 
   const scale = Number(profile?.grade_scale_max ?? 10);
   const average = selected ? subjectAverage(grades, selected.id, scale) : null;
@@ -202,6 +208,7 @@ function Disciplinas() {
       return;
     }
 
+    let savedSubject: Subject | null = null;
     try {
       const payload = {
         name,
@@ -216,7 +223,8 @@ function Disciplinas() {
       const row = subjectModal.editing
         ? await update("subjects", subjectModal.editing.id, payload)
         : await insert("subjects", payload);
-      const subjectId = (row as Subject).id;
+      savedSubject = row as Subject;
+      const subjectId = savedSubject.id;
       const existingSchedules = schedules
         .filter((item) => item.subject_id === subjectId)
         .slice()
@@ -241,11 +249,21 @@ function Disciplinas() {
         // additional schedules that may have been created elsewhere.
         await remove("subject_schedules", existingSchedules[0]!.id);
       }
-      setSelectedId((row as Subject).id);
+      setSelectedId(savedSubject.id);
       setSubjectModal({ open: false });
       toast.success("Disciplina salva");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao salvar");
+      if (savedSubject) {
+        // The subject itself is already stored. Keep the editor attached to that
+        // record so retrying the schedule step cannot create a duplicate subject.
+        setSelectedId(savedSubject.id);
+        setSubjectModal({ open: true, editing: savedSubject });
+        toast.error(
+          "A disciplina foi salva, mas o horário não. Revise o horário e tente salvar novamente.",
+        );
+      } else {
+        toast.error(err instanceof Error ? err.message : "Erro ao salvar");
+      }
     }
   }
 
@@ -345,16 +363,26 @@ function Disciplinas() {
     }
   }
 
-  async function removeRecord(
+  function removeRecord(
     table: "topics" | "grades" | "attendance_records",
     id: string,
     label: string,
   ) {
+    setRecordToDelete({ table, id, label });
+  }
+
+  async function confirmRemoveRecord() {
+    const target = recordToDelete;
+    if (!target || recordDeleting) return;
+    setRecordDeleting(true);
     try {
-      await remove(table, id);
-      toast.success(label);
+      await remove(target.table, target.id);
+      toast.success(target.label);
+      setRecordToDelete(null);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Não foi possível excluir o registro.");
+    } finally {
+      setRecordDeleting(false);
     }
   }
 
@@ -953,6 +981,25 @@ function Disciplinas() {
           </Button>
         </div>
       </Modal>
+      <ConfirmDialog
+        open={recordToDelete !== null}
+        title="Excluir este registro?"
+        description={
+          recordToDelete?.table === "topics"
+            ? "O conteúdo será removido da disciplina e deixará de aparecer no plano e nas revisões."
+            : recordToDelete?.table === "grades"
+              ? "A nota será removida e as médias da disciplina serão recalculadas."
+              : "Este registro de presença ou falta será removido da frequência da disciplina."
+        }
+        confirmLabel="Excluir registro"
+        confirmVariant="danger"
+        loading={recordDeleting}
+        loadingLabel="Excluindo…"
+        onClose={() => {
+          if (!recordDeleting) setRecordToDelete(null);
+        }}
+        onConfirm={() => void confirmRemoveRecord()}
+      />
       <ConfirmDialog
         open={subjectToDelete !== null}
         title={
