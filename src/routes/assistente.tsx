@@ -38,7 +38,12 @@ import { AiContentReportButton } from "@/components/ordys/ai-content-report-butt
 import { useAuth } from "@/hooks/use-auth";
 import { useProfile } from "@/lib/ordys-db";
 import { canUseOrdysAi } from "@/lib/ai-eligibility";
-import { ORDYS_AI_ACCESS_POLICY_READY, ORDYS_AI_ACCESS_POLICY_LOCK_MESSAGE, ORDYS_PLUS_AI_ENABLED, ORDYS_PLUS_LOCK_SHORT_MESSAGE } from "@/lib/ordys-ai-access";
+import {
+  ORDYS_AI_ACCESS_POLICY_READY,
+  ORDYS_AI_ACCESS_POLICY_LOCK_MESSAGE,
+  ORDYS_PLUS_AI_ENABLED,
+  ORDYS_PLUS_LOCK_SHORT_MESSAGE,
+} from "@/lib/ordys-ai-access";
 import {
   ORDYS_CONTEXT_SCOPE_OPTIONS,
   type OrdysAcademicContextScope,
@@ -203,7 +208,8 @@ function AssistantPage() {
   const { data: profile, isLoading: profileLoading, error: profileError } = useProfile();
   const aiEligibility = canUseOrdysAi(profile?.birth_date, profile?.timezone);
   const profileFailed = Boolean(profileError) && !profile;
-  const aiUnavailable = !ORDYS_AI_ACCESS_POLICY_READY || profileLoading || profileFailed || !aiEligibility.allowed;
+  const aiUnavailable =
+    !ORDYS_AI_ACCESS_POLICY_READY || profileLoading || profileFailed || !aiEligibility.allowed;
   const pollTimer = useRef<number | null>(null);
   const fileInput = useRef<HTMLInputElement | null>(null);
 
@@ -499,11 +505,15 @@ function AssistantPage() {
             </Link>
           </section>
         ) : null}
-        {!isDemo && (!ORDYS_AI_ACCESS_POLICY_READY || (!profileLoading && !profileFailed && !aiEligibility.allowed)) ? (
+        {!isDemo &&
+          (!ORDYS_AI_ACCESS_POLICY_READY ||
+            (!profileLoading && !profileFailed && !aiEligibility.allowed)) ? (
           <section className="mt-6 rounded-xl border border-primary/20 bg-primary-soft px-4 py-3 text-[12px]">
             <p className="font-medium">Recursos de IA temporariamente indisponíveis</p>
             <p className="mt-1 leading-5 text-muted-foreground">
-              {!ORDYS_AI_ACCESS_POLICY_READY ? ORDYS_AI_ACCESS_POLICY_LOCK_MESSAGE : aiEligibility.reason}
+              {!ORDYS_AI_ACCESS_POLICY_READY
+                ? ORDYS_AI_ACCESS_POLICY_LOCK_MESSAGE
+                : aiEligibility.reason}
             </p>
             {ORDYS_AI_ACCESS_POLICY_READY ? (
               <Link to="/perfil" className="mt-2 inline-block text-primary hover:underline">
