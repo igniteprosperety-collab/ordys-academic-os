@@ -24,10 +24,7 @@ vi.mock("../src/lib/ordys-ai-access-shared", () => ({
   ORDYS_PLUS_LOCK_SHORT_MESSAGE: "Disponível quando o Ordys Plus for ativado.",
 }));
 
-import {
-  assertOrdysAiAccessPolicyReady,
-  getOrdysAiAccessStatus,
-} from "../src/lib/ordys-ai-access";
+import { assertOrdysAiAccessPolicyReady, getOrdysAiAccessStatus } from "../src/lib/ordys-ai-access";
 
 describe("per-account AI access status client", () => {
   beforeEach(() => {
@@ -103,7 +100,8 @@ describe("per-account AI access status client", () => {
       allowed: false,
       tier: "blocked",
       reason: "guardian_consent_required",
-      message: "Esta conta precisa da autorização do responsável legal antes de usar os recursos de IA.",
+      message:
+        "Esta conta precisa da autorização do responsável legal antes de usar os recursos de IA.",
     });
     await expect(assertOrdysAiAccessPolicyReady()).rejects.toThrow(
       "Esta conta precisa da autorização do responsável legal antes de usar os recursos de IA.",
