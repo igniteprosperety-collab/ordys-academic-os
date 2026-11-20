@@ -1,10 +1,6 @@
 export type AiContentReportSource = "assistant" | "quiz";
 export type AiContentReportReason =
-  | "offensive"
-  | "unsafe"
-  | "inaccurate"
-  | "personal_data"
-  | "other";
+  "offensive" | "unsafe" | "inaccurate" | "personal_data" | "other";
 
 export type AiContentReport = {
   source: AiContentReportSource;
@@ -29,9 +25,9 @@ export const AI_CONTENT_REPORT_LIMITS = {
   perUserPerHour: 10,
 } as const;
 
-export function parseAiContentReport(value: unknown):
-  | { ok: true; report: AiContentReport }
-  | { ok: false; error: string } {
+export function parseAiContentReport(
+  value: unknown,
+): { ok: true; report: AiContentReport } | { ok: false; error: string } {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return { ok: false, error: "Invalid report payload." };
   }
@@ -41,7 +37,11 @@ export function parseAiContentReport(value: unknown):
   const reason = typeof row["reason"] === "string" ? row["reason"] : "";
   const content = typeof row["content"] === "string" ? row["content"].trim() : "";
   const details = typeof row["details"] === "string" ? row["details"].trim() : "";
-  if (row["details"] !== undefined && row["details"] !== null && typeof row["details"] !== "string") {
+  if (
+    row["details"] !== undefined &&
+    row["details"] !== null &&
+    typeof row["details"] !== "string"
+  ) {
     return { ok: false, error: "Additional details must be text." };
   }
 

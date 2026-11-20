@@ -5,7 +5,12 @@ import { ArrowLeft, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { deleteLocalProfile, getActiveLocalProfileId, isDemoMode, stopDemoMode } from "@/lib/demo-mode";
+import {
+  deleteLocalProfile,
+  getActiveLocalProfileId,
+  isDemoMode,
+  stopDemoMode,
+} from "@/lib/demo-mode";
 import { signOutCurrentSession } from "@/lib/ordys-session";
 import { withAuthRequestTimeout } from "@/lib/auth-request-timeout";
 import { isInconclusiveFunctionRequestError } from "@/lib/function-request-outcome";
@@ -23,10 +28,9 @@ async function isAuthIdentityDeletionUnconfirmed(error: unknown): Promise<boolea
   if (typeof Response === "undefined" || !(context instanceof Response) || context.status !== 502) {
     return false;
   }
-  const payload = await withAuthRequestTimeout(
-    () => context.clone().json(),
-    3_000,
-  ).catch(() => null);
+  const payload = await withAuthRequestTimeout(() => context.clone().json(), 3_000).catch(
+    () => null,
+  );
   return isUnconfirmedAuthIdentityDeletionPayload(payload);
 }
 
@@ -36,10 +40,9 @@ async function getAccountDeletionConflictCode(error: unknown): Promise<string | 
   if (typeof Response === "undefined" || !(context instanceof Response) || context.status !== 409) {
     return null;
   }
-  const payload = await withAuthRequestTimeout(
-    () => context.clone().json(),
-    3_000,
-  ).catch(() => null) as { code?: unknown } | null;
+  const payload = (await withAuthRequestTimeout(() => context.clone().json(), 3_000).catch(
+    () => null,
+  )) as { code?: unknown } | null;
   return typeof payload?.code === "string" ? payload.code : null;
 }
 
@@ -105,7 +108,10 @@ function DeleteAccountPage() {
     } catch (error) {
       const conflictCode = accountDeleted ? null : await getAccountDeletionConflictCode(error);
       if (accountDeleted) {
-        console.error("[account-delete] account deleted but local sign-out could not be confirmed", error);
+        console.error(
+          "[account-delete] account deleted but local sign-out could not be confirmed",
+          error,
+        );
         await queryClient.cancelQueries().catch(() => undefined);
         queryClient.clear();
         setAccountDeletedNeedsRestart(true);
@@ -119,7 +125,9 @@ function DeleteAccountPage() {
       } else if (conflictCode === "account_deletion_in_progress") {
         setDeleteDialogStep(0);
         setAccountDeletionInProgress(true);
-        toast.message("Já existe uma solicitação de exclusão em processamento. Nenhum dado foi apagado.");
+        toast.message(
+          "Já existe uma solicitação de exclusão em processamento. Nenhum dado foi apagado.",
+        );
       } else if (
         conflictCode === "checkout_cancellation_processing" ||
         conflictCode === "billing_cancellation_processing" ||
@@ -127,13 +135,17 @@ function DeleteAccountPage() {
       ) {
         setDeleteDialogStep(0);
         setCheckoutCancellationPending(true);
-        toast.message("O estado ou cancelamento das cobranças está aguardando confirmação do Asaas. Nenhum dado foi apagado.");
+        toast.message(
+          "O estado ou cancelamento das cobranças está aguardando confirmação do Asaas. Nenhum dado foi apagado.",
+        );
       } else if (await isAuthIdentityDeletionUnconfirmed(error)) {
         await queryClient.cancelQueries().catch(() => undefined);
         queryClient.clear();
         setDeleteDialogStep(0);
         setAccountDeletionPartial(true);
-        toast.error("Os dados do Ordys foram removidos, mas a exclusão do login não foi confirmada. Verifique o acesso antes de repetir.");
+        toast.error(
+          "Os dados do Ordys foram removidos, mas a exclusão do login não foi confirmada. Verifique o acesso antes de repetir.",
+        );
       } else if (isInconclusiveFunctionRequestError(error)) {
         // A transport failure or server-side timeout may happen after the
         // deletion request has already reached the Edge Function. Do not allow
@@ -145,8 +157,10 @@ function DeleteAccountPage() {
           "O servidor não confirmou o resultado da exclusão. A solicitação pode ter sido concluída; verifique o acesso antes de tentar novamente.",
         );
       } else {
-        toast.error(edgeFunctionUnavailableMessage(error, "account-deletion") ??
-          (error instanceof Error ? error.message : "Não foi possível concluir a exclusão."));
+        toast.error(
+          edgeFunctionUnavailableMessage(error, "account-deletion") ??
+            (error instanceof Error ? error.message : "Não foi possível concluir a exclusão."),
+        );
       }
     } finally {
       deleteActionInFlightRef.current = false;
@@ -189,7 +203,9 @@ function DeleteAccountPage() {
     } catch (error) {
       console.error("[account-delete] retry local sign-out failed", error);
       queryClient.clear();
-      toast.error("A conta já foi excluída, mas a sessão deste aparelho ainda não foi encerrada. Verifique a conexão e tente novamente.");
+      toast.error(
+        "A conta já foi excluída, mas a sessão deste aparelho ainda não foi encerrada. Verifique a conexão e tente novamente.",
+      );
     } finally {
       deleteActionInFlightRef.current = false;
       setBusy(false);
@@ -201,12 +217,16 @@ function DeleteAccountPage() {
       <div className="dark flex min-h-screen items-center justify-center bg-background px-5 py-10 text-foreground">
         <main className="w-full max-w-[480px] panel px-6 py-7">
           <OrdysBrandLockup />
-          <h1 className="mt-5 text-[21px] font-semibold tracking-tight">Exclusão parcialmente concluída</h1>
+          <h1 className="mt-5 text-[21px] font-semibold tracking-tight">
+            Exclusão parcialmente concluída
+          </h1>
           <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
-            Os dados do Ordys foram removidos, mas o servidor não confirmou se a conta de login foi excluída. O acesso pode continuar ativo.
+            Os dados do Ordys foram removidos, mas o servidor não confirmou se a conta de login foi
+            excluída. O acesso pode continuar ativo.
           </p>
           <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
-            Não repita a exclusão agora. Encerre a sessão e verifique o acesso. Se ainda conseguir entrar, solicite novamente a exclusão para concluir o encerramento da conta.
+            Não repita a exclusão agora. Encerre a sessão e verifique o acesso. Se ainda conseguir
+            entrar, solicite novamente a exclusão para concluir o encerramento da conta.
           </p>
           <Button className="mt-5 w-full" onClick={verifyDeletionAccess} disabled={busy}>
             {busy ? "Encerrando sessão…" : "Encerrar sessão e verificar"}
@@ -221,12 +241,16 @@ function DeleteAccountPage() {
       <div className="dark flex min-h-screen items-center justify-center bg-background px-5 py-10 text-foreground">
         <main className="w-full max-w-[480px] panel px-6 py-7">
           <OrdysBrandLockup />
-          <h1 className="mt-5 text-[21px] font-semibold tracking-tight">Resultado não confirmado</h1>
+          <h1 className="mt-5 text-[21px] font-semibold tracking-tight">
+            Resultado não confirmado
+          </h1>
           <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
-            O servidor demorou a responder. A exclusão pode ter sido concluída ou interrompida antes de terminar.
+            O servidor demorou a responder. A exclusão pode ter sido concluída ou interrompida antes
+            de terminar.
           </p>
           <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
-            Não envie outro pedido de exclusão agora. Verifique primeiro se sua conta ainda permite acesso.
+            Não envie outro pedido de exclusão agora. Verifique primeiro se sua conta ainda permite
+            acesso.
           </p>
           <Button className="mt-5 w-full" onClick={verifyDeletionAccess} disabled={busy}>
             {busy ? "Preparando acesso…" : "Verificar acesso"}
@@ -241,9 +265,12 @@ function DeleteAccountPage() {
       <div className="dark flex min-h-screen items-center justify-center bg-background px-5 py-10 text-foreground">
         <main className="w-full max-w-[480px] panel px-6 py-7">
           <OrdysBrandLockup />
-          <h1 className="mt-5 text-[21px] font-semibold tracking-tight">Contratação em andamento</h1>
+          <h1 className="mt-5 text-[21px] font-semibold tracking-tight">
+            Contratação em andamento
+          </h1>
           <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
-            Uma contratação ainda está sendo criada. O Ordys não excluirá sua conta enquanto não puder confirmar o estado do Checkout.
+            Uma contratação ainda está sendo criada. O Ordys não excluirá sua conta enquanto não
+            puder confirmar o estado do Checkout.
           </p>
           <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
             Aguarde a atualização da cobrança e tente novamente. Nenhum dado foi apagado.
@@ -261,12 +288,16 @@ function DeleteAccountPage() {
       <div className="dark flex min-h-screen items-center justify-center bg-background px-5 py-10 text-foreground">
         <main className="w-full max-w-[480px] panel px-6 py-7">
           <OrdysBrandLockup />
-          <h1 className="mt-5 text-[21px] font-semibold tracking-tight">Exclusão em processamento</h1>
+          <h1 className="mt-5 text-[21px] font-semibold tracking-tight">
+            Exclusão em processamento
+          </h1>
           <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
-            Já existe uma solicitação de exclusão desta conta em andamento. O Ordys bloqueou uma segunda operação para evitar cancelamentos duplicados.
+            Já existe uma solicitação de exclusão desta conta em andamento. O Ordys bloqueou uma
+            segunda operação para evitar cancelamentos duplicados.
           </p>
           <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
-            Aguarde a conclusão ou a conciliação com o Asaas antes de tentar novamente. Nenhum dado foi apagado por esta tentativa.
+            Aguarde a conclusão ou a conciliação com o Asaas antes de tentar novamente. Nenhum dado
+            foi apagado por esta tentativa.
           </p>
           <Button className="mt-5 w-full" onClick={() => navigate({ to: "/perfil" })}>
             Voltar ao perfil
@@ -281,12 +312,16 @@ function DeleteAccountPage() {
       <div className="dark flex min-h-screen items-center justify-center bg-background px-5 py-10 text-foreground">
         <main className="w-full max-w-[480px] panel px-6 py-7">
           <OrdysBrandLockup />
-          <h1 className="mt-5 text-[21px] font-semibold tracking-tight">Cancelamento não confirmado</h1>
+          <h1 className="mt-5 text-[21px] font-semibold tracking-tight">
+            Cancelamento não confirmado
+          </h1>
           <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
-            O Ordys não conseguiu confirmar o estado ou o encerramento de todas as cobranças no Asaas. Não repetirá automaticamente operações de cancelamento cujo resultado é incerto.
+            O Ordys não conseguiu confirmar o estado ou o encerramento de todas as cobranças no
+            Asaas. Não repetirá automaticamente operações de cancelamento cujo resultado é incerto.
           </p>
           <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
-            Sua conta e seus dados ainda não foram excluídos. Não envie outra solicitação de exclusão enquanto os cancelamentos pendentes não forem conciliados com o Asaas.
+            Sua conta e seus dados ainda não foram excluídos. Não envie outra solicitação de
+            exclusão enquanto os cancelamentos pendentes não forem conciliados com o Asaas.
           </p>
           <Button className="mt-5 w-full" onClick={() => navigate({ to: "/perfil" })}>
             Voltar ao perfil
@@ -296,7 +331,6 @@ function DeleteAccountPage() {
     );
   }
 
-
   if (accountDeletedNeedsRestart) {
     return (
       <div className="dark flex min-h-screen items-center justify-center bg-background px-5 py-10 text-foreground">
@@ -304,12 +338,17 @@ function DeleteAccountPage() {
           <OrdysBrandLockup />
           <h1 className="mt-5 text-[21px] font-semibold tracking-tight">Conta excluída</h1>
           <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
-            Seus dados do ORDYS foram excluídos. O aplicativo não conseguiu confirmar o encerramento da sessão neste dispositivo.
+            Seus dados do ORDYS foram excluídos. O aplicativo não conseguiu confirmar o encerramento
+            da sessão neste dispositivo.
           </p>
           <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
             Não solicite outra exclusão. Tente encerrar novamente a sessão deste aparelho.
           </p>
-          <Button className="mt-5 w-full" onClick={retryDeletedAccountSessionCleanup} disabled={busy}>
+          <Button
+            className="mt-5 w-full"
+            onClick={retryDeletedAccountSessionCleanup}
+            disabled={busy}
+          >
             {busy ? "Encerrando sessão…" : "Tentar encerrar sessão"}
           </Button>
         </main>
@@ -335,7 +374,8 @@ function DeleteAccountPage() {
           <OrdysBrandLockup />
           <h1 className="mt-5 text-[24px] font-semibold tracking-tight">Excluir conta</h1>
           <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground">
-            Você pode encerrar sua conta e remover os dados associados ao ORDYS. A exclusão é permanente e não pode ser desfeita.
+            Você pode encerrar sua conta e remover os dados associados ao ORDYS. A exclusão é
+            permanente e não pode ser desfeita.
           </p>
         </div>
 
@@ -345,18 +385,35 @@ function DeleteAccountPage() {
           ) : user ? (
             <>
               <p className="text-[12px] text-muted-foreground">
-                {localProfileMode ? "Perfil local neste dispositivo." : <>Conta autenticada: <span className="text-foreground">{user.email ?? "e-mail da conta"}</span></>}
+                {localProfileMode ? (
+                  "Perfil local neste dispositivo."
+                ) : (
+                  <>
+                    Conta autenticada:{" "}
+                    <span className="text-foreground">{user.email ?? "e-mail da conta"}</span>
+                  </>
+                )}
               </p>
-              <Button className="mt-5 w-full" onClick={() => setDeleteDialogStep(1)} disabled={busy}>
+              <Button
+                className="mt-5 w-full"
+                onClick={() => setDeleteDialogStep(1)}
+                disabled={busy}
+              >
                 <Trash2 className="size-4" />
                 {localProfileMode ? "Excluir perfil local" : "Excluir permanentemente minha conta"}
               </Button>
               <ConfirmDialog
                 open={deleteDialogStep === 1}
-                title={localProfileMode ? "Excluir este perfil local?" : "Excluir permanentemente sua conta?"}
-                description={localProfileMode
-                  ? "O perfil e os dados salvos localmente neste aparelho serão removidos."
-                  : "A exclusão removerá sua conta e os dados acadêmicos associados. Você precisará confirmar novamente antes de iniciar a operação."}
+                title={
+                  localProfileMode
+                    ? "Excluir este perfil local?"
+                    : "Excluir permanentemente sua conta?"
+                }
+                description={
+                  localProfileMode
+                    ? "O perfil e os dados salvos localmente neste aparelho serão removidos."
+                    : "A exclusão removerá sua conta e os dados acadêmicos associados. Você precisará confirmar novamente antes de iniciar a operação."
+                }
                 confirmLabel="Continuar"
                 confirmVariant="danger"
                 loadingLabel="Preparando…"
@@ -365,10 +422,16 @@ function DeleteAccountPage() {
               />
               <ConfirmDialog
                 open={deleteDialogStep === 2}
-                title={localProfileMode ? "Confirmar exclusão do perfil?" : "Confirmar exclusão definitiva?"}
-                description={localProfileMode
-                  ? "Esta ação remove permanentemente apenas o perfil local selecionado neste dispositivo."
-                  : "Esta ação é irreversível. A conta e os dados associados serão excluídos após a confirmação do servidor."}
+                title={
+                  localProfileMode
+                    ? "Confirmar exclusão do perfil?"
+                    : "Confirmar exclusão definitiva?"
+                }
+                description={
+                  localProfileMode
+                    ? "Esta ação remove permanentemente apenas o perfil local selecionado neste dispositivo."
+                    : "Esta ação é irreversível. A conta e os dados associados serão excluídos após a confirmação do servidor."
+                }
                 confirmLabel={localProfileMode ? "Excluir perfil" : "Excluir minha conta"}
                 confirmVariant="danger"
                 loadingLabel={localProfileMode ? "Excluindo perfil…" : "Excluindo conta…"}
@@ -392,7 +455,11 @@ function DeleteAccountPage() {
         </section>
 
         <p className="mt-4 text-center text-[10.5px] leading-relaxed text-muted-foreground/70">
-          Consulte também a <Link to="/privacidade" className="text-primary hover:underline">Política de Privacidade</Link>.
+          Consulte também a{" "}
+          <Link to="/privacidade" className="text-primary hover:underline">
+            Política de Privacidade
+          </Link>
+          .
         </p>
       </main>
     </div>

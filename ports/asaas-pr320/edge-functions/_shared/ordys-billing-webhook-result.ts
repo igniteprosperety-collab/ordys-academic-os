@@ -20,9 +20,7 @@ export const ORDYS_BILLING_WEBHOOK_PROCESSOR_ERRORS = [
 export type OrdysBillingWebhookProcessorError =
   (typeof ORDYS_BILLING_WEBHOOK_PROCESSOR_ERRORS)[number];
 
-const allowedProcessorErrors = new Set<string>(
-  ORDYS_BILLING_WEBHOOK_PROCESSOR_ERRORS,
-);
+const allowedProcessorErrors = new Set<string>(ORDYS_BILLING_WEBHOOK_PROCESSOR_ERRORS);
 
 export type OrdysBillingWebhookProcessorResult = {
   processed: boolean;
@@ -71,10 +69,7 @@ export function parseOrdysBillingWebhookProcessorResult(
   }
 
   if (result.duplicate === true) {
-    if (
-      keys.length !== 2 ||
-      !keys.every((key) => key === "processed" || key === "duplicate")
-    ) {
+    if (keys.length !== 2 || !keys.every((key) => key === "processed" || key === "duplicate")) {
       throw new Error("O processador de webhooks retornou uma duplicidade inconsistente.");
     }
     return { processed: false };

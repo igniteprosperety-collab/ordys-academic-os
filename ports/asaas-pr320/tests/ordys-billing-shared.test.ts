@@ -42,10 +42,7 @@ describe("shared billing security helpers", () => {
       const fetchMock = vi.fn(async () => Response.json({ id: "billing-user-123" }));
       vi.stubGlobal("fetch", fetchMock);
 
-      const result = await authenticateBillingRequest(
-        request(),
-        "Entre na sua conta.",
-      );
+      const result = await authenticateBillingRequest(request(), "Entre na sua conta.");
 
       expect(result.response).toBeNull();
       expect(result.user).toEqual({
@@ -60,7 +57,9 @@ describe("shared billing security helpers", () => {
         SUPABASE_URL: "https://project-ref.supabase.co",
         SUPABASE_PUBLISHABLE_KEY: "publishable-test-key",
       });
-      const fetchMock = vi.fn(async () => Response.json({ message: "invalid token" }, { status: 401 }));
+      const fetchMock = vi.fn(async () =>
+        Response.json({ message: "invalid token" }, { status: 401 }),
+      );
       vi.stubGlobal("fetch", fetchMock);
 
       const missing = await authenticateBillingRequest(request(""), "Entre na sua conta.");
@@ -77,7 +76,9 @@ describe("shared billing security helpers", () => {
         SUPABASE_URL: "https://project-ref.supabase.co",
         SUPABASE_PUBLISHABLE_KEY: "publishable-test-key",
       });
-      const fetchMock = vi.fn(async () => Response.json({ message: "temporarily unavailable" }, { status: 503 }));
+      const fetchMock = vi.fn(async () =>
+        Response.json({ message: "temporarily unavailable" }, { status: 503 }),
+      );
       vi.stubGlobal("fetch", fetchMock);
 
       const result = await authenticateBillingRequest(request(), "Entre na sua conta.");
@@ -94,9 +95,12 @@ describe("shared billing security helpers", () => {
         SUPABASE_URL: "https://project-ref.supabase.co",
         SUPABASE_PUBLISHABLE_KEY: "publishable-test-key",
       });
-      vi.stubGlobal("fetch", vi.fn(async () => {
-        throw new Error("network unavailable");
-      }));
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => {
+          throw new Error("network unavailable");
+        }),
+      );
 
       const result = await authenticateBillingRequest(request(), "Entre na sua conta.");
 
@@ -123,10 +127,13 @@ describe("shared billing security helpers", () => {
   it("forwards an AbortSignal to the underlying Supabase PostgREST request", async () => {
     vi.stubGlobal("Deno", {
       env: {
-        get: (key: string) => ({
-          SUPABASE_URL: "https://project-ref.supabase.co",
-          SUPABASE_SERVICE_ROLE_KEY: "service-role-test-key",
-        } as Record<string, string>)[key],
+        get: (key: string) =>
+          (
+            ({
+              SUPABASE_URL: "https://project-ref.supabase.co",
+              SUPABASE_SERVICE_ROLE_KEY: "service-role-test-key",
+            }) as Record<string, string>
+          )[key],
       },
     });
     const controller = new AbortController();
@@ -181,21 +188,13 @@ describe("shared billing security helpers", () => {
       const beforeSaoPauloBirthday = new Date("2026-10-31T02:30:00.000Z");
       const afterSaoPauloBirthday = new Date("2026-10-31T03:30:00.000Z");
 
-      expect(calculateAgeInTimeZone(
-        "2008-10-31",
-        "America/Sao_Paulo",
-        beforeSaoPauloBirthday,
-      )).toBe(17);
-      expect(calculateAgeInTimeZone(
-        "2008-10-31",
-        "UTC",
-        beforeSaoPauloBirthday,
-      )).toBe(18);
-      expect(calculateAgeInTimeZone(
-        "2008-10-31",
-        "America/Sao_Paulo",
-        afterSaoPauloBirthday,
-      )).toBe(18);
+      expect(
+        calculateAgeInTimeZone("2008-10-31", "America/Sao_Paulo", beforeSaoPauloBirthday),
+      ).toBe(17);
+      expect(calculateAgeInTimeZone("2008-10-31", "UTC", beforeSaoPauloBirthday)).toBe(18);
+      expect(calculateAgeInTimeZone("2008-10-31", "America/Sao_Paulo", afterSaoPauloBirthday)).toBe(
+        18,
+      );
     });
 
     it("fails closed for missing dates, missing time zones and invalid IANA zones", () => {
@@ -246,7 +245,6 @@ describe("shared billing security helpers", () => {
   });
 });
 
-
 describe("Shared billing outbound request deadlines", () => {
   afterEach(() => {
     vi.useRealTimers();
@@ -257,13 +255,16 @@ describe("Shared billing outbound request deadlines", () => {
   const stubBillingEnvironment = () => {
     vi.stubGlobal("Deno", {
       env: {
-        get: (key: string) => ({
-          SUPABASE_URL: "https://project-ref.supabase.co",
-          SUPABASE_PUBLISHABLE_KEY: "publishable-test-key",
-          SUPABASE_SERVICE_ROLE_KEY: "service-role-test-key",
-          ASAAS_API_KEY: "asaas-test-key",
-          ASAAS_ENVIRONMENT: "sandbox",
-        } as Record<string, string>)[key],
+        get: (key: string) =>
+          (
+            ({
+              SUPABASE_URL: "https://project-ref.supabase.co",
+              SUPABASE_PUBLISHABLE_KEY: "publishable-test-key",
+              SUPABASE_SERVICE_ROLE_KEY: "service-role-test-key",
+              ASAAS_API_KEY: "asaas-test-key",
+              ASAAS_ENVIRONMENT: "sandbox",
+            }) as Record<string, string>
+          )[key],
       },
     });
   };
@@ -275,7 +276,11 @@ describe("Shared billing outbound request deadlines", () => {
     const fetchMock = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
       capturedSignal = init?.signal as AbortSignal | undefined;
       return new Promise<Response>((_resolve, reject) => {
-        capturedSignal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
+        capturedSignal?.addEventListener(
+          "abort",
+          () => reject(new DOMException("Aborted", "AbortError")),
+          { once: true },
+        );
       });
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -364,13 +369,19 @@ describe("Shared billing outbound request deadlines", () => {
     const fetchMock = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
       capturedSignal = init?.signal as AbortSignal | undefined;
       return new Promise<Response>((_resolve, reject) => {
-        capturedSignal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
+        capturedSignal?.addEventListener(
+          "abort",
+          () => reject(new DOMException("Aborted", "AbortError")),
+          { once: true },
+        );
       });
     });
     vi.stubGlobal("fetch", fetchMock);
 
     const pending = serviceRest("ordys_billing_subscriptions?select=id");
-    const rejection = expect(pending).rejects.toMatchObject({ name: "OutboundRequestTimeoutError" });
+    const rejection = expect(pending).rejects.toMatchObject({
+      name: "OutboundRequestTimeoutError",
+    });
     await vi.advanceTimersByTimeAsync(8_000);
 
     await rejection;
@@ -384,16 +395,16 @@ describe("Shared billing outbound request deadlines", () => {
       expect(String(input)).toBe(
         "https://project-ref.supabase.co/rest/v1/profiles?select=birth_date%2Ctimezone&id=eq.user-123&limit=1",
       );
-      return Response.json([{
-        birth_date: "2008-11-06",
-        timezone: "America/Sao_Paulo",
-      }]);
+      return Response.json([
+        {
+          birth_date: "2008-11-06",
+          timezone: "America/Sao_Paulo",
+        },
+      ]);
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(
-      getUserAgeProfile("user-123", "Bearer valid-test-token"),
-    ).resolves.toEqual({
+    await expect(getUserAgeProfile("user-123", "Bearer valid-test-token")).resolves.toEqual({
       birthDate: "2008-11-06",
       timezone: "America/Sao_Paulo",
     });
@@ -402,14 +413,19 @@ describe("Shared billing outbound request deadlines", () => {
 
   it("does not silently invent a time zone when the profile field is absent", async () => {
     stubBillingEnvironment();
-    vi.stubGlobal("fetch", vi.fn(async () => Response.json([{
-      birth_date: "2008-11-06",
-      timezone: null,
-    }])));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json([
+          {
+            birth_date: "2008-11-06",
+            timezone: null,
+          },
+        ]),
+      ),
+    );
 
-    await expect(
-      getUserAgeProfile("user-123", "Bearer valid-test-token"),
-    ).resolves.toEqual({
+    await expect(getUserAgeProfile("user-123", "Bearer valid-test-token")).resolves.toEqual({
       birthDate: "2008-11-06",
       timezone: null,
     });
@@ -422,13 +438,19 @@ describe("Shared billing outbound request deadlines", () => {
     const fetchMock = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
       capturedSignal = init?.signal as AbortSignal | undefined;
       return new Promise<Response>((_resolve, reject) => {
-        capturedSignal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
+        capturedSignal?.addEventListener(
+          "abort",
+          () => reject(new DOMException("Aborted", "AbortError")),
+          { once: true },
+        );
       });
     });
     vi.stubGlobal("fetch", fetchMock);
 
     const pending = getUserAgeProfile("user-123", "Bearer valid-test-token");
-    const rejection = expect(pending).rejects.toMatchObject({ name: "OutboundRequestTimeoutError" });
+    const rejection = expect(pending).rejects.toMatchObject({
+      name: "OutboundRequestTimeoutError",
+    });
     await vi.advanceTimersByTimeAsync(8_000);
 
     await rejection;
@@ -443,7 +465,11 @@ describe("Shared billing outbound request deadlines", () => {
     const fetchMock = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
       capturedSignal = init?.signal as AbortSignal | undefined;
       return new Promise<Response>((_resolve, reject) => {
-        capturedSignal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
+        capturedSignal?.addEventListener(
+          "abort",
+          () => reject(new DOMException("Aborted", "AbortError")),
+          { once: true },
+        );
       });
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -452,7 +478,9 @@ describe("Shared billing outbound request deadlines", () => {
       method: "POST",
       body: JSON.stringify({ externalReference: "ordys-timeout-test" }),
     });
-    const rejection = expect(pending).rejects.toMatchObject({ name: "OutboundRequestTimeoutError" });
+    const rejection = expect(pending).rejects.toMatchObject({
+      name: "OutboundRequestTimeoutError",
+    });
     await vi.advanceTimersByTimeAsync(12_000);
 
     await rejection;
@@ -471,10 +499,13 @@ describe("Ordys Plus subscription eligibility lookup", () => {
   const stubEnvironment = () => {
     vi.stubGlobal("Deno", {
       env: {
-        get: (key: string) => ({
-          SUPABASE_URL: "https://project-ref.supabase.co",
-          SUPABASE_SERVICE_ROLE_KEY: "service-role-test-key",
-        } as Record<string, string>)[key],
+        get: (key: string) =>
+          (
+            ({
+              SUPABASE_URL: "https://project-ref.supabase.co",
+              SUPABASE_SERVICE_ROLE_KEY: "service-role-test-key",
+            }) as Record<string, string>
+          )[key],
       },
     });
   };
@@ -511,13 +542,19 @@ describe("Ordys Plus subscription eligibility lookup", () => {
       if (callIndex === 0) return Promise.resolve(Response.json("ready"));
       capturedSignal = init?.signal as AbortSignal | undefined;
       return new Promise<Response>((_resolve, reject) => {
-        capturedSignal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
+        capturedSignal?.addEventListener(
+          "abort",
+          () => reject(new DOMException("Aborted", "AbortError")),
+          { once: true },
+        );
       });
     });
     vi.stubGlobal("fetch", fetchMock);
 
     const pending = isOrdysPlusEligible("user-123");
-    const rejection = expect(pending).rejects.toThrow("Não foi possível validar a assinatura desta conta agora. Tente novamente.");
+    const rejection = expect(pending).rejects.toThrow(
+      "Não foi possível validar a assinatura desta conta agora. Tente novamente.",
+    );
     await vi.advanceTimersByTimeAsync(8_000);
 
     await rejection;
@@ -534,9 +571,14 @@ describe("Asaas configuration preflight", () => {
 
   it("rejects a missing API key before any outbound request", () => {
     vi.stubGlobal("Deno", {
-      env: { get: (key: string) => ({
-        ASAAS_ENVIRONMENT: "sandbox",
-      } as Record<string, string>)[key] },
+      env: {
+        get: (key: string) =>
+          (
+            ({
+              ASAAS_ENVIRONMENT: "sandbox",
+            }) as Record<string, string>
+          )[key],
+      },
     });
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
@@ -549,10 +591,15 @@ describe("Asaas configuration preflight", () => {
 
   it("rejects an invalid environment before any outbound request", () => {
     vi.stubGlobal("Deno", {
-      env: { get: (key: string) => ({
-        ASAAS_API_KEY: "test-asaas-key",
-        ASAAS_ENVIRONMENT: "production-shadow",
-      } as Record<string, string>)[key] },
+      env: {
+        get: (key: string) =>
+          (
+            ({
+              ASAAS_API_KEY: "test-asaas-key",
+              ASAAS_ENVIRONMENT: "production-shadow",
+            }) as Record<string, string>
+          )[key],
+      },
     });
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
@@ -565,9 +612,14 @@ describe("Asaas configuration preflight", () => {
 
   it("rejects an absent environment instead of silently selecting Sandbox", () => {
     vi.stubGlobal("Deno", {
-      env: { get: (key: string) => ({
-        ASAAS_API_KEY: "test-asaas-key",
-      } as Record<string, string>)[key] },
+      env: {
+        get: (key: string) =>
+          (
+            ({
+              ASAAS_API_KEY: "test-asaas-key",
+            }) as Record<string, string>
+          )[key],
+      },
     });
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
@@ -582,10 +634,15 @@ describe("Asaas configuration preflight", () => {
     "accepts the configured %s environment when the API key exists",
     (environment) => {
       vi.stubGlobal("Deno", {
-        env: { get: (key: string) => ({
-          ASAAS_API_KEY: "test-asaas-key",
-          ASAAS_ENVIRONMENT: environment,
-        } as Record<string, string>)[key] },
+        env: {
+          get: (key: string) =>
+            (
+              ({
+                ASAAS_API_KEY: "test-asaas-key",
+                ASAAS_ENVIRONMENT: environment,
+              }) as Record<string, string>
+            )[key],
+        },
       });
 
       expect(() => assertAsaasConfigured()).not.toThrow();
@@ -602,17 +659,22 @@ describe("asaasRequest subscription deletion", () => {
   it("does not default a direct Asaas request to Sandbox when the environment is missing", async () => {
     vi.stubGlobal("Deno", {
       env: {
-        get: (key: string) => ({
-          ASAAS_API_KEY: "test-asaas-key",
-        } as Record<string, string>)[key],
+        get: (key: string) =>
+          (
+            ({
+              ASAAS_API_KEY: "test-asaas-key",
+            }) as Record<string, string>
+          )[key],
       },
     });
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(asaasRequest("/subscriptions/subscription-1", {
-      method: "DELETE",
-    })).rejects.toThrow(
+    await expect(
+      asaasRequest("/subscriptions/subscription-1", {
+        method: "DELETE",
+      }),
+    ).rejects.toThrow(
       "ASAAS_ENVIRONMENT deve ser configurado explicitamente como sandbox ou production.",
     );
     expect(fetchMock).not.toHaveBeenCalled();
@@ -621,10 +683,13 @@ describe("asaasRequest subscription deletion", () => {
   it("does not interpret 404 as proof that a subscription was deleted", async () => {
     vi.stubGlobal("Deno", {
       env: {
-        get: (key: string) => ({
-          ASAAS_API_KEY: "test-asaas-key",
-          ASAAS_ENVIRONMENT: "sandbox",
-        } as Record<string, string>)[key],
+        get: (key: string) =>
+          (
+            ({
+              ASAAS_API_KEY: "test-asaas-key",
+              ASAAS_ENVIRONMENT: "sandbox",
+            }) as Record<string, string>
+          )[key],
       },
     });
     const fetchMock = vi.fn(async () =>

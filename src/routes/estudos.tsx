@@ -3,7 +3,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Pause, Play, RefreshCw, RotateCcw, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
 import { Shell } from "@/components/ordys/shell";
-import { Bar, Chip, Dot, Panel, PanelHeader, PageTitle, Ring, Stat } from "@/components/ordys/primitives";
+import {
+  Bar,
+  Chip,
+  Dot,
+  Panel,
+  PanelHeader,
+  PageTitle,
+  Ring,
+  Stat,
+} from "@/components/ordys/primitives";
 import { Button, Field, Select, TextArea, TextInput } from "@/components/ordys/form";
 import {
   minutesLabel,
@@ -59,7 +68,13 @@ export const Route = createFileRoute("/estudos")({
 const groups = [{ items: ["Plano", "Foco", "Revisões", "Check-in"] }];
 
 function checkinPlanLabel(value: string | null) {
-  return value === "sim" ? "Sim, tudo" : value === "parcial" ? "Parcialmente" : value === "nao" ? "Não consegui" : "—";
+  return value === "sim"
+    ? "Sim, tudo"
+    : value === "parcial"
+      ? "Parcialmente"
+      : value === "nao"
+        ? "Não consegui"
+        : "—";
 }
 
 function Estudos() {
@@ -83,10 +98,14 @@ function Estudos() {
   const todayKey = dateKey(new Date());
   const todayCheckin = checkins.find((c) => c.checkin_date === todayKey) ?? null;
   const automaticReviewSignature = [
-    ...topics.map((topic) => `t:${topic.id}:${topic.status}:${topic.mastery}:${topic.last_review ?? ""}`),
+    ...topics.map(
+      (topic) => `t:${topic.id}:${topic.status}:${topic.mastery}:${topic.last_review ?? ""}`,
+    ),
     ...exams.map((exam) => `e:${exam.id}:${exam.exam_at}`),
     ...reviews.map((review) => `r:${review.id}:${review.status}:${review.due_on}`),
-  ].sort().join("|");
+  ]
+    .sort()
+    .join("|");
   const automaticReviewSignatureRef = useRef<string | null>(null);
   const automaticReviewGeneratingRef = useRef(false);
   useEffect(() => {
@@ -160,8 +179,10 @@ function Estudos() {
     }
   }
 
-  const subjectName = (id: string | null) => subjects.find((s) => s.id === id)?.name ?? "Estudo geral";
-  const subjectColor = (id: string | null) => subjects.find((s) => s.id === id)?.color ?? "var(--muted-foreground)";
+  const subjectName = (id: string | null) =>
+    subjects.find((s) => s.id === id)?.name ?? "Estudo geral";
+  const subjectColor = (id: string | null) =>
+    subjects.find((s) => s.id === id)?.color ?? "var(--muted-foreground)";
 
   return (
     <Shell
@@ -175,7 +196,9 @@ function Estudos() {
           <p className="text-[11px] text-muted-foreground">Meta semanal</p>
           <p className="num mt-1 text-[15px] font-semibold">
             {minutesLabel(week.minutes)}{" "}
-            <span className="text-[11px] font-normal text-muted-foreground">de {minutesLabel(target)}</span>
+            <span className="text-[11px] font-normal text-muted-foreground">
+              de {minutesLabel(target)}
+            </span>
           </p>
           <div className="mt-2">
             <Bar value={Math.min(100, (week.minutes / Math.max(1, target)) * 100)} />
@@ -203,14 +226,24 @@ function Estudos() {
       </div>
 
       <div className="mt-5 grid gap-3 sm:grid-cols-4">
-        <Stat label="Estudado na semana" value={minutesLabel(week.minutes)} sub={`${week.focusCount} sessões`} accent="primary" />
+        <Stat
+          label="Estudado na semana"
+          value={minutesLabel(week.minutes)}
+          sub={`${week.focusCount} sessões`}
+          accent="primary"
+        />
         <Stat
           label="Sessões planejadas"
           value={`${week.completedPlanCount}/${week.plannedCount}`}
           sub="concluídas nesta semana"
           accent="success"
         />
-        <Stat label="Revisões pendentes" value={String(reviews.filter((r) => r.status === "pendente").length)} sub="geradas automaticamente" accent="warning" />
+        <Stat
+          label="Revisões pendentes"
+          value={String(reviews.filter((r) => r.status === "pendente").length)}
+          sub="geradas automaticamente"
+          accent="warning"
+        />
         <Stat
           label="Limite diário"
           value={minutesLabel(profile?.daily_load_limit_minutes ?? 240)}
@@ -220,7 +253,10 @@ function Estudos() {
 
       {active === "Plano" ? (
         <Panel className="mt-4">
-          <PanelHeader title="Plano de estudos" hint="gerado a partir de provas, tarefas e domínio" />
+          <PanelHeader
+            title="Plano de estudos"
+            hint="gerado a partir de provas, tarefas e domínio"
+          />
           <div className="border-t border-border">
             {planByDay.length ? (
               planByDay.map(([day, sessions]) => (
@@ -234,31 +270,57 @@ function Estudos() {
                     </span>
                   </div>
                   {sessions.map((s) => (
-                    <div key={s.id} className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-5 py-2.5">
+                    <div
+                      key={s.id}
+                      className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-5 py-2.5"
+                    >
                       <span className="num w-[46px] text-[12px] text-muted-foreground">
                         {s.start_time?.slice(0, 5) ?? "--:--"}
                       </span>
-                      <span className="h-6 w-[2px] rounded-full" style={{ background: subjectColor(s.subject_id) }} />
+                      <span
+                        className="h-6 w-[2px] rounded-full"
+                        style={{ background: subjectColor(s.subject_id) }}
+                      />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-[12.5px] font-medium">{subjectName(s.subject_id)}</p>
+                        <p className="truncate text-[12.5px] font-medium">
+                          {subjectName(s.subject_id)}
+                        </p>
                         <p className="truncate text-[11px] text-muted-foreground">
                           {s.reason ?? s.kind} · {s.duration_minutes} min
                         </p>
                       </div>
-                      <Chip tone={s.status === "concluida" ? "success" : s.status === "perdida" ? "danger" : "primary"}>
+                      <Chip
+                        tone={
+                          s.status === "concluida"
+                            ? "success"
+                            : s.status === "perdida"
+                              ? "danger"
+                              : "primary"
+                        }
+                      >
                         {planStatusLabel(s.status)}
                       </Chip>
-                      <button type="button"
+                      <button
+                        type="button"
                         className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-success sm:size-8"
                         aria-label="Concluir sessão"
-                        onClick={() => run("Sessão concluída", () => update("plan_sessions", s.id, { status: "concluida" }))}
+                        onClick={() =>
+                          run("Sessão concluída", () =>
+                            update("plan_sessions", s.id, { status: "concluida" }),
+                          )
+                        }
                       >
                         <Check className="size-[14px]" strokeWidth={1.8} />
                       </button>
-                      <button type="button"
+                      <button
+                        type="button"
                         className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-destructive sm:size-8"
                         aria-label="Pular sessão"
-                        onClick={() => run("Sessão cancelada", () => update("plan_sessions", s.id, { status: "cancelada" }))}
+                        onClick={() =>
+                          run("Sessão cancelada", () =>
+                            update("plan_sessions", s.id, { status: "cancelada" }),
+                          )
+                        }
                       >
                         <X className="size-[14px]" strokeWidth={1.8} />
                       </button>
@@ -268,7 +330,8 @@ function Estudos() {
               ))
             ) : (
               <p className="px-5 py-6 text-[12px] text-muted-foreground">
-                Nenhuma sessão planejada. Cadastre disciplinas, conteúdos e provas e clique em “Gerar plano”.
+                Nenhuma sessão planejada. Cadastre disciplinas, conteúdos e provas e clique em
+                “Gerar plano”.
               </p>
             )}
           </div>
@@ -321,14 +384,22 @@ function Estudos() {
                 .map((r) => {
                   const topic = topics.find((t) => t.id === r.topic_id);
                   return (
-                    <div key={r.id} className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-5 py-2.5">
+                    <div
+                      key={r.id}
+                      className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-5 py-2.5"
+                    >
                       <Dot color={subjectColor(topic?.subject_id ?? null)} />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-[12.5px]">{topic?.title ?? "Conteúdo"}</p>
-                        <p className="truncate text-[11px] text-muted-foreground">{r.reason ?? "Revisão programada"}</p>
+                        <p className="truncate text-[11px] text-muted-foreground">
+                          {r.reason ?? "Revisão programada"}
+                        </p>
                       </div>
-                      <Chip className="shrink-0" tone={r.due_on <= todayKey ? "danger" : "gold"}>{formatDay(`${r.due_on}T12:00:00`)}</Chip>
-                      <button type="button"
+                      <Chip className="shrink-0" tone={r.due_on <= todayKey ? "danger" : "gold"}>
+                        {formatDay(`${r.due_on}T12:00:00`)}
+                      </Chip>
+                      <button
+                        type="button"
                         className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-success sm:size-8"
                         aria-label="Concluir revisão"
                         disabled={busy}
@@ -365,8 +436,8 @@ function Estudos() {
                 })
             ) : (
               <p className="px-5 py-6 text-[12px] text-muted-foreground">
-                Sem revisões pendentes. Elas são criadas automaticamente quando o domínio está baixo ou uma prova se
-                aproxima.
+                Sem revisões pendentes. Elas são criadas automaticamente quando o domínio está baixo
+                ou uma prova se aproxima.
               </p>
             )}
           </div>
@@ -424,34 +495,40 @@ function FocusPanel({
   const sessionStarted = startedAt.current !== null;
   const elapsedMinutes = Math.max(0, Math.round((minutes * 60 - left) / 60));
 
-  const finish = useCallback(async (status: "concluida" | "cancelada") => {
-    if (saving || !startedAt.current) return;
-    setRunning(false);
-    setSaving(true);
-    const actualMinutes = status === "concluida" ? Math.max(1, elapsedMinutes) : elapsedMinutes;
-    try {
-      await onSave({
-        subject_id: subjectId || null,
-        topic_id: topicId || null,
-        plan_session_id: planId || null,
-        planned_minutes: minutes,
-        actual_minutes: actualMinutes,
-        started_at: startedAt.current,
-        ended_at: new Date().toISOString(),
-        status,
-      });
-      startedAt.current = null;
-      timerEndAt.current = null;
-      setLeft(minutes * 60);
-      toast.success(status === "concluida" ? `Sessão de ${actualMinutes} min salva` : "Sessão cancelada");
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Não foi possível salvar a sessão.";
-      toast.error(message);
-      setLeft((current) => Math.max(1, current));
-    } finally {
-      setSaving(false);
-    }
-  }, [elapsedMinutes, minutes, onSave, planId, saving, subjectId, topicId]);
+  const finish = useCallback(
+    async (status: "concluida" | "cancelada") => {
+      if (saving || !startedAt.current) return;
+      setRunning(false);
+      setSaving(true);
+      const actualMinutes = status === "concluida" ? Math.max(1, elapsedMinutes) : elapsedMinutes;
+      try {
+        await onSave({
+          subject_id: subjectId || null,
+          topic_id: topicId || null,
+          plan_session_id: planId || null,
+          planned_minutes: minutes,
+          actual_minutes: actualMinutes,
+          started_at: startedAt.current,
+          ended_at: new Date().toISOString(),
+          status,
+        });
+        startedAt.current = null;
+        timerEndAt.current = null;
+        setLeft(minutes * 60);
+        toast.success(
+          status === "concluida" ? `Sessão de ${actualMinutes} min salva` : "Sessão cancelada",
+        );
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Não foi possível salvar a sessão.";
+        toast.error(message);
+        setLeft((current) => Math.max(1, current));
+      } finally {
+        setSaving(false);
+      }
+    },
+    [elapsedMinutes, minutes, onSave, planId, saving, subjectId, topicId],
+  );
 
   useEffect(() => {
     if (!running) return;
@@ -477,19 +554,24 @@ function FocusPanel({
   return (
     <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_320px]">
       <Panel className="px-6 py-8 text-center">
-        <p className="text-[11px] tracking-[0.16em] text-muted-foreground uppercase">Sessão de foco</p>
+        <p className="text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
+          Sessão de foco
+        </p>
         <p className="num mt-4 text-[64px] leading-none font-semibold tracking-tight tabular-nums">
           {String(Math.floor(left / 60)).padStart(2, "0")}:{String(left % 60).padStart(2, "0")}
         </p>
         <div className="mx-auto mt-6 flex w-full max-w-xs flex-col gap-3">
           <div className="flex justify-center gap-2">
             {[25, 50, 90].map((m) => (
-              <button type="button"
+              <button
+                type="button"
                 key={m}
                 disabled={sessionStarted}
                 onClick={() => setMinutes(m)}
                 className={`min-h-11 rounded-lg border px-3 py-1.5 text-[12px] transition-colors disabled:opacity-40 ${
-                  minutes === m ? "border-primary/40 bg-primary-soft" : "border-border bg-surface text-muted-foreground"
+                  minutes === m
+                    ? "border-primary/40 bg-primary-soft"
+                    : "border-border bg-surface text-muted-foreground"
                 }`}
               >
                 {m} min
@@ -514,7 +596,11 @@ function FocusPanel({
             </Select>
           </Field>
           <Field label="Conteúdo">
-            <Select value={topicId} disabled={sessionStarted} onChange={(e) => setTopicId(e.target.value)}>
+            <Select
+              value={topicId}
+              disabled={sessionStarted}
+              onChange={(e) => setTopicId(e.target.value)}
+            >
               <option value="">Sem conteúdo</option>
               {topics
                 .filter((t) => !subjectId || t.subject_id === subjectId)
@@ -527,7 +613,11 @@ function FocusPanel({
           </Field>
           {plan.length ? (
             <Field label="Vincular a uma sessão do plano">
-              <Select value={planId} disabled={sessionStarted} onChange={(e) => setPlanId(e.target.value)}>
+              <Select
+                value={planId}
+                disabled={sessionStarted}
+                onChange={(e) => setPlanId(e.target.value)}
+              >
                 <option value="">Sem vínculo</option>
                 {plan.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -591,15 +681,24 @@ function FocusPanel({
           <div className="border-t border-border">
             {recent.length ? (
               recent.map((r) => (
-                <div key={r.id} className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-5 py-2.5 text-[12px]">
+                <div
+                  key={r.id}
+                  className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-5 py-2.5 text-[12px]"
+                >
                   <Dot color={r.color} />
                   <span className="min-w-0 flex-1 truncate">{r.label}</span>
-                  <span className="num shrink-0 text-muted-foreground">{minutesLabel(r.minutes)}</span>
-                  <Chip className="shrink-0" tone={r.status === "concluida" ? "success" : "muted"}>{planStatusLabel(r.status)}</Chip>
+                  <span className="num shrink-0 text-muted-foreground">
+                    {minutesLabel(r.minutes)}
+                  </span>
+                  <Chip className="shrink-0" tone={r.status === "concluida" ? "success" : "muted"}>
+                    {planStatusLabel(r.status)}
+                  </Chip>
                 </div>
               ))
             ) : (
-              <p className="px-5 py-6 text-[12px] text-muted-foreground">Nenhuma sessão registrada ainda.</p>
+              <p className="px-5 py-6 text-[12px] text-muted-foreground">
+                Nenhuma sessão registrada ainda.
+              </p>
             )}
           </div>
         </Panel>
@@ -616,7 +715,13 @@ function CheckinPanel({
 }: {
   subjects: { id: string; name: string }[];
   already: boolean;
-  history: { id: string; checkin_date: string; focus_rating: number | null; studied_minutes: number | null; completed_plan: string | null }[];
+  history: {
+    id: string;
+    checkin_date: string;
+    focus_rating: number | null;
+    studied_minutes: number | null;
+    completed_plan: string | null;
+  }[];
   onSave: (payload: Record<string, unknown>) => Promise<void>;
 }) {
   const [form, setForm] = useState({
@@ -629,8 +734,7 @@ function CheckinPanel({
   const [saving, setSaving] = useState(false);
 
   async function saveCheckin() {
-    const studiedMinutes =
-      form.studied_minutes.trim() === "" ? null : Number(form.studied_minutes);
+    const studiedMinutes = form.studied_minutes.trim() === "" ? null : Number(form.studied_minutes);
     if (
       studiedMinutes !== null &&
       (!Number.isInteger(studiedMinutes) || studiedMinutes < 0 || studiedMinutes > 1440)
@@ -674,7 +778,10 @@ function CheckinPanel({
             </Select>
           </Field>
           <Field label="Nível de foco (1–5)">
-            <Select value={form.focus_rating} onChange={(e) => setForm({ ...form, focus_rating: e.target.value })}>
+            <Select
+              value={form.focus_rating}
+              onChange={(e) => setForm({ ...form, focus_rating: e.target.value })}
+            >
               {[1, 2, 3, 4, 5].map((n) => (
                 <option key={n} value={n}>
                   {n}
@@ -717,9 +824,21 @@ function CheckinPanel({
         <div className="border-t border-border">
           {history.length ? (
             history.map((c) => (
-              <div key={c.id} className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-5 py-2.5 text-[12px]">
+              <div
+                key={c.id}
+                className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-5 py-2.5 text-[12px]"
+              >
                 <span className="num flex-1">{formatDay(`${c.checkin_date}T12:00:00`)}</span>
-                <Chip className="shrink-0" tone={c.completed_plan === "sim" ? "success" : c.completed_plan === "nao" ? "danger" : "gold"}>
+                <Chip
+                  className="shrink-0"
+                  tone={
+                    c.completed_plan === "sim"
+                      ? "success"
+                      : c.completed_plan === "nao"
+                        ? "danger"
+                        : "gold"
+                  }
+                >
                   {checkinPlanLabel(c.completed_plan)}
                 </Chip>
                 <span className="num text-muted-foreground">foco {c.focus_rating ?? "—"}</span>

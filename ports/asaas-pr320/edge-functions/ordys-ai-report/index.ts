@@ -27,7 +27,7 @@ function response(body: unknown, status = 200) {
 
 function jsonObject(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
-    ? value as Record<string, unknown>
+    ? (value as Record<string, unknown>)
     : {};
 }
 
@@ -111,7 +111,10 @@ Deno.serve(async (request) => {
       return response({ status: "failed", error: "O relato excede o limite permitido." }, 413);
     }
 
-    const requestText = await readRequestBodyWithLimit(request, AI_CONTENT_REPORT_LIMITS.requestBytes);
+    const requestText = await readRequestBodyWithLimit(
+      request,
+      AI_CONTENT_REPORT_LIMITS.requestBytes,
+    );
     if (requestText === null) {
       return response({ status: "failed", error: "O relato excede o limite permitido." }, 413);
     }
@@ -129,36 +132,59 @@ Deno.serve(async (request) => {
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")?.trim().replace(/\/+$/, "");
-    const publishableKey = readDefaultKey(Deno.env.get("SUPABASE_PUBLISHABLE_KEYS")) ||
+    const publishableKey =
+      readDefaultKey(Deno.env.get("SUPABASE_PUBLISHABLE_KEYS")) ||
       (Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY") || "").trim();
-    const serviceKey = readDefaultKey(Deno.env.get("SUPABASE_SECRET_KEYS")) ||
+    const serviceKey =
+      readDefaultKey(Deno.env.get("SUPABASE_SECRET_KEYS")) ||
       (Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "").trim();
 
     if (!supabaseUrl || !publishableKey || !serviceKey) {
-      return response({ status: "failed", error: "O envio de relatos está indisponível no momento." }, 503);
+      return response(
+        { status: "failed", error: "O envio de relatos está indisponível no momento." },
+        503,
+      );
     }
 
     let userId: string | null;
     try {
       userId = await authenticateUser(request, supabaseUrl, publishableKey);
     } catch {
-      return response({
-        status: "failed",
-        error: "Não foi possível validar sua sessão agora. Tente novamente.",
-      }, 503);
+      return response(
+        {
+          status: "failed",
+          error: "Não foi possível validar sua sessão agora. Tente novamente.",
+        },
+        503,
+      );
     }
     if (!userId) {
-      return response({ status: "failed", error: "Entre novamente na sua conta para enviar o relato." }, 401);
+      return response(
+        { status: "failed", error: "Entre novamente na sua conta para enviar o relato." },
+        401,
+      );
     }
 
     const stored = await storeReport(supabaseUrl, serviceKey, userId, parsed.report);
     if (!stored) {
-      return response({ status: "rate_limited", error: "Você atingiu o limite de relatos. Tente novamente mais tarde." }, 429);
+      return response(
+        {
+          status: "rate_limited",
+          error: "Você atingiu o limite de relatos. Tente novamente mais tarde.",
+        },
+        429,
+      );
     }
     return response({ status: "received" });
   } catch (error) {
     // Intentionally do not log request body, message content, or account identifiers.
-    console.error("ORDYS AI content report failed:", error instanceof Error ? error.name : "unknown_error");
-    return response({ status: "failed", error: "Não foi possível enviar o relato agora. Tente novamente." }, 502);
+    console.error(
+      "ORDYS AI content report failed:",
+      error instanceof Error ? error.name : "unknown_error",
+    );
+    return response(
+      { status: "failed", error: "Não foi possível enviar o relato agora. Tente novamente." },
+      502,
+    );
   }
 });

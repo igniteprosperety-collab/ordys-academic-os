@@ -518,7 +518,9 @@ function AuthPage() {
                     if (error) throw error;
                     toast.success("Novo e-mail de confirmação enviado.");
                   } catch (error) {
-                    toast.error(readableAuthError(error instanceof Error ? error.message : String(error)));
+                    toast.error(
+                      readableAuthError(error instanceof Error ? error.message : String(error)),
+                    );
                   } finally {
                     setBusy(false);
                   }
@@ -529,12 +531,7 @@ function AuthPage() {
             </div>
           ) : null}
 
-          <Button
-            type="button"
-            className="mt-4 w-full py-2.5"
-            onClick={submitAuth}
-            disabled={busy}
-          >
+          <Button type="button" className="mt-4 w-full py-2.5" onClick={submitAuth} disabled={busy}>
             {busy ? "Processando…" : mode === "login" ? "Entrar" : "Criar conta"}
           </Button>
 
@@ -610,8 +607,12 @@ function AuthPage() {
           ) : null}
 
           <div className="mt-4 flex justify-center gap-4 text-[10.5px] text-muted-foreground/70">
-            <Link to="/privacidade" className="hover:text-foreground hover:underline">Política de Privacidade</Link>
-            <Link to="/excluir-conta" className="hover:text-foreground hover:underline">Excluir conta</Link>
+            <Link to="/privacidade" className="hover:text-foreground hover:underline">
+              Política de Privacidade
+            </Link>
+            <Link to="/excluir-conta" className="hover:text-foreground hover:underline">
+              Excluir conta
+            </Link>
           </div>
 
           <p className="mt-4 text-center text-[10.5px] leading-relaxed text-muted-foreground/70">

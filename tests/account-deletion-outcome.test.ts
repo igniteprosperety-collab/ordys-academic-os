@@ -24,13 +24,14 @@ describe("account deletion response confirmation", () => {
   });
 });
 
-
 describe("account deletion partial completion", () => {
   it("recognizes an explicit unconfirmed Auth identity deletion", () => {
-    expect(isUnconfirmedAuthIdentityDeletionPayload({
-      error: "application data was removed",
-      code: "auth_identity_deletion_unconfirmed",
-    })).toBe(true);
+    expect(
+      isUnconfirmedAuthIdentityDeletionPayload({
+        error: "application data was removed",
+        code: "auth_identity_deletion_unconfirmed",
+      }),
+    ).toBe(true);
   });
 
   it.each([
@@ -41,7 +42,10 @@ describe("account deletion partial completion", () => {
     { code: "billing_cancellation_processing" },
     { code: "auth_identity_deletion_unconfirmed", deleted: true },
     [],
-  ])("rejects payloads that do not represent an Auth identity deletion uncertainty: %j", (value) => {
-    expect(isUnconfirmedAuthIdentityDeletionPayload(value)).toBe(false);
-  });
+  ])(
+    "rejects payloads that do not represent an Auth identity deletion uncertainty: %j",
+    (value) => {
+      expect(isUnconfirmedAuthIdentityDeletionPayload(value)).toBe(false);
+    },
+  );
 });

@@ -14,7 +14,8 @@ vi.mock("../edge-functions/_shared/ordys-billing.ts", () => ({
   constantTimeEqual: mocks.constantTimeEqual,
   billingCorsHeaders: {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, asaas-access-token",
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type, asaas-access-token",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
   },
   billingResponse: (body: unknown, status = 200) =>
@@ -38,32 +39,32 @@ type WebhookHandler = (request: Request) => Response | Promise<Response>;
 
 let registeredHandler: WebhookHandler | undefined;
 
-async function setup(options: {
-  webhookToken?: string;
-  receivedTokenValid?: boolean;
-  supabaseUrl?: string;
-  serviceRoleKey?: string;
-  receiptResult?: unknown;
-  receiptError?: Error;
-  schemaStatus?: unknown;
-  schemaStatusError?: Error;
-} = {}) {
+async function setup(
+  options: {
+    webhookToken?: string;
+    receivedTokenValid?: boolean;
+    supabaseUrl?: string;
+    serviceRoleKey?: string;
+    receiptResult?: unknown;
+    receiptError?: Error;
+    schemaStatus?: unknown;
+    schemaStatusError?: Error;
+  } = {},
+) {
   vi.resetModules();
   registeredHandler = undefined;
 
-  mocks.getSupabaseUrl.mockReset().mockReturnValue(
-    options.supabaseUrl === undefined
-      ? "https://project-ref.supabase.co"
-      : options.supabaseUrl,
-  );
-  mocks.getServiceRoleKey.mockReset().mockReturnValue(
-    options.serviceRoleKey === undefined
-      ? "service-role-test-key"
-      : options.serviceRoleKey,
-  );
-  mocks.constantTimeEqual.mockReset().mockReturnValue(
-    options.receivedTokenValid ?? true,
-  );
+  mocks.getSupabaseUrl
+    .mockReset()
+    .mockReturnValue(
+      options.supabaseUrl === undefined ? "https://project-ref.supabase.co" : options.supabaseUrl,
+    );
+  mocks.getServiceRoleKey
+    .mockReset()
+    .mockReturnValue(
+      options.serviceRoleKey === undefined ? "service-role-test-key" : options.serviceRoleKey,
+    );
+  mocks.constantTimeEqual.mockReset().mockReturnValue(options.receivedTokenValid ?? true);
   mocks.serviceRestWithDeadline.mockReset().mockImplementation(async (path: string) => {
     if (path === "rpc/ordys_billing_schema_status") {
       if (options.schemaStatusError) throw options.schemaStatusError;
@@ -78,18 +79,18 @@ async function setup(options: {
     return Object.prototype.hasOwnProperty.call(options, "receiptResult")
       ? options.receiptResult
       : {
-        accepted: true,
-        processing_status: "received",
-        duplicate: false,
-        event_id_conflict: false,
-      };
+          accepted: true,
+          processing_status: "received",
+          duplicate: false,
+          event_id_conflict: false,
+        };
   });
 
   vi.stubGlobal("Deno", {
     env: {
       get: (key: string) =>
         key === "ASAAS_WEBHOOK_TOKEN"
-          ? options.webhookToken ?? "webhook-test-token-0123456789-abcdef"
+          ? (options.webhookToken ?? "webhook-test-token-0123456789-abcdef")
           : undefined,
     },
     serve: (handler: WebhookHandler) => {
@@ -112,17 +113,14 @@ function webhookRequest(
   },
   token = "received-webhook-token",
 ) {
-  return new Request(
-    "https://project-ref.supabase.co/functions/v1/ordys-billing-webhook",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "asaas-access-token": token,
-      },
-      body: typeof payload === "string" ? payload : JSON.stringify(payload),
+  return new Request("https://project-ref.supabase.co/functions/v1/ordys-billing-webhook", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "asaas-access-token": token,
     },
-  );
+    body: typeof payload === "string" ? payload : JSON.stringify(payload),
+  });
 }
 
 afterEach(() => {

@@ -38,9 +38,7 @@ export class AccountDeletionProcessingError extends Error {
 }
 
 function jsonObject(value: unknown): JsonRecord {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? value as JsonRecord
-    : {};
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as JsonRecord) : {};
 }
 
 export async function cancelOrdysBillingBeforeAccountDeletion(
@@ -77,21 +75,28 @@ export async function cancelOrdysBillingBeforeAccountDeletion(
     );
   }
   if (reservationStatus !== "reserved") {
-    throw new Error("Não foi possível reservar a exclusão da conta com segurança. Nenhum dado foi apagado.");
+    throw new Error(
+      "Não foi possível reservar a exclusão da conta com segurança. Nenhum dado foi apagado.",
+    );
   }
 
   const processingToken = crypto.randomUUID();
-  const processingStatus = await dependencies.serviceRest("rpc/ordys_claim_account_deletion_processing", {
-    method: "POST",
-    body: JSON.stringify({ p_user_id: userId, p_processing_token: processingToken }),
-  });
+  const processingStatus = await dependencies.serviceRest(
+    "rpc/ordys_claim_account_deletion_processing",
+    {
+      method: "POST",
+      body: JSON.stringify({ p_user_id: userId, p_processing_token: processingToken }),
+    },
+  );
   if (processingStatus === "deletion_processing") {
     throw new AccountDeletionProcessingError(
       "A exclusão desta conta já está sendo processada. Aguarde a conclusão antes de tentar novamente. Nenhum dado foi apagado.",
     );
   }
   if (processingStatus !== "claimed") {
-    throw new Error("Não foi possível obter o bloqueio de exclusão da conta. Nenhum dado foi apagado.");
+    throw new Error(
+      "Não foi possível obter o bloqueio de exclusão da conta. Nenhum dado foi apagado.",
+    );
   }
 
   try {
@@ -106,7 +111,9 @@ export async function cancelOrdysBillingBeforeAccountDeletion(
 
     // Do not turn an unexpected response into an empty account-billing history.
     if (!Array.isArray(attemptResult) || !Array.isArray(subscriptionResult)) {
-      throw new Error("Não foi possível confirmar as cobranças desta conta. Nenhum dado foi apagado.");
+      throw new Error(
+        "Não foi possível confirmar as cobranças desta conta. Nenhum dado foi apagado.",
+      );
     }
 
     const attempts = attemptResult.map(jsonObject);
@@ -131,7 +138,9 @@ export async function cancelOrdysBillingBeforeAccountDeletion(
         },
       );
       if (confirmResult !== "confirmed" && confirmResult !== "already_confirmed") {
-        throw new Error("A confirmação do Asaas existe, mas não foi possível reconciliar o checkout vinculado. Nenhum dado foi apagado.");
+        throw new Error(
+          "A confirmação do Asaas existe, mas não foi possível reconciliar o checkout vinculado. Nenhum dado foi apagado.",
+        );
       }
     };
 
@@ -141,9 +150,8 @@ export async function cancelOrdysBillingBeforeAccountDeletion(
     for (const attempt of attempts) {
       const status = typeof attempt["status"] === "string" ? attempt["status"] : "";
       const attemptId = typeof attempt["id"] === "string" ? attempt["id"] : "";
-      const checkoutId = typeof attempt["provider_checkout_id"] === "string"
-        ? attempt["provider_checkout_id"]
-        : "";
+      const checkoutId =
+        typeof attempt["provider_checkout_id"] === "string" ? attempt["provider_checkout_id"] : "";
 
       if (!attemptId) {
         billingReconciliationRequired = true;
@@ -151,7 +159,9 @@ export async function cancelOrdysBillingBeforeAccountDeletion(
       }
 
       if (status === "paid" || status === "linked") {
-        const linked = subscriptions.some((subscription) => subscription["checkout_attempt_id"] === attemptId);
+        const linked = subscriptions.some(
+          (subscription) => subscription["checkout_attempt_id"] === attemptId,
+        );
         if (!linked) billingReconciliationRequired = true;
         continue;
       }
@@ -193,10 +203,9 @@ export async function cancelOrdysBillingBeforeAccountDeletion(
       // The request may be accepted even when its response is lost. Keep the
       // claim and reconcile by CHECKOUT_CANCELED; never repeat the POST.
       try {
-        await dependencies.asaasRequest(
-          `/checkouts/${encodeURIComponent(checkoutId)}/cancel`,
-          { method: "POST" },
-        );
+        await dependencies.asaasRequest(`/checkouts/${encodeURIComponent(checkoutId)}/cancel`, {
+          method: "POST",
+        });
       } catch {
         // Preserve the durable claim and still attempt other independent rows.
         checkoutCancellationRequested = true;
@@ -205,16 +214,20 @@ export async function cancelOrdysBillingBeforeAccountDeletion(
 
     for (const subscription of subscriptions) {
       const subscriptionId = typeof subscription["id"] === "string" ? subscription["id"] : "";
-      const providerSubscriptionId = typeof subscription["provider_subscription_id"] === "string"
-        ? subscription["provider_subscription_id"]
-        : "";
+      const providerSubscriptionId =
+        typeof subscription["provider_subscription_id"] === "string"
+          ? subscription["provider_subscription_id"]
+          : "";
       if (!subscriptionId || !providerSubscriptionId) {
         billingReconciliationRequired = true;
         continue;
       }
 
       const providerDeletionConfirmed = subscription["provider_status"] === "DELETED";
-      if (providerDeletionConfirmed || typeof subscription["cancellation_confirmed_at"] === "string") {
+      if (
+        providerDeletionConfirmed ||
+        typeof subscription["cancellation_confirmed_at"] === "string"
+      ) {
         // Older releases could persist provider_status=DELETED before the new
         // confirmation marker existed, and a later local Checkout update could
         // fail. Reconcile that terminal provider state atomically without
@@ -310,7 +323,9 @@ export async function cancelOrdysBillingBeforeAccountDeletion(
     if (hasUnreconciledProviderEvents === true) {
       billingReconciliationRequired = true;
     } else if (hasUnreconciledProviderEvents !== false) {
-      throw new Error("Não foi possível confirmar os webhooks de cobrança desta conta. Nenhum dado foi apagado.");
+      throw new Error(
+        "Não foi possível confirmar os webhooks de cobrança desta conta. Nenhum dado foi apagado.",
+      );
     }
 
     if (billingReconciliationRequired) {
@@ -359,7 +374,9 @@ export async function cancelOrdysBillingBeforeAccountDeletion(
 }
 
 export async function releaseOrdysAccountDeletionProcessing(
-  userId: string, processingToken: string, serviceRest: ServiceRest,
+  userId: string,
+  processingToken: string,
+  serviceRest: ServiceRest,
 ): Promise<void> {
   const releaseStatus = await serviceRest("rpc/ordys_release_account_deletion_processing", {
     method: "POST",

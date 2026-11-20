@@ -31,7 +31,7 @@ async function receiveCheckoutCreated(eventId: string, checkoutId: string) {
       },
     }),
   });
-  const body = await response.json().catch(() => ({})) as Record<string, unknown>;
+  const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
   expect(response.ok, JSON.stringify(body)).toBe(true);
   expect(body).toMatchObject({ accepted: true, processing_status: "received" });
 }
@@ -41,19 +41,19 @@ async function processOne(eventId: string) {
     method: "POST",
     body: JSON.stringify({ p_event_id: eventId }),
   });
-  const body = await response.json().catch(() => ({})) as Record<string, unknown>;
+  const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
   expect(response.ok, JSON.stringify(body)).toBe(true);
   return body;
 }
 
 async function readInboxStatus(eventId: string) {
   const response = await serviceApi(
-    "ordys_billing_webhook_inbox?select=processing_status,error_code&provider_event_id=eq."
-      + encodeURIComponent(eventId)
-      + "&limit=1",
+    "ordys_billing_webhook_inbox?select=processing_status,error_code&provider_event_id=eq." +
+      encodeURIComponent(eventId) +
+      "&limit=1",
   );
   expect(response.ok, await response.clone().text()).toBe(true);
-  const rows = await response.json() as Array<{
+  const rows = (await response.json()) as Array<{
     processing_status: string;
     error_code: string | null;
   }>;
@@ -117,12 +117,16 @@ describe.runIf(enabled)("worker SQL do Asaas — execução transacional por rec
       await receiveCheckoutCreated(eventId, `chk_ordys_db_worker_concurrent_${runId}`);
 
       const results = await Promise.all([processOne(eventId), processOne(eventId)]);
-      const completed = results.filter((result) =>
-        (result as Record<string, unknown>).event_id === eventId &&
-        Boolean(((result as Record<string, unknown>).result as Record<string, unknown> | undefined)?.processed)
+      const completed = results.filter(
+        (result) =>
+          (result as Record<string, unknown>).event_id === eventId &&
+          Boolean(
+            ((result as Record<string, unknown>).result as Record<string, unknown> | undefined)
+              ?.processed,
+          ),
       );
-      const duplicates = results.filter((result) =>
-        (result as Record<string, unknown>).duplicate === true
+      const duplicates = results.filter(
+        (result) => (result as Record<string, unknown>).duplicate === true,
       );
 
       expect(completed).toHaveLength(1);

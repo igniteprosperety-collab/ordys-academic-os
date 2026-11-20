@@ -15,7 +15,8 @@ function calculateAgeOnCalendarDate(
     currentMonth > 12 ||
     currentDay < 1 ||
     currentDay > 31
-  ) return null;
+  )
+    return null;
 
   const year = Number(birthDate.slice(0, 4));
   const month = Number(birthDate.slice(5, 7));
@@ -28,7 +29,8 @@ function calculateAgeOnCalendarDate(
     birth.getUTCFullYear() !== year ||
     birth.getUTCMonth() !== month - 1 ||
     birth.getUTCDate() !== day
-  ) return null;
+  )
+    return null;
 
   let age = currentYear - year;
   if (currentMonth < month || (currentMonth === month && currentDay < day)) age -= 1;
@@ -36,7 +38,10 @@ function calculateAgeOnCalendarDate(
 }
 
 // Kept for callers that explicitly need the browser's local calendar date.
-export function calculateAge(birthDate: string | null | undefined, today = new Date()): number | null {
+export function calculateAge(
+  birthDate: string | null | undefined,
+  today = new Date(),
+): number | null {
   if (!(today instanceof Date) || !Number.isFinite(today.getTime())) return null;
   return calculateAgeOnCalendarDate(
     birthDate,
@@ -56,7 +61,8 @@ export function calculateAgeInTimeZone(
     !timezone.trim() ||
     !(now instanceof Date) ||
     !Number.isFinite(now.getTime())
-  ) return null;
+  )
+    return null;
 
   let parts: Intl.DateTimeFormatPart[];
   try {

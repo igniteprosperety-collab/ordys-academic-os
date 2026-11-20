@@ -5,9 +5,7 @@ type ServiceRest = (path: string, init?: RequestInit) => Promise<unknown>;
 export type CheckoutCancellationClaim = "claimed" | "already_claimed" | "terminal";
 
 function jsonObject(value: unknown): JsonRecord {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? value as JsonRecord
-    : {};
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as JsonRecord) : {};
 }
 
 /**
@@ -23,15 +21,16 @@ export async function claimOrdysCheckoutCancellation(
   serviceRest: ServiceRest,
 ): Promise<CheckoutCancellationClaim> {
   if (!userId || !attemptId) {
-    throw new Error("Não foi possível identificar a conta e o checkout para reservar o cancelamento.");
+    throw new Error(
+      "Não foi possível identificar a conta e o checkout para reservar o cancelamento.",
+    );
   }
 
   const claimId = crypto.randomUUID();
   const encodedUserId = encodeURIComponent(userId);
   const encodedAttemptId = encodeURIComponent(attemptId);
   const cancellationRequestedAt = new Date().toISOString();
-  const claimQuery =
-    `ordys_billing_checkout_attempts?id=eq.${encodedAttemptId}&user_id=eq.${encodedUserId}&status=in.(creating,pending)&cancellation_requested_at=is.null`;
+  const claimQuery = `ordys_billing_checkout_attempts?id=eq.${encodedAttemptId}&user_id=eq.${encodedUserId}&status=in.(creating,pending)&cancellation_requested_at=is.null`;
 
   let claimResult: unknown;
   try {
@@ -65,7 +64,9 @@ export async function claimOrdysCheckoutCancellation(
     `ordys_billing_checkout_attempts?select=id,status,cancellation_requested_at,cancellation_claim_id&user_id=eq.${encodedUserId}&id=eq.${encodedAttemptId}&limit=1`,
   );
   if (!Array.isArray(latestResult) || latestResult.length !== 1) {
-    throw new Error("Não foi possível confirmar a reserva do cancelamento do checkout. Nenhum dado foi apagado.");
+    throw new Error(
+      "Não foi possível confirmar a reserva do cancelamento do checkout. Nenhum dado foi apagado.",
+    );
   }
 
   const latest = jsonObject(latestResult[0]);
@@ -83,5 +84,7 @@ export async function claimOrdysCheckoutCancellation(
     return latest["cancellation_claim_id"] === claimId ? "claimed" : "already_claimed";
   }
 
-  throw new Error("Não foi possível reservar o cancelamento do checkout com segurança. Nenhum dado foi apagado.");
+  throw new Error(
+    "Não foi possível reservar o cancelamento do checkout com segurança. Nenhum dado foi apagado.",
+  );
 }

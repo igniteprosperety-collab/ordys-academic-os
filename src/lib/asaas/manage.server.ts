@@ -9,7 +9,10 @@ import {
 } from "./ordys-billing.server";
 import { readRequestBodyWithLimit } from "./request-body.server";
 import { claimOrdysSubscriptionCancellation } from "./ordys-subscription-cancellation.server";
-import { OutboundRequestTimeoutError, withAbortableOutboundRequestTimeout } from "./request-timeout.server";
+import {
+  OutboundRequestTimeoutError,
+  withAbortableOutboundRequestTimeout,
+} from "./request-timeout.server";
 
 const MAX_MANAGE_REQUEST_BYTES = 4_096;
 const MANAGE_REQUEST_BODY_TIMEOUT_MS = 8_000;
@@ -46,7 +49,11 @@ export async function handleManage(request: Request): Promise<Response> {
     if (Number.isFinite(contentLength) && contentLength > MAX_MANAGE_REQUEST_BYTES) {
       return billingResponse({ error: "Solicitação inválida." }, 413);
     }
-    const text = await readRequestBodyWithLimit(request, MAX_MANAGE_REQUEST_BYTES, MANAGE_REQUEST_BODY_TIMEOUT_MS);
+    const text = await readRequestBodyWithLimit(
+      request,
+      MAX_MANAGE_REQUEST_BYTES,
+      MANAGE_REQUEST_BODY_TIMEOUT_MS,
+    );
     if (text === null) {
       return billingResponse({ error: "Solicitação inválida." }, 413);
     }
@@ -66,24 +73,28 @@ export async function handleManage(request: Request): Promise<Response> {
       return billingResponse({ error: "Ação não permitida." }, 400);
     }
 
-    const rows = await boundedServiceRest(
+    const rows = (await boundedServiceRest(
       `ordys_billing_subscriptions?select=id,provider_subscription_id,provider_status,current_period_end,cancellation_requested_at,cancellation_claim_id,cancellation_confirmed_at&user_id=eq.${encodeURIComponent(user.id)}&status=in.(pending,active,past_due,suspended,cancelled)&order=created_at.desc&limit=1`,
-    ) as Array<Record<string, unknown>> | null;
+    )) as Array<Record<string, unknown>> | null;
     const subscription = rows?.[0];
     const providerSubscriptionId =
       typeof subscription?.["provider_subscription_id"] === "string"
         ? subscription["provider_subscription_id"]
         : "";
     const localId = typeof subscription?.["id"] === "string" ? subscription["id"] : "";
-    const accessUntil = typeof subscription?.["current_period_end"] === "string"
-      ? subscription["current_period_end"]
-      : null;
+    const accessUntil =
+      typeof subscription?.["current_period_end"] === "string"
+        ? subscription["current_period_end"]
+        : null;
 
     if (!subscription || !providerSubscriptionId || !localId) {
-      return billingResponse({
-        error: "Não encontramos uma assinatura ativa para cancelar.",
-        code: "subscription_not_found",
-      }, 404);
+      return billingResponse(
+        {
+          error: "Não encontramos uma assinatura ativa para cancelar.",
+          code: "subscription_not_found",
+        },
+        404,
+      );
     }
 
     const successResponse = () => billingResponse({ cancelled: true, accessUntil });
@@ -97,7 +108,9 @@ export async function handleManage(request: Request): Promise<Response> {
         }),
       });
       if (confirmation !== "confirmed" && confirmation !== "already_confirmed") {
-        throw new Error("O Asaas já confirmou o cancelamento, mas não foi possível reconciliar o Checkout vinculado. Não repita a solicitação; procure a conciliação da assinatura.");
+        throw new Error(
+          "O Asaas já confirmou o cancelamento, mas não foi possível reconciliar o Checkout vinculado. Não repita a solicitação; procure a conciliação da assinatura.",
+        );
       }
     };
 
@@ -106,9 +119,10 @@ export async function handleManage(request: Request): Promise<Response> {
     // Re-run the local transaction when the intent marker exists so a record
     // written by an older release also closes its linked Checkout attempt.
     if (typeof subscription["cancellation_confirmed_at"] === "string") {
-      const requestedAt = typeof subscription["cancellation_requested_at"] === "string"
-        ? subscription["cancellation_requested_at"]
-        : null;
+      const requestedAt =
+        typeof subscription["cancellation_requested_at"] === "string"
+          ? subscription["cancellation_requested_at"]
+          : null;
       await confirmLocalCancellation(requestedAt);
       return successResponse();
     }
@@ -117,10 +131,14 @@ export async function handleManage(request: Request): Promise<Response> {
       return successResponse();
     }
     if (typeof subscription["cancellation_requested_at"] === "string") {
-      return billingResponse({
-        error: "O cancelamento desta assinatura já foi solicitado e aguarda confirmação do Asaas. Não envie outra solicitação.",
-        code: "subscription_cancellation_processing",
-      }, 409);
+      return billingResponse(
+        {
+          error:
+            "O cancelamento desta assinatura já foi solicitado e aguarda confirmação do Asaas. Não envie outra solicitação.",
+          code: "subscription_cancellation_processing",
+        },
+        409,
+      );
     }
 
     // Detect missing credentials or an invalid environment before persisting
@@ -137,10 +155,14 @@ export async function handleManage(request: Request): Promise<Response> {
       return successResponse();
     }
     if (claim.status === "already_claimed") {
-      return billingResponse({
-        error: "Outra solicitação de cancelamento já está em andamento. Aguarde a confirmação do Asaas.",
-        code: "subscription_cancellation_processing",
-      }, 409);
+      return billingResponse(
+        {
+          error:
+            "Outra solicitação de cancelamento já está em andamento. Aguarde a confirmação do Asaas.",
+          code: "subscription_cancellation_processing",
+        },
+        409,
+      );
     }
 
     // Asaas cancels future recurring charges. Payments already confirmed remain
@@ -161,19 +183,30 @@ export async function handleManage(request: Request): Promise<Response> {
       error instanceof Error ? error.name : "unknown_error",
     );
     if (error instanceof OutboundRequestTimeoutError && providerCancellationStarted) {
-      return billingResponse({
-        error: "O Asaas pode ter recebido o pedido de cancelamento, mas a confirmação não chegou. Mantivemos a assinatura em conciliação. Não tente cancelar novamente agora.",
-        code: "subscription_cancellation_processing",
-      }, 409);
+      return billingResponse(
+        {
+          error:
+            "O Asaas pode ter recebido o pedido de cancelamento, mas a confirmação não chegou. Mantivemos a assinatura em conciliação. Não tente cancelar novamente agora.",
+          code: "subscription_cancellation_processing",
+        },
+        409,
+      );
     }
     if (error instanceof OutboundRequestTimeoutError) {
-      return billingResponse({
-        error: "Não foi possível confirmar o estado da solicitação de cancelamento. Aguarde a atualização antes de tentar novamente.",
-        code: "billing_service_timeout",
-      }, 503);
+      return billingResponse(
+        {
+          error:
+            "Não foi possível confirmar o estado da solicitação de cancelamento. Aguarde a atualização antes de tentar novamente.",
+          code: "billing_service_timeout",
+        },
+        503,
+      );
     }
-    return billingResponse({
-      error: error instanceof Error ? error.message : "Não foi possível cancelar a assinatura.",
-    }, 502);
+    return billingResponse(
+      {
+        error: error instanceof Error ? error.message : "Não foi possível cancelar a assinatura.",
+      },
+      502,
+    );
   }
 }

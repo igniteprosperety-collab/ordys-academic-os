@@ -70,13 +70,17 @@ requireIncludes(migrationPaths[11], migrations.get(migrationPaths[11]), [
 ]);
 
 const cronMigration = migrations.get(migrationPaths[12]);
-const deletionFunctionStart = cronMigration.indexOf("CREATE OR REPLACE FUNCTION public.delete_own_data()");
+const deletionFunctionStart = cronMigration.indexOf(
+  "CREATE OR REPLACE FUNCTION public.delete_own_data()",
+);
 const deletionFunctionEnd = cronMigration.indexOf(
   "GRANT EXECUTE ON FUNCTION public.delete_own_data() TO authenticated;",
   deletionFunctionStart,
 );
 if (deletionFunctionStart < 0 || deletionFunctionEnd < 0) {
-  throw new Error("The final delete_own_data definition must be versioned with the core schema status.");
+  throw new Error(
+    "The final delete_own_data definition must be versioned with the core schema status.",
+  );
 }
 const guardedDeletionFunction = cronMigration.slice(deletionFunctionStart, deletionFunctionEnd);
 requireIncludes(migrationPaths[12], guardedDeletionFunction, [
@@ -97,15 +101,22 @@ requireIncludes(migrationPaths[12], migrations.get(migrationPaths[12]), [
 ]);
 
 const cronMigrationForDeletion = migrations.get(migrationPaths[12]);
-const finalDeleteDefinitionStart = cronMigrationForDeletion.indexOf("CREATE OR REPLACE FUNCTION public.delete_own_data()");
+const finalDeleteDefinitionStart = cronMigrationForDeletion.indexOf(
+  "CREATE OR REPLACE FUNCTION public.delete_own_data()",
+);
 const finalDeleteDefinitionEnd = cronMigrationForDeletion.indexOf(
   "GRANT EXECUTE ON FUNCTION public.delete_own_data() TO authenticated;",
   finalDeleteDefinitionStart,
 );
 if (finalDeleteDefinitionStart < 0 || finalDeleteDefinitionEnd < 0) {
-  throw new Error("The final SQL delete_own_data definition is missing from the cron worker migration");
+  throw new Error(
+    "The final SQL delete_own_data definition is missing from the cron worker migration",
+  );
 }
-const finalDeleteDefinition = cronMigrationForDeletion.slice(finalDeleteDefinitionStart, finalDeleteDefinitionEnd);
+const finalDeleteDefinition = cronMigrationForDeletion.slice(
+  finalDeleteDefinitionStart,
+  finalDeleteDefinitionEnd,
+);
 requireIncludes(migrationPaths[12], finalDeleteDefinition, [
   "public.ordys_billing_core_schema_status()",
   "ordys_has_unreconciled_billing_events(uid)",
@@ -144,10 +155,7 @@ requireIncludes(billingSecurityTestsPath, billingSecurityTests, [
   'expect(await response.json()).toBe("partial")',
 ]);
 
-const cronRunbookPaths = [
-  "docs/BILLING-ASAS.md",
-  "docs/ORDYS-FIRST-RELEASE-BLOCKER-MANIFEST.md",
-];
+const cronRunbookPaths = ["docs/BILLING-ASAS.md", "docs/ORDYS-FIRST-RELEASE-BLOCKER-MANIFEST.md"];
 for (const path of cronRunbookPaths) {
   const runbook = requireFile(path);
   requireIncludes(path, runbook, [
@@ -169,11 +177,19 @@ requireIncludes(webhookPath, webhook, [
 ]);
 const schemaReadinessCheckPosition = webhook.indexOf("rpc/ordys_billing_schema_status");
 const durableReceiptPosition = webhook.indexOf("rpc/ordys_receive_asaas_billing_webhook");
-if (schemaReadinessCheckPosition < 0 || durableReceiptPosition < 0 || schemaReadinessCheckPosition > durableReceiptPosition) {
-  throw new Error("Asaas worker readiness must be checked before committing/acknowledging a webhook receipt");
+if (
+  schemaReadinessCheckPosition < 0 ||
+  durableReceiptPosition < 0 ||
+  schemaReadinessCheckPosition > durableReceiptPosition
+) {
+  throw new Error(
+    "Asaas worker readiness must be checked before committing/acknowledging a webhook receipt",
+  );
 }
 if (webhook.includes("rpc/ordys_process_asaas_billing_webhook")) {
-  throw new Error("HTTP webhook handler must persist the receipt, not process the financial event inline");
+  throw new Error(
+    "HTTP webhook handler must persist the receipt, not process the financial event inline",
+  );
 }
 
 for (const obsoleteWorkerPath of [
@@ -181,7 +197,9 @@ for (const obsoleteWorkerPath of [
   "src/routes/api/ordys-asaas-webhook-worker.ts",
 ]) {
   if (existsSync(resolve(process.cwd(), obsoleteWorkerPath))) {
-    throw new Error(`HTTP worker path must not be used for the SQL-only Asaas queue: ${obsoleteWorkerPath}`);
+    throw new Error(
+      `HTTP worker path must not be used for the SQL-only Asaas queue: ${obsoleteWorkerPath}`,
+    );
   }
 }
 
@@ -191,7 +209,7 @@ requireIncludes(sharedBillingPath, sharedBilling, [
   "export async function getBillingSchemaStatus()",
   "const schemaStatus = await getBillingSchemaStatus()",
   'if (schemaStatus !== "ready")',
-  "if (await getBillingSchemaStatus() !== \"ready\") return false",
+  'if (await getBillingSchemaStatus() !== "ready") return false',
 ]);
 
 const plusEligibilityTestPath = "tests/ordys-billing-eligibility.test.ts";
@@ -214,7 +232,7 @@ const billingStatusPath = "supabase/functions/ordys-billing-status/index.ts";
 const billingStatus = requireFile(billingStatusPath);
 requireIncludes(billingStatusPath, billingStatus, [
   "getBillingSchemaStatus",
-  "const schemaReady = await getBillingSchemaStatus() === \"ready\"",
+  'const schemaReady = await getBillingSchemaStatus() === "ready"',
   "const billingEnabled = schemaReady &&",
   "hasAccess: schemaReady && hasAccess",
 ]);
@@ -242,7 +260,7 @@ const webhookTests = requireFile(webhookTestPath);
 requireIncludes(webhookTestPath, webhookTests, [
   "does not acknowledge a webhook while the SQL worker is not ready",
   "does not acknowledge a webhook when schema readiness cannot be checked",
-  "schemaStatus: \"partial\"",
+  'schemaStatus: "partial"',
 ]);
 
 const checkoutPath = "supabase/functions/ordys-billing-checkout/index.ts";
@@ -308,6 +326,7 @@ for (const path of [
   "tests/ordys-subscription-cancellation-claim.test.ts",
   "tests/ordys-delete-account-edge.test.ts",
   "tests/ordys-asaas-db-worker.integration.test.ts",
-]) requireFile(path);
+])
+  requireFile(path);
 
 console.log("Ordys Asaas billing static checks passed.");

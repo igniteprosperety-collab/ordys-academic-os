@@ -3,7 +3,10 @@ import { readRequestBodyWithLimit } from "../edge-functions/_shared/request-body
 
 describe("Bounded Edge request body reader", () => {
   it("decodes a UTF-8 body that stays within the byte limit", async () => {
-    const content = JSON.stringify({ event: "PAYMENT_CONFIRMED", description: "Cobrança recebida" });
+    const content = JSON.stringify({
+      event: "PAYMENT_CONFIRMED",
+      description: "Cobrança recebida",
+    });
     const encoded = new TextEncoder().encode(content);
     const stream = new ReadableStream<Uint8Array>({
       start(controller) {
@@ -28,15 +31,11 @@ describe("Bounded Edge request body reader", () => {
       },
     });
 
-    await expect(
-      readRequestBodyWithLimit({ body: stream } as Request, 512),
-    ).resolves.toBeNull();
+    await expect(readRequestBodyWithLimit({ body: stream } as Request, 512)).resolves.toBeNull();
     expect(cancelled).toBe(true);
   });
 
   it("returns an empty string when the request has no body", async () => {
-    await expect(
-      readRequestBodyWithLimit({ body: null } as Request, 1_048_576),
-    ).resolves.toBe("");
+    await expect(readRequestBodyWithLimit({ body: null } as Request, 1_048_576)).resolves.toBe("");
   });
 });

@@ -1,13 +1,7 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-export function Panel({
-  className,
-  children,
-}: {
-  className?: string;
-  children: ReactNode;
-}) {
+export function Panel({ className, children }: { className?: string; children: ReactNode }) {
   return <section className={cn("panel", className)}>{children}</section>;
 }
 
@@ -24,7 +18,9 @@ export function PanelHeader({
     <header className="flex min-w-0 flex-wrap items-start justify-between gap-3 px-5 pt-4 pb-3">
       <div className="min-w-0 flex-1 flex items-baseline gap-3">
         <h2 className="min-w-0 truncate text-[13px] font-semibold tracking-tight">{title}</h2>
-        {hint ? <span className="min-w-0 truncate text-[11px] text-muted-foreground">{hint}</span> : null}
+        {hint ? (
+          <span className="min-w-0 truncate text-[11px] text-muted-foreground">{hint}</span>
+        ) : null}
       </div>
       {action ? <div className="ml-auto shrink-0">{action}</div> : null}
     </header>
@@ -88,7 +84,14 @@ export function Ring({
   return (
     <div className="relative" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={4} stroke="var(--secondary)" />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          strokeWidth={4}
+          stroke="var(--secondary)"
+        />
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -110,10 +113,7 @@ export function Ring({
 
 export function Dot({ color }: { color: string }) {
   return (
-    <span
-      className="inline-block size-1.5 shrink-0 rounded-full"
-      style={{ background: color }}
-    />
+    <span className="inline-block size-1.5 shrink-0 rounded-full" style={{ background: color }} />
   );
 }
 
@@ -157,9 +157,7 @@ export function PageTitle({
     <div className="flex min-w-0 flex-wrap items-end justify-between gap-4">
       <div className="min-w-0">
         <h1 className="text-[22px] leading-tight font-semibold tracking-tight">{title}</h1>
-        {subtitle ? (
-          <p className="mt-1 text-[13px] text-muted-foreground">{subtitle}</p>
-        ) : null}
+        {subtitle ? <p className="mt-1 text-[13px] text-muted-foreground">{subtitle}</p> : null}
       </div>
       {action ? <div className="shrink-0">{action}</div> : null}
     </div>

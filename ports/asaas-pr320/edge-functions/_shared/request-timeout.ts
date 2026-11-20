@@ -35,10 +35,7 @@ export async function withOutboundRequestTimeout<T>(
     return await Promise.race([
       Promise.resolve().then(request),
       new Promise<never>((_, reject) => {
-        timeoutId = setTimeout(
-          () => reject(new OutboundRequestTimeoutError()),
-          timeoutMs,
-        );
+        timeoutId = setTimeout(() => reject(new OutboundRequestTimeoutError()), timeoutMs);
       }),
     ]);
   } finally {
@@ -53,10 +50,7 @@ export async function withAbortableOutboundRequestTimeout<T>(
 ): Promise<T> {
   const controller = new AbortController();
   try {
-    return await withOutboundRequestTimeout(
-      () => request(controller.signal),
-      timeoutMs,
-    );
+    return await withOutboundRequestTimeout(() => request(controller.signal), timeoutMs);
   } catch (error) {
     if (error instanceof OutboundRequestTimeoutError) controller.abort();
     throw error;

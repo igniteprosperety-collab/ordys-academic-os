@@ -14,13 +14,7 @@ import {
   TextArea,
   TextInput,
 } from "@/components/ordys/form";
-import {
-  useOrdysMutations,
-  useSubjects,
-  useTasks,
-  useTopics,
-  type Task,
-} from "@/lib/ordys-db";
+import { useOrdysMutations, useSubjects, useTasks, useTopics, type Task } from "@/lib/ordys-db";
 import { daysUntil, formatDateTime, priorityLabel } from "@/lib/ordys-engine";
 
 export const Route = createFileRoute("/tarefas")({
@@ -65,7 +59,8 @@ const emptyForm = {
 const emptyCopy: Record<string, { title: string; description: string }> = {
   Abertas: {
     title: "Nenhuma tarefa aberta",
-    description: "Tudo em dia por aqui. Crie uma tarefa quando receber um trabalho, leitura ou exercício.",
+    description:
+      "Tudo em dia por aqui. Crie uma tarefa quando receber um trabalho, leitura ou exercício.",
   },
   Hoje: {
     title: "Nada com prazo para hoje",
@@ -81,7 +76,8 @@ const emptyCopy: Record<string, { title: string; description: string }> = {
   },
   Concluídas: {
     title: "Nenhuma tarefa concluída ainda",
-    description: "Ao marcar uma tarefa como concluída ela fica registrada aqui e no seu desempenho.",
+    description:
+      "Ao marcar uma tarefa como concluída ela fica registrada aqui e no seu desempenho.",
   },
   Todas: {
     title: "Você ainda não tem tarefas",
@@ -259,8 +255,12 @@ function Tarefas() {
               const left = daysUntil(t.due_at);
               const isDone = t.status === "concluida";
               return (
-                <div key={t.id} className="flex items-start gap-3 border-b border-border px-4 py-3 last:border-0 sm:px-5">
-                  <button type="button"
+                <div
+                  key={t.id}
+                  className="flex items-start gap-3 border-b border-border px-4 py-3 last:border-0 sm:px-5"
+                >
+                  <button
+                    type="button"
                     onClick={() => toggle(t)}
                     className="mt-0 grid size-10 shrink-0 place-items-center rounded-md"
                     aria-label={isDone ? `Reabrir ${t.title}` : `Concluir ${t.title}`}
@@ -268,12 +268,16 @@ function Tarefas() {
                     <span
                       aria-hidden="true"
                       className={`size-4 rounded-[4px] border transition-colors ${
-                        isDone ? "border-success bg-success/40" : "border-border-strong hover:border-primary"
+                        isDone
+                          ? "border-success bg-success/40"
+                          : "border-border-strong hover:border-primary"
                       }`}
                     />
                   </button>
                   <div className="min-w-0 flex-1">
-                    <p className={`text-[12.5px] ${isDone ? "text-muted-foreground line-through" : ""}`}>
+                    <p
+                      className={`text-[12.5px] ${isDone ? "text-muted-foreground line-through" : ""}`}
+                    >
                       {t.title}
                     </p>
                     <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
@@ -286,21 +290,33 @@ function Tarefas() {
                       {t.estimated_minutes ? ` · ${t.estimated_minutes} min` : ""}
                     </p>
                     <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                      <Chip tone={t.priority === "alta" ? "danger" : t.priority === "baixa" ? "muted" : "primary"}>
+                      <Chip
+                        tone={
+                          t.priority === "alta"
+                            ? "danger"
+                            : t.priority === "baixa"
+                              ? "muted"
+                              : "primary"
+                        }
+                      >
                         {`Prioridade ${priorityLabel(t.priority)}`}
                       </Chip>
-                      {left !== null && left < 0 && !isDone ? <Chip tone="danger">Atrasada</Chip> : null}
+                      {left !== null && left < 0 && !isDone ? (
+                        <Chip tone="danger">Atrasada</Chip>
+                      ) : null}
                     </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
-                    <button type="button"
+                    <button
+                      type="button"
                       className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground sm:size-9"
                       onClick={() => openEdit(t)}
                       aria-label={`Editar ${t.title}`}
                     >
                       <Pencil className="size-[14px]" strokeWidth={1.7} />
                     </button>
-                    <button type="button"
+                    <button
+                      type="button"
                       className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-destructive sm:size-9"
                       onClick={() => setConfirm(t)}
                       aria-label={`Excluir ${t.title}`}
@@ -349,7 +365,10 @@ function Tarefas() {
               ))}
             </Select>
           </Field>
-          <Field label="Conteúdo" hint={form.subject_id ? undefined : "Escolha uma disciplina para listar conteúdos"}>
+          <Field
+            label="Conteúdo"
+            hint={form.subject_id ? undefined : "Escolha uma disciplina para listar conteúdos"}
+          >
             <Select
               value={form.topic_id}
               onChange={(e) => setForm({ ...form, topic_id: e.target.value })}
@@ -371,7 +390,10 @@ function Tarefas() {
             />
           </Field>
           <Field label="Prioridade">
-            <Select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>
+            <Select
+              value={form.priority}
+              onChange={(e) => setForm({ ...form, priority: e.target.value })}
+            >
               {priorities.map((p) => (
                 <option key={p.key} value={p.key}>
                   {p.label}

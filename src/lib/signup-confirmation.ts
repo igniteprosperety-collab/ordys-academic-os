@@ -1,8 +1,5 @@
 export type SignupSessionOutcome =
-  | "signed-in"
-  | "confirmation-pending"
-  | "login-required"
-  | "retry-login";
+  "signed-in" | "confirmation-pending" | "login-required" | "retry-login";
 
 export function signupEmailIsAlreadyConfirmed(
   emailConfirmedAt: string | null | undefined,

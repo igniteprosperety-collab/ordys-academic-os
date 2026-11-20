@@ -28,9 +28,7 @@ let nativeCallbackInFlight = false;
 
 const emitNativeAuth = (detail: NativeAuthEventDetail) => {
   if (typeof window !== "undefined") {
-    window.dispatchEvent(
-      new CustomEvent<NativeAuthEventDetail>(NATIVE_AUTH_EVENT, { detail }),
-    );
+    window.dispatchEvent(new CustomEvent<NativeAuthEventDetail>(NATIVE_AUTH_EVENT, { detail }));
   }
 };
 
@@ -61,10 +59,7 @@ const hasFreshNativeRecoveryPending = () => {
 
 export const markNativeRecoveryPending = () => {
   if (typeof window !== "undefined") {
-    window.localStorage.setItem(
-      ORDYS_NATIVE_RECOVERY_PENDING_KEY,
-      String(Date.now()),
-    );
+    window.localStorage.setItem(ORDYS_NATIVE_RECOVERY_PENDING_KEY, String(Date.now()));
   }
 };
 
@@ -136,25 +131,15 @@ async function handleAuthCallbackUrl(url: string) {
 
   try {
     const callbackError = getCallbackError(parsed);
-    const fragment =
-      parsed.hash.startsWith("#")
-        ? new URLSearchParams(parsed.hash.slice(1))
-        : null;
-    const tokenType =
-      parsed.searchParams.get("type") ?? fragment?.get("type");
-    const recoveryFlow = tokenType
-      ? tokenType === "recovery"
-      : hasFreshNativeRecoveryPending();
+    const fragment = parsed.hash.startsWith("#") ? new URLSearchParams(parsed.hash.slice(1)) : null;
+    const tokenType = parsed.searchParams.get("type") ?? fragment?.get("type");
+    const recoveryFlow = tokenType ? tokenType === "recovery" : hasFreshNativeRecoveryPending();
     if (tokenType && tokenType !== "recovery") clearNativeRecoveryPending();
     callbackPurpose = recoveryFlow ? "recovery" : "signin";
 
     if (callbackError) {
       clearNativeRecoveryPending();
-      settleNativeGoogle(
-        "error",
-        callbackError,
-        recoveryFlow ? "recovery" : "signin",
-      );
+      settleNativeGoogle("error", callbackError, recoveryFlow ? "recovery" : "signin");
       await closeExternalBrowser();
       return true;
     }
@@ -174,11 +159,7 @@ async function handleAuthCallbackUrl(url: string) {
     ) {
       const { error } = await supabase.auth.verifyOtp({
         token_hash: tokenHash,
-        type: tokenType as
-          | "signup"
-          | "email"
-          | "email_change"
-          | "recovery",
+        type: tokenType as "signup" | "email" | "email_change" | "recovery",
       });
       if (error) throw error;
     } else {
@@ -186,7 +167,9 @@ async function handleAuthCallbackUrl(url: string) {
       const refreshToken = fragment?.get("refresh_token");
 
       if (!accessToken || !refreshToken) {
-        throw new Error("O link de autenticação está incompleto. Solicite um novo e-mail ou tente novamente.");
+        throw new Error(
+          "O link de autenticação está incompleto. Solicite um novo e-mail ou tente novamente.",
+        );
       }
 
       const { error } = await supabase.auth.setSession({
@@ -198,9 +181,7 @@ async function handleAuthCallbackUrl(url: string) {
 
     const { data } = await supabase.auth.getSession();
     if (!data.session) {
-      throw new Error(
-        "O acesso foi retornado, mas a sessão não pôde ser estabelecida.",
-      );
+      throw new Error("O acesso foi retornado, mas a sessão não pôde ser estabelecida.");
     }
 
     const purpose = recoveryFlow ? "recovery" : "signin";
@@ -212,9 +193,7 @@ async function handleAuthCallbackUrl(url: string) {
     if (callbackPurpose === "recovery") clearNativeRecoveryPending();
     settleNativeGoogle(
       "error",
-      error instanceof Error
-        ? error.message
-        : "Não foi possível concluir o acesso.",
+      error instanceof Error ? error.message : "Não foi possível concluir o acesso.",
       callbackPurpose,
     );
     await closeExternalBrowser();
@@ -228,14 +207,16 @@ export function initializeNativeAuth(): Promise<void> {
 
   nativeAuthInitPromise = initializeNativeAuthOnce().catch(async (error: unknown) => {
     const handles = [authUrlListener, browserFinishedListener, appStateListener];
-    await Promise.all(handles.map(async (handle) => {
-      if (!handle) return;
-      try {
-        await handle.remove();
-      } catch {
-        // Listener cleanup is best-effort; preserve the original initialization error.
-      }
-    }));
+    await Promise.all(
+      handles.map(async (handle) => {
+        if (!handle) return;
+        try {
+          await handle.remove();
+        } catch {
+          // Listener cleanup is best-effort; preserve the original initialization error.
+        }
+      }),
+    );
     authUrlListener = null;
     browserFinishedListener = null;
     appStateListener = null;
@@ -260,22 +241,19 @@ async function initializeNativeAuthOnce() {
     }, 500);
   });
 
-  appStateListener = await App.addListener(
-    "appStateChange",
-    ({ isActive }) => {
-      if (!isActive || !nativeGooglePending || nativeCallbackInFlight) return;
+  appStateListener = await App.addListener("appStateChange", ({ isActive }) => {
+    if (!isActive || !nativeGooglePending || nativeCallbackInFlight) return;
 
-      const elapsed = Date.now() - nativeGoogleStartedAt;
-      if (elapsed < 700) return;
+    const elapsed = Date.now() - nativeGoogleStartedAt;
+    if (elapsed < 700) return;
 
-      clearResumeTimer();
-      resumeTimer = setTimeout(() => {
-        resumeTimer = null;
-        if (!nativeGooglePending || nativeCallbackInFlight) return;
-        settleNativeGoogle("cancelled");
-      }, 4_000);
-    },
-  );
+    clearResumeTimer();
+    resumeTimer = setTimeout(() => {
+      resumeTimer = null;
+      if (!nativeGooglePending || nativeCallbackInFlight) return;
+      settleNativeGoogle("cancelled");
+    }, 4_000);
+  });
 
   const launchUrl = await App.getLaunchUrl();
   if (launchUrl?.url) {
@@ -291,10 +269,7 @@ export function cancelNativeGoogleSignIn() {
 
 export function expireNativeGoogleSignIn() {
   if (!Capacitor.isNativePlatform() || !nativeGooglePending) return;
-  settleNativeGoogle(
-    "error",
-    "A tentativa de acesso expirou. Tente novamente.",
-  );
+  settleNativeGoogle("error", "A tentativa de acesso expirou. Tente novamente.");
   void closeExternalBrowser();
 }
 
@@ -341,9 +316,7 @@ export async function startGoogleSignIn(webRedirectUri: string) {
   } catch (error) {
     settleNativeGoogle(
       "error",
-      error instanceof Error
-        ? error.message
-        : "Não foi possível iniciar o acesso com Google.",
+      error instanceof Error ? error.message : "Não foi possível iniciar o acesso com Google.",
     );
     throw error;
   }

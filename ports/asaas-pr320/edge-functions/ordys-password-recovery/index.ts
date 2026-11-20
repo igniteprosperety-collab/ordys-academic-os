@@ -15,20 +15,31 @@ function response(body: unknown, status = 200) {
 }
 
 function jsonObject(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 }
 
 const MAX_EMAIL_CHARS = 320;
 const MAX_REQUEST_BYTES = 16 * 1024;
 
 function normalizedEmail(value: unknown) {
-  return typeof value === "string" ? value.trim().toLowerCase().slice(0, MAX_EMAIL_CHARS + 1) : "";
+  return typeof value === "string"
+    ? value
+        .trim()
+        .toLowerCase()
+        .slice(0, MAX_EMAIL_CHARS + 1)
+    : "";
 }
 
 async function canRequestRecovery(supabaseUrl: string, serviceRoleKey: string, email: string) {
   const serviceHeaders: Record<string, string> = serviceRoleKey.startsWith("sb_secret_")
     ? { apikey: serviceRoleKey, "Content-Type": "application/json" }
-    : { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}`, "Content-Type": "application/json" };
+    : {
+        apikey: serviceRoleKey,
+        Authorization: `Bearer ${serviceRoleKey}`,
+        "Content-Type": "application/json",
+      };
 
   const result = await fetch(`${supabaseUrl}/rest/v1/rpc/can_request_password_recovery`, {
     method: "POST",
@@ -55,7 +66,8 @@ async function sendRecoveryEmail(
 
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  if (request.method !== "POST") return response({ status: "failed", error: "Método não permitido." }, 405);
+  if (request.method !== "POST")
+    return response({ status: "failed", error: "Método não permitido." }, 405);
 
   try {
     const contentLength = Number(request.headers.get("Content-Length") ?? 0);
@@ -73,12 +85,13 @@ Deno.serve(async (request) => {
       return response({ status: "failed", error: "Corpo JSON inválido." }, 400);
     }
     const email = normalizedEmail(body["email"]);
-    const redirectTo =
-      typeof body["redirectTo"] === "string" ? body["redirectTo"].trim() : "";
+    const redirectTo = typeof body["redirectTo"] === "string" ? body["redirectTo"].trim() : "";
     const publicAppUrl = Deno.env.get("ORDYS_PUBLIC_APP_URL")?.trim() ?? "";
 
-    if (email.length > MAX_EMAIL_CHARS) return response({ status: "failed", error: "Informe um e-mail válido." }, 400);
-    if (!/^\S+@\S+\.\S+$/.test(email)) return response({ status: "failed", error: "Informe um e-mail válido." }, 400);
+    if (email.length > MAX_EMAIL_CHARS)
+      return response({ status: "failed", error: "Informe um e-mail válido." }, 400);
+    if (!/^\S+@\S+\.\S+$/.test(email))
+      return response({ status: "failed", error: "Informe um e-mail válido." }, 400);
     if (!validateRecoveryRedirect(request, redirectTo, publicAppUrl)) {
       return response({ status: "failed", error: "Destino de recuperação inválido." }, 400);
     }
@@ -106,12 +119,23 @@ Deno.serve(async (request) => {
           }
         })()
       : Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
-    if (!supabaseUrl || !publishableKey || !serviceRoleKey) return response({ status: "failed", error: "Serviço de recuperação indisponível." }, 503);
+    if (!supabaseUrl || !publishableKey || !serviceRoleKey)
+      return response({ status: "failed", error: "Serviço de recuperação indisponível." }, 503);
 
     const guard = await canRequestRecovery(supabaseUrl, serviceRoleKey, email);
     if (guard["allowed"] !== true) {
-      if (guard["reason"] === "rate_limited") return response({ status: "rate_limited", error: "Muitas solicitações. Aguarde antes de tentar novamente." }, 429);
-      return response({ status: "failed", error: "Não foi possível processar a solicitação." }, 400);
+      if (guard["reason"] === "rate_limited")
+        return response(
+          {
+            status: "rate_limited",
+            error: "Muitas solicitações. Aguarde antes de tentar novamente.",
+          },
+          429,
+        );
+      return response(
+        { status: "failed", error: "Não foi possível processar a solicitação." },
+        400,
+      );
     }
 
     // Always call Supabase Auth for valid, non-rate-limited requests.
@@ -121,7 +145,13 @@ Deno.serve(async (request) => {
 
     return response({ status: "completed" });
   } catch (error) {
-    console.error("ORDYS password recovery failed:", error instanceof Error ? error.name : "unknown_error");
-    return response({ status: "failed", error: "Não foi possível concluir a recuperação agora." }, 502);
+    console.error(
+      "ORDYS password recovery failed:",
+      error instanceof Error ? error.name : "unknown_error",
+    );
+    return response(
+      { status: "failed", error: "Não foi possível concluir a recuperação agora." },
+      502,
+    );
   }
 });

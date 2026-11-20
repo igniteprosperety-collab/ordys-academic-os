@@ -99,9 +99,13 @@ function Home() {
     JSON.stringify(tasks.map((item) => [item.id, item.status, item.due_at, item.completed_at])),
     JSON.stringify(exams.map((item) => [item.id, item.exam_at])),
     JSON.stringify(plan.map((item) => [item.id, item.status, item.session_date, item.start_time])),
-    JSON.stringify(grades.map((item) => [item.id, item.score, item.max_score, item.weight, item.graded_on])),
+    JSON.stringify(
+      grades.map((item) => [item.id, item.score, item.max_score, item.weight, item.graded_on]),
+    ),
     JSON.stringify(attendance.map((item) => [item.id, item.status, item.class_date])),
-    JSON.stringify(focus.map((item) => [item.id, item.status, item.started_at, item.actual_minutes])),
+    JSON.stringify(
+      focus.map((item) => [item.id, item.status, item.started_at, item.actual_minutes]),
+    ),
   ].join("|");
 
   useEffect(() => {
@@ -120,7 +124,19 @@ function Home() {
       profile,
       prefs: prefs ?? null,
     }).catch(() => undefined);
-  }, [notificationSyncSignature, profile, subjects, topics, tasks, exams, plan, grades, attendance, focus, prefs]);
+  }, [
+    notificationSyncSignature,
+    profile,
+    subjects,
+    topics,
+    tasks,
+    exams,
+    plan,
+    grades,
+    attendance,
+    focus,
+    prefs,
+  ]);
 
   const now = new Date();
   const todayKey = dateKey(now);
@@ -163,7 +179,9 @@ function Home() {
       kind: "evento" as const,
     }));
 
-  const dayBlocks = [...classesToday, ...planToday, ...eventsToday].sort((a, b) => a.time.localeCompare(b.time));
+  const dayBlocks = [...classesToday, ...planToday, ...eventsToday].sort((a, b) =>
+    a.time.localeCompare(b.time),
+  );
   const nextBlock = dayBlocks.find((b) => b.time >= now.toTimeString().slice(0, 5));
 
   const openTasks = tasks.filter((t) => t.status !== "concluida");
@@ -195,7 +213,10 @@ function Home() {
     attention.push({
       tone: "destructive",
       text: `${late.length} ${late.length === 1 ? "tarefa atrasada" : "tarefas atrasadas"}.`,
-      meta: late.slice(0, 2).map((t) => t.title).join(" · "),
+      meta: late
+        .slice(0, 2)
+        .map((t) => t.title)
+        .join(" · "),
     });
   if (nextExam) {
     const left = daysUntil(nextExam.exam_at) ?? 0;
@@ -231,7 +252,9 @@ function Home() {
     const dayEvents = events.filter((e) => dateKey(new Date(e.starts_at)) === key);
     const names = Array.from(
       new Set([
-        ...daySchedules.map((s) => subjects.find((x) => x.id === s.subject_id)?.name).filter(Boolean),
+        ...daySchedules
+          .map((s) => subjects.find((x) => x.id === s.subject_id)?.name)
+          .filter(Boolean),
         ...dayPlans.map((p) => subjects.find((x) => x.id === p.subject_id)?.name).filter(Boolean),
         ...dayEvents.map((e) => subjects.find((x) => x.id === e.subject_id)?.name).filter(Boolean),
       ]),
@@ -250,9 +273,15 @@ function Home() {
 
   const studyBySubject = subjects
     .map((s) => {
-      const planned = plan.filter((p) => p.subject_id === s.id && p.session_date >= dateKey(weekRange.from));
+      const planned = plan.filter(
+        (p) => p.subject_id === s.id && p.session_date >= dateKey(weekRange.from),
+      );
       const done = planned.filter((p) => p.status === "concluida").length;
-      return { subject: s, done: planned.length ? (done / planned.length) * 100 : 0, planned: planned.length };
+      return {
+        subject: s,
+        done: planned.length ? (done / planned.length) * 100 : 0,
+        planned: planned.length,
+      };
     })
     .filter((x) => x.planned)
     .slice(0, 3);
@@ -271,7 +300,9 @@ function Home() {
           <p className="text-[11px] text-muted-foreground">Semana atual</p>
           <p className="num mt-1 text-[15px] font-semibold">
             {minutesLabel(week.minutes)}{" "}
-            <span className="text-[11px] font-normal text-muted-foreground">de {minutesLabel(target)}</span>
+            <span className="text-[11px] font-normal text-muted-foreground">
+              de {minutesLabel(target)}
+            </span>
           </p>
           <div className="mt-2">
             <Bar value={Math.min(100, (week.minutes / Math.max(1, target)) * 100)} />
@@ -299,8 +330,8 @@ function Home() {
         <Panel className="mt-6 px-5 py-8 text-center">
           <p className="text-[13px] font-medium">Bem-vindo ao ORDYS ACADEMY.</p>
           <p className="mt-1 text-[12px] text-muted-foreground">
-            Comece criando suas disciplinas — a partir delas o ORDYS monta agenda, tarefas, provas, plano de estudos e
-            desempenho.
+            Comece criando suas disciplinas — a partir delas o ORDYS monta agenda, tarefas, provas,
+            plano de estudos e desempenho.
           </p>
           <Link to="/disciplinas" className="mt-4 inline-block">
             <Button>Criar minha primeira disciplina</Button>
@@ -323,7 +354,11 @@ function Home() {
         <Stat
           label="Próxima prova"
           value={nextExam ? `Em ${daysUntil(nextExam.exam_at)} dias` : "—"}
-          sub={nextExam ? (subjects.find((s) => s.id === nextExam.subject_id)?.name ?? nextExam.title) : "nenhuma marcada"}
+          sub={
+            nextExam
+              ? (subjects.find((s) => s.id === nextExam.subject_id)?.name ?? nextExam.title)
+              : "nenhuma marcada"
+          }
         />
         <Stat
           label="Pendências"
@@ -348,7 +383,6 @@ function Home() {
             <span>Mensagem do Ordys</span>
             <ArrowUpRight className="size-[12px]" strokeWidth={1.7} />
           </div>
-          
         </div>
       </Panel>
 
@@ -375,13 +409,18 @@ function Home() {
                     <p className="truncate text-[13px] font-medium">{b.label}</p>
                     <p className="truncate text-[11.5px] text-muted-foreground">{b.meta}</p>
                   </div>
-                  {b.key === nextBlock?.key ? <Chip className="shrink-0" tone="primary">a seguir</Chip> : null}
+                  {b.key === nextBlock?.key ? (
+                    <Chip className="shrink-0" tone="primary">
+                      a seguir
+                    </Chip>
+                  ) : null}
                   {b.kind === "estudo" ? <Chip className="shrink-0">foco</Chip> : null}
                 </div>
               ))
             ) : (
               <p className="px-5 py-6 text-[12px] text-muted-foreground">
-                Nenhum bloco hoje. Cadastre horários das aulas nas disciplinas ou gere seu plano de estudos.
+                Nenhum bloco hoje. Cadastre horários das aulas nas disciplinas ou gere seu plano de
+                estudos.
               </p>
             )}
           </div>
@@ -405,7 +444,9 @@ function Home() {
                   </div>
                 ))
               ) : (
-                <p className="px-5 py-6 text-[12px] text-muted-foreground">Tudo em ordem por aqui.</p>
+                <p className="px-5 py-6 text-[12px] text-muted-foreground">
+                  Tudo em ordem por aqui.
+                </p>
               )}
             </div>
           </Panel>
@@ -416,31 +457,60 @@ function Home() {
         <PanelHeader
           title="Sua semana"
           hint={`${weekRange.from.getDate()} – ${weekRange.to.getDate()}`}
-          action={<Link to="/agenda" className="text-[11.5px] text-primary">Ver calendário</Link>}
+          action={
+            <Link to="/agenda" className="text-[11.5px] text-primary">
+              Ver calendário
+            </Link>
+          }
         />
 
         <div className="hidden grid-cols-7 gap-px border-t border-border bg-border lg:grid">
           {weekDays.map((d) => (
             <div key={d.key} className="min-w-0 bg-surface px-3 py-3">
               <div className="flex items-center gap-2">
-                <span className="text-[10.5px] tracking-wide text-muted-foreground uppercase">{d.label}</span>
-                <span className={`num ml-auto grid size-6 place-items-center rounded-full text-[11px] ${d.active ? "bg-primary text-primary-foreground" : "text-foreground"}`}>
+                <span className="text-[10.5px] tracking-wide text-muted-foreground uppercase">
+                  {d.label}
+                </span>
+                <span
+                  className={`num ml-auto grid size-6 place-items-center rounded-full text-[11px] ${d.active ? "bg-primary text-primary-foreground" : "text-foreground"}`}
+                >
                   {d.date}
                 </span>
               </div>
               <div className="mt-2 min-h-[34px] space-y-1">
-                {d.subjects.length ? d.subjects.map((name) => (
-                  <div key={name} className="truncate rounded-md bg-background/70 px-2 py-1 text-[10.5px] font-medium text-foreground">
-                    {name}
-                  </div>
-                )) : (
+                {d.subjects.length ? (
+                  d.subjects.map((name) => (
+                    <div
+                      key={name}
+                      className="truncate rounded-md bg-background/70 px-2 py-1 text-[10.5px] font-medium text-foreground"
+                    >
+                      {name}
+                    </div>
+                  ))
+                ) : (
                   <p className="text-[10.5px] text-muted-foreground">Livre</p>
                 )}
               </div>
               <div className="mt-2 flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                {d.load ? <span>{d.load} {d.load === 1 ? "bloco" : "blocos"}</span> : null}
-                {d.exams ? <><span>·</span><span className="text-gold">{d.exams} {d.exams === 1 ? "prova" : "provas"}</span></> : null}
-                {d.extraSubjects ? <><span>·</span><span>+{d.extraSubjects}</span></> : null}
+                {d.load ? (
+                  <span>
+                    {d.load} {d.load === 1 ? "bloco" : "blocos"}
+                  </span>
+                ) : null}
+                {d.exams ? (
+                  <>
+                    <span>·</span>
+                    <span className="text-gold">
+                      {d.exams} {d.exams === 1 ? "prova" : "provas"}
+                    </span>
+                  </>
+                ) : null}
+                {d.extraSubjects ? (
+                  <>
+                    <span>·</span>
+                    <span>+{d.extraSubjects}</span>
+                  </>
+                ) : null}
               </div>
             </div>
           ))}
@@ -448,20 +518,37 @@ function Home() {
 
         <div className="grid gap-1.5 border-t border-border px-3 py-2.5 lg:hidden">
           {weekDays.map((d) => (
-            <div key={d.key} className="grid grid-cols-[56px_minmax(0,1fr)] items-start gap-3 rounded-lg border border-border bg-surface px-3 py-2.5">
+            <div
+              key={d.key}
+              className="grid grid-cols-[56px_minmax(0,1fr)] items-start gap-3 rounded-lg border border-border bg-surface px-3 py-2.5"
+            >
               <div className="flex items-center gap-2">
-                <span className={`num grid size-6 shrink-0 place-items-center rounded-full text-[10px] ${d.active ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground"}`}>
+                <span
+                  className={`num grid size-6 shrink-0 place-items-center rounded-full text-[10px] ${d.active ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground"}`}
+                >
                   {d.date}
                 </span>
-                <span className="text-[9.5px] tracking-wide text-muted-foreground uppercase">{d.label}</span>
+                <span className="text-[9.5px] tracking-wide text-muted-foreground uppercase">
+                  {d.label}
+                </span>
               </div>
               <div className="min-w-0">
                 {d.subjects.length ? (
                   <div className="flex min-w-0 flex-wrap gap-1">
                     {d.subjects.slice(0, 3).map((name) => (
-                      <span key={name} className="max-w-full truncate rounded-md bg-background/70 px-2 py-1 text-[10px] font-medium" title={name}>{name}</span>
+                      <span
+                        key={name}
+                        className="max-w-full truncate rounded-md bg-background/70 px-2 py-1 text-[10px] font-medium"
+                        title={name}
+                      >
+                        {name}
+                      </span>
                     ))}
-                    {d.extraSubjects ? <span className="px-1 py-1 text-[10px] text-muted-foreground">+{d.extraSubjects} mais</span> : null}
+                    {d.extraSubjects ? (
+                      <span className="px-1 py-1 text-[10px] text-muted-foreground">
+                        +{d.extraSubjects} mais
+                      </span>
+                    ) : null}
                   </div>
                 ) : (
                   <p className="text-[10.5px] text-muted-foreground">Livre</p>
@@ -486,11 +573,19 @@ function Home() {
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[12.5px]">{t.title}</p>
                       <p className="mt-0.5 flex min-w-0 flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
-                        {s ? <><Dot color={s.color} /> {s.name} · </> : null}
+                        {s ? (
+                          <>
+                            <Dot color={s.color} /> {s.name} ·{" "}
+                          </>
+                        ) : null}
                         {formatDateTime(t.due_at)}
                       </p>
                     </div>
-                    {left !== null && left < 0 ? <Chip className="shrink-0" tone="danger">atrasada</Chip> : null}
+                    {left !== null && left < 0 ? (
+                      <Chip className="shrink-0" tone="danger">
+                        atrasada
+                      </Chip>
+                    ) : null}
                   </div>
                 );
               })
@@ -507,7 +602,9 @@ function Home() {
               <p className="text-[14px] font-semibold">
                 {subjects.find((s) => s.id === nextExam.subject_id)?.name ?? nextExam.title}
               </p>
-              <p className="num mt-1 text-[12px] text-muted-foreground">{formatDateTime(nextExam.exam_at)}</p>
+              <p className="num mt-1 text-[12px] text-muted-foreground">
+                {formatDateTime(nextExam.exam_at)}
+              </p>
               <p className="mt-3 text-[12px] leading-relaxed text-muted-foreground">
                 {nextExam.content ?? "Sem conteúdo detalhado."}
               </p>
@@ -526,20 +623,27 @@ function Home() {
         <Panel>
           <PanelHeader title="Progresso" hint="esta semana" />
           <div className="flex items-center gap-5 border-t border-border px-5 py-4">
-            <Ring value={week.plannedCount ? (week.completedPlanCount / week.plannedCount) * 100 : 0} size={72} />
+            <Ring
+              value={week.plannedCount ? (week.completedPlanCount / week.plannedCount) * 100 : 0}
+              size={72}
+            />
             <div className="flex-1 space-y-2.5">
               {studyBySubject.length ? (
                 studyBySubject.map((p) => (
                   <div key={p.subject.id}>
                     <div className="mb-1 flex items-center justify-between text-[11.5px]">
-                      <span className="flex items-center gap-1.5"><Dot color={p.subject.color} /> {p.subject.name}</span>
+                      <span className="flex items-center gap-1.5">
+                        <Dot color={p.subject.color} /> {p.subject.name}
+                      </span>
                       <span className="num text-muted-foreground">{p.done.toFixed(0)}%</span>
                     </div>
                     <Bar value={p.done} />
                   </div>
                 ))
               ) : (
-                <p className="text-[11.5px] text-muted-foreground">Gere o plano de estudos para ver o progresso.</p>
+                <p className="text-[11.5px] text-muted-foreground">
+                  Gere o plano de estudos para ver o progresso.
+                </p>
               )}
             </div>
           </div>
@@ -564,12 +668,18 @@ function Home() {
                   <div className="flex items-center gap-2">
                     <Dot color={s.color} />
                     <p className="text-[13px] font-medium">{s.name}</p>
-                    <span className="num ml-auto text-[13px] font-semibold">{avg === null ? "—" : fmtNumber(avg)}</span>
+                    <span className="num ml-auto text-[13px] font-semibold">
+                      {avg === null ? "—" : fmtNumber(avg)}
+                    </span>
                   </div>
-                  <p className="mt-1 truncate text-[11px] text-muted-foreground">{s.teacher ?? "sem professor"} · {s.room ?? "sem sala"}</p>
+                  <p className="mt-1 truncate text-[11px] text-muted-foreground">
+                    {s.teacher ?? "sem professor"} · {s.room ?? "sem sala"}
+                  </p>
                   <div className="mt-2.5 flex items-center gap-2">
                     <Bar value={att ?? 0} tone={att !== null && att < 85 ? "warning" : "primary"} />
-                    <span className="num text-[10.5px] text-muted-foreground">{att === null ? "—" : `${att.toFixed(0)}%`}</span>
+                    <span className="num text-[10.5px] text-muted-foreground">
+                      {att === null ? "—" : `${att.toFixed(0)}%`}
+                    </span>
                   </div>
                 </div>
               );

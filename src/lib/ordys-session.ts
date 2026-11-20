@@ -14,7 +14,9 @@ export async function signOutCurrentSession(
     const { data: before, error: beforeReadError } = await supabase.auth.getSession();
     if (beforeReadError) throw beforeReadError;
     if (!before.session) {
-      throw new Error("Não há uma sessão ativa neste dispositivo para solicitar a revogação das outras sessões.");
+      throw new Error(
+        "Não há uma sessão ativa neste dispositivo para solicitar a revogação das outras sessões.",
+      );
     }
 
     // Supabase JS 2.118.0 treats some HTTP 403 responses as already-signed-out
@@ -23,7 +25,9 @@ export async function signOutCurrentSession(
     const { data: identity, error: identityReadError } = await supabase.auth.getUser();
     if (identityReadError) throw identityReadError;
     if (!identity.user || identity.user.id !== before.session.user.id) {
-      throw new Error("Não foi possível validar a identidade desta sessão antes de revogar os outros dispositivos.");
+      throw new Error(
+        "Não foi possível validar a identidade desta sessão antes de revogar os outros dispositivos.",
+      );
     }
 
     let signOutError: unknown;
@@ -40,7 +44,12 @@ export async function signOutCurrentSession(
     const { data: after, error: afterReadError } = await supabase.auth.getSession();
     if (afterReadError) throw signOutError ?? afterReadError;
     if (!after.session) {
-      throw signOutError ?? new Error("A sessão local não permaneceu ativa após a tentativa de revogação das outras sessões.");
+      throw (
+        signOutError ??
+        new Error(
+          "A sessão local não permaneceu ativa após a tentativa de revogação das outras sessões.",
+        )
+      );
     }
     if (signOutError) throw signOutError;
     return;

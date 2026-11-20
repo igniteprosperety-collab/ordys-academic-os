@@ -30,10 +30,11 @@ vi.mock("../edge-functions/_shared/ordys-billing.ts", () => ({
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
   },
-  billingResponse: (body: unknown, status = 200) => new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
-  }),
+  billingResponse: (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+    }),
   calculateAgeInTimeZone: (birthDate: string | null, timezone: string | null) =>
     birthDate && timezone ? 25 : null,
   getUserAgeProfile: vi.fn().mockResolvedValue({
@@ -42,7 +43,7 @@ vi.mock("../edge-functions/_shared/ordys-billing.ts", () => ({
   }),
   jsonObject: (value: unknown) =>
     value && typeof value === "object" && !Array.isArray(value)
-      ? value as Record<string, unknown>
+      ? (value as Record<string, unknown>)
       : {},
   authenticateBillingRequest: mocks.authenticateBillingRequest,
 }));
@@ -69,22 +70,24 @@ function requestWithPlan() {
   });
 }
 
-async function setup(options: {
-  cancellationRequestedAt?: string | null;
-  markerResult?: unknown;
-  markerError?: Error;
-  latestStatus?: string;
-  latestCancellationRequestedAt?: string | null;
-  latestCancellationClaimId?: string | null;
-  providerError?: Error;
-  providerErrorStatus?: number;
-  subscriptions?: Array<Record<string, unknown>>;
-  pendingAttempt?: boolean;
-  beginAttemptResult?: unknown;
-  finalizeResult?: unknown;
-  finalizeError?: Error;
-  configurationError?: Error;
-} = {}) {
+async function setup(
+  options: {
+    cancellationRequestedAt?: string | null;
+    markerResult?: unknown;
+    markerError?: Error;
+    latestStatus?: string;
+    latestCancellationRequestedAt?: string | null;
+    latestCancellationClaimId?: string | null;
+    providerError?: Error;
+    providerErrorStatus?: number;
+    subscriptions?: Array<Record<string, unknown>>;
+    pendingAttempt?: boolean;
+    beginAttemptResult?: unknown;
+    finalizeResult?: unknown;
+    finalizeError?: Error;
+    configurationError?: Error;
+  } = {},
+) {
   vi.resetModules();
   registeredHandler = undefined;
 
@@ -107,17 +110,22 @@ async function setup(options: {
   mocks.serviceRest.mockReset().mockImplementation(async (path: string, init?: RequestInit) => {
     if (path.startsWith("ordys_billing_subscriptions?")) return options.subscriptions ?? [];
     if (path.startsWith("ordys_billing_plans?")) {
-      return [{
-        plan_code: "plus_monthly",
-        price_cents: 5990,
-        billing_cycle: "MONTHLY",
-        currency: "BRL",
-      }];
+      return [
+        {
+          plan_code: "plus_monthly",
+          price_cents: 5990,
+          billing_cycle: "MONTHLY",
+          currency: "BRL",
+        },
+      ];
     }
     if (path.includes("ordys_billing_checkout_attempts?") && path.includes("status=eq.paid")) {
       return [];
     }
-    if (path.includes("ordys_billing_checkout_attempts?") && path.includes("status=in.(creating,pending,linked)")) {
+    if (
+      path.includes("ordys_billing_checkout_attempts?") &&
+      path.includes("status=in.(creating,pending,linked)")
+    ) {
       return options.pendingAttempt === false ? [] : [{ ...attempt }];
     }
     if (
@@ -144,16 +152,18 @@ async function setup(options: {
       if (claimedAttemptId) attempt.id = decodeURIComponent(claimedAttemptId);
       return [{ ...attempt }];
     }
-    if (path === "rpc/ordys_begin_billing_checkout_attempt") return options.beginAttemptResult ?? "created";
+    if (path === "rpc/ordys_begin_billing_checkout_attempt")
+      return options.beginAttemptResult ?? "created";
     if (path === "rpc/ordys_finalize_billing_checkout_attempt") {
       if (options.finalizeError) throw options.finalizeError;
       return options.finalizeResult ?? "ready";
     }
+    if (path.startsWith("ordys_billing_checkout_attempts?id=eq.") && init?.method === "PATCH")
+      return [];
     if (
-      path.startsWith("ordys_billing_checkout_attempts?id=eq.") &&
-      init?.method === "PATCH"
-    ) return [];
-    if (path.startsWith("ordys_billing_checkout_attempts?") && path.includes("select=id,status,cancellation_requested_at,cancellation_claim_id")) {
+      path.startsWith("ordys_billing_checkout_attempts?") &&
+      path.includes("select=id,status,cancellation_requested_at,cancellation_claim_id")
+    ) {
       return [{ ...attempt }];
     }
     throw new Error(`Unexpected serviceRest call: ${path}`);
@@ -173,11 +183,17 @@ async function setup(options: {
   }
 
   vi.stubGlobal("Deno", {
-    serve: (handler: CheckoutHandler) => { registeredHandler = handler; },
-    env: { get: (name: string) => (name === "SUPABASE_URL" ? "https://project-ref.supabase.co" : undefined) },
+    serve: (handler: CheckoutHandler) => {
+      registeredHandler = handler;
+    },
+    env: {
+      get: (name: string) =>
+        name === "SUPABASE_URL" ? "https://project-ref.supabase.co" : undefined,
+    },
   });
   await import("../edge-functions/ordys-billing-checkout/index.ts");
-  if (!registeredHandler) throw new Error("Checkout Edge Function did not register its HTTP handler.");
+  if (!registeredHandler)
+    throw new Error("Checkout Edge Function did not register its HTTP handler.");
   return { handler: registeredHandler, attempt };
 }
 
@@ -226,7 +242,10 @@ describe("ORDYS checkout reconciliation admission", () => {
 
 describe("ORDYS checkout finalization against in-flight webhooks", () => {
   it("does not expose the Checkout link and requests one cancellation when a relevant webhook arrived during creation", async () => {
-    const { handler, attempt } = await setup({ pendingAttempt: false, finalizeResult: "cancel_required" });
+    const { handler, attempt } = await setup({
+      pendingAttempt: false,
+      finalizeResult: "cancel_required",
+    });
     const result = await handler(requestWithPlan());
     const body = await result.json();
 
@@ -271,10 +290,11 @@ describe("ORDYS checkout finalization timeout", () => {
     });
     expect(mocks.asaasRequest).toHaveBeenCalledOnce();
 
-    const fallbackWrite = mocks.serviceRest.mock.calls.find(([path, init]) =>
-      String(path).startsWith("ordys_billing_checkout_attempts?id=eq.") &&
-      init?.method === "PATCH" &&
-      JSON.parse(String(init.body ?? "{}")).provider_checkout_id === "asaas-checkout-new",
+    const fallbackWrite = mocks.serviceRest.mock.calls.find(
+      ([path, init]) =>
+        String(path).startsWith("ordys_billing_checkout_attempts?id=eq.") &&
+        init?.method === "PATCH" &&
+        JSON.parse(String(init.body ?? "{}")).provider_checkout_id === "asaas-checkout-new",
     );
     expect(fallbackWrite).toBeDefined();
     const fallbackBody = JSON.parse(String(fallbackWrite?.[1]?.body ?? "{}"));
@@ -324,10 +344,11 @@ describe("ORDYS checkout creation failure classification", () => {
         expect.objectContaining({ method: "POST" }),
       );
 
-      const failedWrite = mocks.serviceRest.mock.calls.find(([path, init]) =>
-        String(path).startsWith("ordys_billing_checkout_attempts?id=eq.") &&
-        init?.method === "PATCH" &&
-        JSON.parse(String(init.body ?? "{}")).status === "failed",
+      const failedWrite = mocks.serviceRest.mock.calls.find(
+        ([path, init]) =>
+          String(path).startsWith("ordys_billing_checkout_attempts?id=eq.") &&
+          init?.method === "PATCH" &&
+          JSON.parse(String(init.body ?? "{}")).status === "failed",
       );
       expect(failedWrite).toBeUndefined();
     },
@@ -344,13 +365,15 @@ describe("ORDYS checkout creation failure classification", () => {
     expect(response.status).toBe(409);
     expect(await response.json()).toMatchObject({
       code: "checkout_reconciliation_required",
-      error: "O Asaas pode ter recebido a contratação, mas a confirmação não chegou. A tentativa foi preservada para conciliação. Não tente gerar outra cobrança agora.",
+      error:
+        "O Asaas pode ter recebido a contratação, mas a confirmação não chegou. A tentativa foi preservada para conciliação. Não tente gerar outra cobrança agora.",
     });
     expect(mocks.asaasRequest).toHaveBeenCalledOnce();
-    const failedWrite = mocks.serviceRest.mock.calls.find(([path, init]) =>
-      String(path).startsWith("ordys_billing_checkout_attempts?id=eq.") &&
-      init?.method === "PATCH" &&
-      JSON.parse(String(init.body ?? "{}")).status === "failed",
+    const failedWrite = mocks.serviceRest.mock.calls.find(
+      ([path, init]) =>
+        String(path).startsWith("ordys_billing_checkout_attempts?id=eq.") &&
+        init?.method === "PATCH" &&
+        JSON.parse(String(init.body ?? "{}")).status === "failed",
     );
     expect(failedWrite).toBeUndefined();
   });
@@ -366,10 +389,11 @@ describe("ORDYS checkout creation failure classification", () => {
       const response = await handler(requestWithPlan());
 
       expect(response.status).toBe(502);
-      const failedWrite = mocks.serviceRest.mock.calls.find(([path, init]) =>
-        String(path).startsWith("ordys_billing_checkout_attempts?id=eq.") &&
-        init?.method === "PATCH" &&
-        JSON.parse(String(init.body ?? "{}")).status === "failed",
+      const failedWrite = mocks.serviceRest.mock.calls.find(
+        ([path, init]) =>
+          String(path).startsWith("ordys_billing_checkout_attempts?id=eq.") &&
+          init?.method === "PATCH" &&
+          JSON.parse(String(init.body ?? "{}")).status === "failed",
       );
       expect(failedWrite).toBeDefined();
     },
@@ -379,7 +403,9 @@ describe("ORDYS checkout creation failure classification", () => {
 describe("ORDYS checkout cancellation", () => {
   it("does not persist an expired Checkout cancellation claim when Asaas configuration is invalid", async () => {
     const { handler, attempt } = await setup({
-      configurationError: new Error("ASAAS_ENVIRONMENT deve ser configurado explicitamente como sandbox ou production."),
+      configurationError: new Error(
+        "ASAAS_ENVIRONMENT deve ser configurado explicitamente como sandbox ou production.",
+      ),
     });
 
     const result = await handler(requestWithPlan());
@@ -410,8 +436,9 @@ describe("ORDYS checkout cancellation", () => {
       expect.objectContaining({ method: "POST", signal: expect.any(AbortSignal) }),
     );
 
-    const markerCall = mocks.serviceRest.mock.calls.findIndex(([path, init]) =>
-      String(path).includes("cancellation_requested_at=is.null") && init?.method === "PATCH",
+    const markerCall = mocks.serviceRest.mock.calls.findIndex(
+      ([path, init]) =>
+        String(path).includes("cancellation_requested_at=is.null") && init?.method === "PATCH",
     );
     const providerCall = mocks.asaasRequest.mock.invocationCallOrder[0]!;
     expect(markerCall).toBeGreaterThanOrEqual(0);
@@ -491,19 +518,20 @@ describe("ORDYS checkout cancellation", () => {
   });
 });
 
-
 describe("ORDYS checkout provider-cancellation reconciliation", () => {
   it("blocks a new recurring checkout when a legacy row is locally cancelled without Asaas confirmation", async () => {
     const { handler } = await setup({
       pendingAttempt: false,
-      subscriptions: [{
-        id: "legacy-subscription",
-        status: "cancelled",
-        current_period_end: "2026-10-01T00:00:00.000Z",
-        provider_subscription_id: "asaas-legacy-subscription",
-        provider_status: "ACTIVE",
-        cancellation_confirmed_at: null,
-      }],
+      subscriptions: [
+        {
+          id: "legacy-subscription",
+          status: "cancelled",
+          current_period_end: "2026-10-01T00:00:00.000Z",
+          provider_subscription_id: "asaas-legacy-subscription",
+          provider_status: "ACTIVE",
+          cancellation_confirmed_at: null,
+        },
+      ],
     });
 
     const result = await handler(requestWithPlan());
@@ -522,14 +550,16 @@ describe("ORDYS checkout provider-cancellation reconciliation", () => {
   it("does not allow another checkout before the paid-through period ends after provider deletion", async () => {
     const { handler } = await setup({
       pendingAttempt: false,
-      subscriptions: [{
-        id: "legacy-subscription",
-        status: "cancelled",
-        current_period_end: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        provider_subscription_id: "asaas-legacy-subscription",
-        provider_status: "DELETED",
-        cancellation_confirmed_at: "2026-11-03T20:00:00.000Z",
-      }],
+      subscriptions: [
+        {
+          id: "legacy-subscription",
+          status: "cancelled",
+          current_period_end: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          provider_subscription_id: "asaas-legacy-subscription",
+          provider_status: "DELETED",
+          cancellation_confirmed_at: "2026-11-03T20:00:00.000Z",
+        },
+      ],
     });
 
     const result = await handler(requestWithPlan());
@@ -548,14 +578,16 @@ describe("ORDYS checkout provider-cancellation reconciliation", () => {
   it("allows a new checkout after provider deletion is explicitly confirmed", async () => {
     const { handler } = await setup({
       pendingAttempt: false,
-      subscriptions: [{
-        id: "legacy-subscription",
-        status: "cancelled",
-        current_period_end: "2026-10-01T00:00:00.000Z",
-        provider_subscription_id: "asaas-legacy-subscription",
-        provider_status: "DELETED",
-        cancellation_confirmed_at: "2026-11-03T20:00:00.000Z",
-      }],
+      subscriptions: [
+        {
+          id: "legacy-subscription",
+          status: "cancelled",
+          current_period_end: "2026-10-01T00:00:00.000Z",
+          provider_subscription_id: "asaas-legacy-subscription",
+          provider_status: "DELETED",
+          cancellation_confirmed_at: "2026-11-03T20:00:00.000Z",
+        },
+      ],
     });
 
     const result = await handler(requestWithPlan());

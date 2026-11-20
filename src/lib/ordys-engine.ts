@@ -19,7 +19,6 @@ function dataClient() {
   return isDemoMode() ? getOrdysDataClient() : supabase;
 }
 
-
 /* ------------------------------------------------------------- date utils */
 
 export const dateKey = (d: Date) => {
@@ -89,48 +88,85 @@ export const difficultyLabel = (value: string | null) =>
   value === "facil" ? "Fácil" : value === "dificil" ? "Difícil" : "Média";
 
 export const taskStatusLabel = (value: string | null) =>
-  value === "nao_iniciada" ? "Não iniciada" :
-  value === "pendente" ? "Pendente" :
-  value === "em_andamento" ? "Em andamento" :
-  value === "concluida" ? "Concluída" :
-  value === "atrasada" ? "Atrasada" : "Status não informado";
+  value === "nao_iniciada"
+    ? "Não iniciada"
+    : value === "pendente"
+      ? "Pendente"
+      : value === "em_andamento"
+        ? "Em andamento"
+        : value === "concluida"
+          ? "Concluída"
+          : value === "atrasada"
+            ? "Atrasada"
+            : "Status não informado";
 
 export const planStatusLabel = (value: string | null) =>
-  value === "planejada" ? "Planejada" :
-  value === "em_andamento" ? "Em andamento" :
-  value === "concluida" ? "Concluída" :
-  value === "perdida" ? "Perdida" :
-  value === "cancelada" ? "Cancelada" : "Status não informado";
+  value === "planejada"
+    ? "Planejada"
+    : value === "em_andamento"
+      ? "Em andamento"
+      : value === "concluida"
+        ? "Concluída"
+        : value === "perdida"
+          ? "Perdida"
+          : value === "cancelada"
+            ? "Cancelada"
+            : "Status não informado";
 
 export const reviewStatusLabel = (value: string | null) =>
-  value === "pendente" ? "Pendente" :
-  value === "concluida" ? "Concluída" :
-  value === "cancelada" ? "Cancelada" : "Status não informado";
+  value === "pendente"
+    ? "Pendente"
+    : value === "concluida"
+      ? "Concluída"
+      : value === "cancelada"
+        ? "Cancelada"
+        : "Status não informado";
 
 export const topicStatusLabel = (value: string | null) =>
-  value === "nao_estudado" ? "Não estudado" :
-  value === "estudando" ? "Estudando" :
-  value === "estudado" ? "Estudado" :
-  value === "precisa_revisar" ? "Precisa revisar" :
-  value === "dominado" ? "Dominado" : "Status não informado";
+  value === "nao_estudado"
+    ? "Não estudado"
+    : value === "estudando"
+      ? "Estudando"
+      : value === "estudado"
+        ? "Estudado"
+        : value === "precisa_revisar"
+          ? "Precisa revisar"
+          : value === "dominado"
+            ? "Dominado"
+            : "Status não informado";
 
 export const attendanceStatusLabel = (value: string | null) =>
-  value === "presente" ? "Presente" :
-  value === "falta" ? "Falta" :
-  value === "justificada" ? "Justificada" : "Status não informado";
+  value === "presente"
+    ? "Presente"
+    : value === "falta"
+      ? "Falta"
+      : value === "justificada"
+        ? "Justificada"
+        : "Status não informado";
 
 export const goalMetricLabel = (value: string | null) =>
-  value === "horas_estudo" ? "horas de estudo" :
-  value === "media" || value === "media_disciplina" ? "média" :
-  value === "frequencia" ? "frequência" :
-  value === "tarefas" ? "tarefas" : "métrica não informada";
+  value === "horas_estudo"
+    ? "horas de estudo"
+    : value === "media" || value === "media_disciplina"
+      ? "média"
+      : value === "frequencia"
+        ? "frequência"
+        : value === "tarefas"
+          ? "tarefas"
+          : "métrica não informada";
 
 export const goalPeriodLabel = (value: string | null) =>
-  value === "diario" ? "diário" :
-  value === "semanal" || value === "semana" ? "semanal" :
-  value === "mensal" ? "mensal" :
-  value === "bimestral" ? "bimestral" :
-  value === "semestral" ? "semestral" : "período não informado";
+  value === "diario"
+    ? "diário"
+    : value === "semanal" || value === "semana"
+      ? "semanal"
+      : value === "mensal"
+        ? "mensal"
+        : value === "bimestral"
+          ? "bimestral"
+          : value === "semestral"
+            ? "semestral"
+            : "período não informado";
 
 export const formatDateTime = (iso: string | null) =>
   iso
@@ -307,7 +343,10 @@ export async function generateWeeklyPlan(input: PlanInput) {
   today.setHours(0, 0, 0, 0);
   const rangeStart = dateKey(today);
   const rangeEnd = dateKey(addDays(today, days - 1));
-  const dailyLimit = Math.max(0, Math.min(1440, Number(input.profile?.daily_load_limit_minutes ?? 240)));
+  const dailyLimit = Math.max(
+    0,
+    Math.min(1440, Number(input.profile?.daily_load_limit_minutes ?? 240)),
+  );
 
   const { error: clearError } = await dataClient()
     .from("plan_sessions")
@@ -320,7 +359,10 @@ export async function generateWeeklyPlan(input: PlanInput) {
   if (clearError) throw new Error(clearError.message);
 
   const manual = input.existing.filter(
-    (s) => (!s.generated || s.status !== "planejada") && s.session_date >= rangeStart && s.session_date <= rangeEnd,
+    (s) =>
+      (!s.generated || s.status !== "planejada") &&
+      s.session_date >= rangeStart &&
+      s.session_date <= rangeEnd,
   );
 
   const toMinutes = (value: string | null | undefined) => {
@@ -373,20 +415,17 @@ export async function generateWeeklyPlan(input: PlanInput) {
       if (overlapEnd <= overlapStart) continue;
 
       const start =
-        overlapStart <= dayStart
-          ? 0
-          : overlapStart.getHours() * 60 + overlapStart.getMinutes();
+        overlapStart <= dayStart ? 0 : overlapStart.getHours() * 60 + overlapStart.getMinutes();
       const end =
-        overlapEnd >= dayEnd
-          ? 24 * 60
-          : overlapEnd.getHours() * 60 + overlapEnd.getMinutes();
+        overlapEnd >= dayEnd ? 24 * 60 : overlapEnd.getHours() * 60 + overlapEnd.getMinutes();
       if (end > start) addOccupied(key, start, end);
     }
   }
 
   const load = new Map<string, number>();
   for (let i = 0; i < days; i++) load.set(dateKey(addDays(today, i)), 0);
-  for (const s of manual) load.set(s.session_date, (load.get(s.session_date) ?? 0) + Math.max(0, s.duration_minutes));
+  for (const s of manual)
+    load.set(s.session_date, (load.get(s.session_date) ?? 0) + Math.max(0, s.duration_minutes));
 
   const candidates = buildCandidates(input);
   const rows: Record<string, unknown>[] = [];
@@ -444,7 +483,9 @@ export async function generateWeeklyPlan(input: PlanInput) {
   }
 
   if (rows.length) {
-    const { error } = await dataClient().from("plan_sessions").insert(rows as never);
+    const { error } = await dataClient()
+      .from("plan_sessions")
+      .insert(rows as never);
     if (error) throw new Error(error.message);
   }
   return rows.length;
@@ -453,7 +494,9 @@ export async function generateWeeklyPlan(input: PlanInput) {
 /** Marca sessões passadas não realizadas como perdidas e reorganiza o restante. */
 export async function replanMissed(input: PlanInput) {
   const todayKey = dateKey(new Date());
-  const missed = input.existing.filter((s) => s.status === "planejada" && s.session_date < todayKey);
+  const missed = input.existing.filter(
+    (s) => s.status === "planejada" && s.session_date < todayKey,
+  );
   if (missed.length) {
     const { error } = await dataClient()
       .from("plan_sessions")
@@ -489,9 +532,7 @@ export async function ensureAutomaticReviews(params: {
   if (isDemoMode() && getActiveLocalProfileId() !== userId) return 0;
   const pending = new Set(reviews.filter((r) => r.status === "pendente").map((r) => r.topic_id));
   const existingAutomatic = new Set(
-    reviews
-      .filter((r) => r.source === "automatico")
-      .map((r) => `${r.topic_id}:${r.due_on}`),
+    reviews.filter((r) => r.source === "automatico").map((r) => `${r.topic_id}:${r.due_on}`),
   );
   const rows: Record<string, unknown>[] = [];
   const today = new Date();
@@ -513,7 +554,9 @@ export async function ensureAutomaticReviews(params: {
       (!topic.last_review && topic.status !== "nao_estudado");
 
     if (!needsReview) continue;
-    const due = exam ? addDays(new Date(exam.e.exam_at), -1) : addDays(today, topic.mastery < 40 ? 1 : 3);
+    const due = exam
+      ? addDays(new Date(exam.e.exam_at), -1)
+      : addDays(today, topic.mastery < 40 ? 1 : 3);
     const dueOn = dateKey(due < today ? today : due);
     if (existingAutomatic.has(`${topic.id}:${dueOn}`)) continue;
     rows.push({
@@ -528,7 +571,9 @@ export async function ensureAutomaticReviews(params: {
   }
 
   if (rows.length) {
-    const { error } = await dataClient().from("reviews").insert(rows as never);
+    const { error } = await dataClient()
+      .from("reviews")
+      .insert(rows as never);
     if (error) throw new Error(error.message);
   }
   return rows.length;
@@ -562,11 +607,29 @@ type NotifyInput = {
 };
 
 export function buildNotificationRules(input: NotifyInput) {
-  const { subjects, topics, tasks, exams, plan, grades, attendance, focus = [], profile, prefs } = input;
-  const rows: { category: string; title: string; body: string; link: string; dedupe_key: string }[] = [];
+  const {
+    subjects,
+    topics,
+    tasks,
+    exams,
+    plan,
+    grades,
+    attendance,
+    focus = [],
+    profile,
+    prefs,
+  } = input;
+  const rows: {
+    category: string;
+    title: string;
+    body: string;
+    link: string;
+    dedupe_key: string;
+  }[] = [];
   if (prefs && !prefs.enabled) return rows;
   const scale = Number(profile?.grade_scale_max ?? 10);
-  const subjectName = (id: string | null) => subjects.find((s) => s.id === id)?.name ?? "Disciplina";
+  const subjectName = (id: string | null) =>
+    subjects.find((s) => s.id === id)?.name ?? "Disciplina";
   const now = new Date();
   const dayStart = new Date(now);
   dayStart.setHours(0, 0, 0, 0);
@@ -581,16 +644,21 @@ export function buildNotificationRules(input: NotifyInput) {
       .filter((item) => item.status === "concluida" && inRange(item.started_at, from, to))
       .reduce((sum, item) => sum + (item.actual_minutes ?? item.planned_minutes), 0);
   const tasksDoneFor = (from: Date, to: Date) =>
-    tasks.filter((item) => item.status === "concluida" && inRange(item.completed_at, from, to)).length;
+    tasks.filter((item) => item.status === "concluida" && inRange(item.completed_at, from, to))
+      .length;
   const planDoneFor = (from: Date, to: Date) =>
-    plan.filter((item) => item.status === "concluida" && inRange(`${item.session_date}T12:00:00`, from, to)).length;
+    plan.filter(
+      (item) => item.status === "concluida" && inRange(`${item.session_date}T12:00:00`, from, to),
+    ).length;
 
   if (!prefs || prefs.exams) {
     for (const exam of exams) {
       const left = daysUntil(exam.exam_at);
       if (left === null || left < 0 || left > 3) continue;
       const weak = topics
-        .filter((t) => t.subject_id === exam.subject_id && (WEAK_STATUS.has(t.status) || t.mastery < 60))
+        .filter(
+          (t) => t.subject_id === exam.subject_id && (WEAK_STATUS.has(t.status) || t.mastery < 60),
+        )
         .slice(0, 1)[0];
       const when = left === 0 ? "é hoje" : left === 1 ? "é amanhã" : `em ${left} dias`;
       rows.push({
@@ -634,7 +702,9 @@ export function buildNotificationRules(input: NotifyInput) {
   }
   if (!prefs || prefs.study_sessions) {
     const todayKey = dateKey(new Date());
-    const missed = plan.filter((s) => s.status === "perdida" && s.session_date === dateKey(addDays(new Date(), -1)));
+    const missed = plan.filter(
+      (s) => s.status === "perdida" && s.session_date === dateKey(addDays(new Date(), -1)),
+    );
     if (missed.length) {
       rows.push({
         category: "estudos",
@@ -644,7 +714,9 @@ export function buildNotificationRules(input: NotifyInput) {
         dedupe_key: `replan:${todayKey}`,
       });
     }
-    const todaySessions = plan.filter((s) => s.session_date === todayKey && s.status === "planejada");
+    const todaySessions = plan.filter(
+      (s) => s.session_date === todayKey && s.status === "planejada",
+    );
     if (todaySessions.length) {
       rows.push({
         category: "estudos",

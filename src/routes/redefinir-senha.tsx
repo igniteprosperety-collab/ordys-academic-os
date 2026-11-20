@@ -9,10 +9,7 @@ import { Button, Field, TextInput } from "@/components/ordys/form";
 import { OrdysBrandLockup } from "@/components/ordys/brand-lockup";
 import { resolveRecoveryScreenMode } from "@/lib/password-recovery-session";
 import { edgeFunctionUnavailableMessage } from "@/lib/edge-function-errors";
-import {
-  markNativeRecoveryPending,
-  ORDYS_NATIVE_AUTH_REDIRECT_URI,
-} from "@/lib/native-auth";
+import { markNativeRecoveryPending, ORDYS_NATIVE_AUTH_REDIRECT_URI } from "@/lib/native-auth";
 
 function authRedirect(path: string) {
   const configured = import.meta.env["VITE_PUBLIC_APP_URL"]?.trim().replace(/\/$/, "");
@@ -156,7 +153,10 @@ function ResetPasswordPage() {
         let message = recoveryError.message;
         const context = (recoveryError as Error & { context?: unknown }).context;
         if (context instanceof Response) {
-          const payload = await context.clone().json().catch(() => null) as { error?: unknown } | null;
+          const payload = (await context
+            .clone()
+            .json()
+            .catch(() => null)) as { error?: unknown } | null;
           if (typeof payload?.error === "string" && payload.error.trim()) {
             message = payload.error;
           }
@@ -172,18 +172,22 @@ function ResetPasswordPage() {
         if (Capacitor.isNativePlatform()) {
           window.localStorage.removeItem("ordys:native-recovery-pending-v1");
         }
-        const message = recoveryResult && typeof recoveryResult === "object" &&
+        const message =
+          recoveryResult &&
+          typeof recoveryResult === "object" &&
           typeof (recoveryResult as { error?: unknown }).error === "string"
-          ? (recoveryResult as { error: string }).error
-          : "Não foi possível concluir a recuperação agora.";
+            ? (recoveryResult as { error: string }).error
+            : "Não foi possível concluir a recuperação agora.";
         throw new Error(message);
       }
 
       setRecoveryCooldownUntil(Date.now() + 60_000);
       setSent(true);
     } catch (error) {
-      toast.error(edgeFunctionUnavailableMessage(error, "password-recovery") ??
-        readableAuthError(error instanceof Error ? error.message : String(error)));
+      toast.error(
+        edgeFunctionUnavailableMessage(error, "password-recovery") ??
+          readableAuthError(error instanceof Error ? error.message : String(error)),
+      );
     } finally {
       setBusy(false);
     }
@@ -268,7 +272,8 @@ function ResetPasswordPage() {
               : "Não foi possível confirmar a revogação das sessões em outros dispositivos. A sessão deste aparelho foi mantida para permitir uma nova tentativa."}
           </p>
           <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
-            Não é necessário redefinir sua senha novamente. Mantenha esta tela aberta e tente concluir o encerramento das sessões.
+            Não é necessário redefinir sua senha novamente. Mantenha esta tela aberta e tente
+            concluir o encerramento das sessões.
           </p>
           <Button
             type="button"
@@ -276,7 +281,11 @@ function ResetPasswordPage() {
             onClick={retryPasswordSessionCleanup}
             disabled={busy}
           >
-            {busy ? "Tentando novamente…" : otherSessionsRevoked ? "Encerrar sessão neste aparelho" : "Tentar novamente"}
+            {busy
+              ? "Tentando novamente…"
+              : otherSessionsRevoked
+                ? "Encerrar sessão neste aparelho"
+                : "Tentar novamente"}
           </Button>
         </main>
       </div>
@@ -310,7 +319,8 @@ function ResetPasswordPage() {
               <div className="text-center">
                 <p className="text-[13px] font-semibold">Confira seu e-mail</p>
                 <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground">
-                  Se houver uma conta do ORDYS com esse e-mail, enviaremos as instruções de recuperação. Verifique também a pasta de spam.
+                  Se houver uma conta do ORDYS com esse e-mail, enviaremos as instruções de
+                  recuperação. Verifique também a pasta de spam.
                 </p>
                 <Button
                   type="button"
@@ -414,7 +424,11 @@ function ResetPasswordPage() {
                       className="absolute top-1/2 right-2 grid size-11 -translate-y-1/2 place-items-center rounded-md text-muted-foreground hover:text-foreground sm:size-8"
                       aria-label={showConfirmation ? "Ocultar senha" : "Mostrar senha"}
                     >
-                      {showConfirmation ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                      {showConfirmation ? (
+                        <EyeOff className="size-4" />
+                      ) : (
+                        <Eye className="size-4" />
+                      )}
                     </button>
                   </div>
                 </Field>

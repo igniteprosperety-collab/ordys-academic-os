@@ -13,5 +13,4 @@ export const ORDYS_FREE_ASSIST_DAILY_LIMIT = 5;
 export const ORDYS_PLUS_LOCK_MESSAGE =
   "Este recurso avançado será liberado quando o Ordys Plus estiver ativo.";
 
-export const ORDYS_PLUS_LOCK_SHORT_MESSAGE =
-  "Disponível quando o Ordys Plus for ativado.";
+export const ORDYS_PLUS_LOCK_SHORT_MESSAGE = "Disponível quando o Ordys Plus for ativado.";

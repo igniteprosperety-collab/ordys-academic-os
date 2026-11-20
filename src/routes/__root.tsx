@@ -59,7 +59,8 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
           Ocorreu um erro inesperado. Tente novamente ou volte ao início.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
-          <button type="button"
+          <button
+            type="button"
             onClick={() => {
               router.invalidate();
               reset();

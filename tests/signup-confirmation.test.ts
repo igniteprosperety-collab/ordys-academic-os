@@ -26,18 +26,16 @@ describe("signup confirmation state", () => {
     const signIn = vi.fn().mockResolvedValue({
       error: { message: "Email not confirmed" },
     });
-    await expect(resolveSignupSessionOutcome(null, signIn)).resolves.toBe(
-      "confirmation-pending",
-    );
+    await expect(resolveSignupSessionOutcome(null, signIn)).resolves.toBe("confirmation-pending");
   });
 
   it("asks a confirmed user to sign in when automatic session creation fails", async () => {
     const signIn = vi.fn().mockResolvedValue({
       error: { message: "Invalid login credentials" },
     });
-    await expect(
-      resolveSignupSessionOutcome("2026-10-30T23:00:00.000Z", signIn),
-    ).resolves.toBe("login-required");
+    await expect(resolveSignupSessionOutcome("2026-10-30T23:00:00.000Z", signIn)).resolves.toBe(
+      "login-required",
+    );
   });
 
   it("uses a neutral retry state for transient or unexpected sign-in failures", async () => {

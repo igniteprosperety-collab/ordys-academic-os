@@ -18,10 +18,11 @@ vi.mock("../edge-functions/_shared/ordys-billing.ts", () => ({
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
   },
-  billingResponse: (body: unknown, status = 200) => new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
-  }),
+  billingResponse: (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+    }),
 }));
 
 type ManageHandler = (request: Request) => Response | Promise<Response>;
@@ -38,22 +39,24 @@ function requestWithSession(body: unknown = { action: "cancel" }) {
   });
 }
 
-async function setup(options: {
-  status?: string;
-  providerStatus?: string;
-  cancellationRequestedAt?: string | null;
-  cancellationConfirmedAt?: string | null;
-  markerResult?: unknown;
-  confirmationResult?: unknown;
-  markerResponseLost?: boolean;
-  latestAfterMarkerFailure?: {
+async function setup(
+  options: {
     status?: string;
+    providerStatus?: string;
     cancellationRequestedAt?: string | null;
-    cancellationClaimId?: string | null;
     cancellationConfirmedAt?: string | null;
-  };
-  configurationError?: Error;
-} = {}) {
+    markerResult?: unknown;
+    confirmationResult?: unknown;
+    markerResponseLost?: boolean;
+    latestAfterMarkerFailure?: {
+      status?: string;
+      cancellationRequestedAt?: string | null;
+      cancellationClaimId?: string | null;
+      cancellationConfirmedAt?: string | null;
+    };
+    configurationError?: Error;
+  } = {},
+) {
   vi.resetModules();
   registeredHandler = undefined;
   let subscriptionReadCount = 0;
@@ -74,8 +77,11 @@ async function setup(options: {
     user: { id: "user-1", authorization: "Bearer user-session-token" },
   });
   mocks.serviceRest.mockReset().mockImplementation(async (path: string, init?: RequestInit) => {
-    if (path.startsWith("ordys_billing_subscriptions?") && init?.method === "PATCH" &&
-      path.includes("cancellation_requested_at=is.null")) {
+    if (
+      path.startsWith("ordys_billing_subscriptions?") &&
+      init?.method === "PATCH" &&
+      path.includes("cancellation_requested_at=is.null")
+    ) {
       if (options.markerResult !== undefined) return options.markerResult;
       Object.assign(subscription, JSON.parse(String(init.body ?? "{}")));
       if (options.markerResponseLost) throw new Error("PATCH response lost after commit");
@@ -87,13 +93,17 @@ async function setup(options: {
     if (path.startsWith("ordys_billing_subscriptions?")) {
       subscriptionReadCount += 1;
       if (subscriptionReadCount > 1 && options.latestAfterMarkerFailure) {
-        return [{
-          ...subscription,
-          status: options.latestAfterMarkerFailure.status ?? subscription.status,
-          cancellation_requested_at: options.latestAfterMarkerFailure.cancellationRequestedAt ?? null,
-          cancellation_claim_id: options.latestAfterMarkerFailure.cancellationClaimId ?? null,
-          cancellation_confirmed_at: options.latestAfterMarkerFailure.cancellationConfirmedAt ?? null,
-        }];
+        return [
+          {
+            ...subscription,
+            status: options.latestAfterMarkerFailure.status ?? subscription.status,
+            cancellation_requested_at:
+              options.latestAfterMarkerFailure.cancellationRequestedAt ?? null,
+            cancellation_claim_id: options.latestAfterMarkerFailure.cancellationClaimId ?? null,
+            cancellation_confirmed_at:
+              options.latestAfterMarkerFailure.cancellationConfirmedAt ?? null,
+          },
+        ];
       }
       return [{ ...subscription }];
     }
@@ -106,11 +116,17 @@ async function setup(options: {
   mocks.asaasRequest.mockReset().mockResolvedValue({});
 
   vi.stubGlobal("Deno", {
-    serve: (handler: ManageHandler) => { registeredHandler = handler; },
-    env: { get: (name: string) => (name === "SUPABASE_URL" ? "https://project-ref.supabase.co" : undefined) },
+    serve: (handler: ManageHandler) => {
+      registeredHandler = handler;
+    },
+    env: {
+      get: (name: string) =>
+        name === "SUPABASE_URL" ? "https://project-ref.supabase.co" : undefined,
+    },
   });
   await import("../edge-functions/ordys-billing-manage/index.ts");
-  if (!registeredHandler) throw new Error("Manage Edge Function did not register its HTTP handler.");
+  if (!registeredHandler)
+    throw new Error("Manage Edge Function did not register its HTTP handler.");
   return { handler: registeredHandler, subscription };
 }
 
@@ -145,23 +161,32 @@ describe("ORDYS billing subscription cancellation", () => {
     const result = await handler(requestWithSession());
 
     expect(result.status).toBe(200);
-    expect(await result.json()).toMatchObject({ cancelled: true, accessUntil: "2026-12-01T00:00:00.000Z" });
-    expect(mocks.asaasRequest).toHaveBeenCalledWith("/subscriptions/asaas-subscription-1", expect.objectContaining({ method: "DELETE" }));
+    expect(await result.json()).toMatchObject({
+      cancelled: true,
+      accessUntil: "2026-12-01T00:00:00.000Z",
+    });
+    expect(mocks.asaasRequest).toHaveBeenCalledWith(
+      "/subscriptions/asaas-subscription-1",
+      expect.objectContaining({ method: "DELETE" }),
+    );
 
     const markerCall = mocks.serviceRest.mock.calls.findIndex(([path]) =>
       String(path).includes("cancellation_requested_at=is.null"),
     );
     const providerCall = mocks.asaasRequest.mock.invocationCallOrder[0]!;
-    const confirmCall = mocks.serviceRest.mock.calls.findIndex(([path]) =>
-      path === "rpc/ordys_confirm_subscription_cancellation",
+    const confirmCall = mocks.serviceRest.mock.calls.findIndex(
+      ([path]) => path === "rpc/ordys_confirm_subscription_cancellation",
     );
     expect(markerCall).toBeGreaterThanOrEqual(0);
     expect(mocks.serviceRest.mock.invocationCallOrder[markerCall]!).toBeLessThan(providerCall);
     expect(providerCall).toBeLessThan(mocks.serviceRest.mock.invocationCallOrder[confirmCall]!);
-    expect(mocks.serviceRest).toHaveBeenCalledWith("rpc/ordys_confirm_subscription_cancellation", expect.objectContaining({
-      method: "POST",
-      body: expect.stringContaining('"p_subscription_id":"subscription-1"'),
-    }));
+    expect(mocks.serviceRest).toHaveBeenCalledWith(
+      "rpc/ordys_confirm_subscription_cancellation",
+      expect.objectContaining({
+        method: "POST",
+        body: expect.stringContaining('"p_subscription_id":"subscription-1"'),
+      }),
+    );
   });
 
   it("sends one Asaas DELETE when its own committed claim PATCH response is lost", async () => {
@@ -296,7 +321,8 @@ describe("ORDYS billing subscription cancellation", () => {
 
   it("keeps cancellation processing when the Asaas DELETE times out", async () => {
     const { handler, subscription } = await setup();
-    const { OutboundRequestTimeoutError } = await import("../edge-functions/_shared/request-timeout.ts");
+    const { OutboundRequestTimeoutError } =
+      await import("../edge-functions/_shared/request-timeout.ts");
     mocks.asaasRequest.mockRejectedValueOnce(new OutboundRequestTimeoutError());
 
     const result = await handler(requestWithSession());
@@ -304,7 +330,8 @@ describe("ORDYS billing subscription cancellation", () => {
     expect(result.status).toBe(409);
     expect(await result.json()).toMatchObject({
       code: "subscription_cancellation_processing",
-      error: "O Asaas pode ter recebido o pedido de cancelamento, mas a confirmação não chegou. Mantivemos a assinatura em conciliação. Não tente cancelar novamente agora.",
+      error:
+        "O Asaas pode ter recebido o pedido de cancelamento, mas a confirmação não chegou. Mantivemos a assinatura em conciliação. Não tente cancelar novamente agora.",
     });
     expect(subscription.cancellation_requested_at).toEqual(expect.any(String));
     expect(subscription.cancellation_confirmed_at).toBeNull();
@@ -317,10 +344,12 @@ describe("ORDYS billing subscription cancellation", () => {
 
   it("keeps cancellation unconfirmed when Asaas returns 404 for an inaccessible subscription", async () => {
     const { handler, subscription } = await setup();
-    mocks.asaasRequest.mockRejectedValueOnce(Object.assign(new Error("provider resource not accessible"), {
-      name: "AsaasApiError",
-      status: 404,
-    }));
+    mocks.asaasRequest.mockRejectedValueOnce(
+      Object.assign(new Error("provider resource not accessible"), {
+        name: "AsaasApiError",
+        status: 404,
+      }),
+    );
 
     const result = await handler(requestWithSession());
 
@@ -347,8 +376,9 @@ describe("ORDYS billing subscription cancellation", () => {
     expect(result.status).toBe(200);
     expect(await result.json()).toMatchObject({ cancelled: true });
     expect(mocks.asaasRequest).not.toHaveBeenCalled();
-    const compareAndSetCall = mocks.serviceRest.mock.calls.find(([path, init]) =>
-      String(path).includes("cancellation_requested_at=is.null") && init?.method === "PATCH",
+    const compareAndSetCall = mocks.serviceRest.mock.calls.find(
+      ([path, init]) =>
+        String(path).includes("cancellation_requested_at=is.null") && init?.method === "PATCH",
     );
     expect(compareAndSetCall?.[0]).toContain("cancellation_confirmed_at=is.null");
     expect(mocks.serviceRest).toHaveBeenCalledWith(
@@ -367,11 +397,13 @@ describe("ORDYS billing subscription cancellation", () => {
   });
 });
 
-
 describe("direct account-data deletion billing guard", () => {
   it("locks the authenticated RPC to provider-reconciled billing state", () => {
     const migration = readFileSync(
-      new URL("../../../supabase/migrations/20261112010000_ordys_asaas_cron_worker.sql", import.meta.url),
+      new URL(
+        "../../../supabase/migrations/20261112010000_ordys_asaas_cron_worker.sql",
+        import.meta.url,
+      ),
       "utf8",
     );
     for (const required of [

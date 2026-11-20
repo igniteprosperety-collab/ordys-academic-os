@@ -76,7 +76,9 @@ export function updateLocalProfileName(name: string) {
   const clean = name.trim().slice(0, 80);
   if (!clean) throw new Error("Informe um nome.");
   writeProfiles(
-    getLocalProfiles().map((p) => (p.id === active.id ? { ...p, name: clean, updated_at: now() } : p)),
+    getLocalProfiles().map((p) =>
+      p.id === active.id ? { ...p, name: clean, updated_at: now() } : p,
+    ),
   );
   dispatchLocalChange();
 }
