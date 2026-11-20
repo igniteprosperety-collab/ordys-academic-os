@@ -5,10 +5,7 @@ const client = readFileSync(
   new URL("../src/lib/ordys-assistant-client.ts", import.meta.url),
   "utf8",
 );
-const page = readFileSync(
-  new URL("../src/routes/assistente.tsx", import.meta.url),
-  "utf8",
-);
+const page = readFileSync(new URL("../src/routes/assistente.tsx", import.meta.url), "utf8");
 const shared = readFileSync(
   new URL("../src/lib/ordys-ai-access-shared.ts", import.meta.url),
   "utf8",
@@ -29,11 +26,7 @@ describe("Ordys AI client policy enforcement", () => {
   });
 
   it.each([
-    [
-      "quiz",
-      "export async function generateOrdysQuiz(",
-      "function readFunctionResult(",
-    ],
+    ["quiz", "export async function generateOrdysQuiz(", "function readFunctionResult("],
     [
       "video transcription",
       "async function transcribeOrdysVideo(",
