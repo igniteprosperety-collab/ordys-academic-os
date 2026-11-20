@@ -332,7 +332,17 @@ class DemoQuery implements PromiseLike<Result> {
         setNull("plan_sessions", "task_id", deletedIds);
       } else if (this.table === "subjects") {
         cascadeDelete("subject_schedules", "subject_id", deletedIds);
+        const deletedTopics = (store["topics"] ?? []).filter((row) =>
+          deletedIds.has(row.subject_id),
+        );
+        const deletedTopicIds = new Set(deletedTopics.map((row) => row.id));
         cascadeDelete("topics", "subject_id", deletedIds);
+        cascadeDelete("reviews", "topic_id", deletedTopicIds);
+        cascadeDelete("exam_topics", "topic_id", deletedTopicIds);
+        setNull("tasks", "topic_id", deletedTopicIds);
+        setNull("focus_sessions", "topic_id", deletedTopicIds);
+        setNull("plan_sessions", "topic_id", deletedTopicIds);
+        setNull("quiz_answers", "topic_id", deletedTopicIds);
         cascadeDelete("grades", "subject_id", deletedIds);
         cascadeDelete("attendance_records", "subject_id", deletedIds);
         cascadeDelete("goals", "subject_id", deletedIds);
