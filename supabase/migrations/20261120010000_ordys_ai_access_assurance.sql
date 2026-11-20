@@ -101,11 +101,11 @@ CREATE OR REPLACE FUNCTION public.reject_ordys_ai_access_audit_mutation()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SET search_path = pg_catalog, public
-AS $
+AS $ordys_ai_access_audit$
 BEGIN
   RAISE EXCEPTION 'ORDYS_AI_ACCESS_AUDIT_APPEND_ONLY';
 END;
-$;
+$ordys_ai_access_audit$;
 
 REVOKE ALL ON FUNCTION public.reject_ordys_ai_access_audit_mutation()
   FROM PUBLIC, anon, authenticated;
