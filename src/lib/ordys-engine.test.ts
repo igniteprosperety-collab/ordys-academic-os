@@ -5,6 +5,7 @@ import {
   attendanceStatusLabel,
   buildNotificationRules,
   dateKey,
+  isManagedOrdysNotificationKey,
   difficultyLabel,
   goalMetricLabel,
   goalPeriodLabel,
@@ -21,6 +22,34 @@ import {
   ensureAutomaticReviews,
   summarize,
 } from "./ordys-engine";
+
+describe("ORDYS automated notification keys", () => {
+  it("recognizes only notification types owned by automatic academic sync", () => {
+    for (const key of [
+      "exam:exam-1:1",
+      "event:event-1:2026-11-20T14:00:00.000Z",
+      "task:task-1:0",
+      "task-late:task-1:2026-11-20",
+      "replan:2026-11-20",
+      "plan-today:2026-11-20",
+      "summary-day:2026-11-20",
+      "summary-week:2026-11-16",
+      "summary-month:2026-11-01",
+      "goal-grade:subject-1:2026-11-16",
+      "att:subject-1:2026-11-16",
+    ]) {
+      expect(isManagedOrdysNotificationKey(key)).toBe(true);
+    }
+  });
+
+  it("leaves manual, unknown and empty keys untouched", () => {
+    expect(isManagedOrdysNotificationKey("manual:student-note")).toBe(false);
+    expect(isManagedOrdysNotificationKey("custom:reminder")).toBe(false);
+    expect(isManagedOrdysNotificationKey(null)).toBe(false);
+    expect(isManagedOrdysNotificationKey(undefined)).toBe(false);
+    expect(isManagedOrdysNotificationKey("")).toBe(false);
+  });
+});
 
 describe("ORDYS date engine", () => {
   it("maps ORDYS weekdays to JavaScript weekdays", () => {
