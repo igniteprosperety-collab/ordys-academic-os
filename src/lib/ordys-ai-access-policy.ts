@@ -75,7 +75,6 @@ const TRUSTED_GUARDIAN_SOURCES = new Set<OrdysGuardianConsentSource>([
   "external_provider_verified",
 ]);
 
-
 /**
  * Convert a provider's exact numeric age bounds into a policy band.
  * Broad ranges crossing the V1 minimum (for example 13–15) remain unknown
@@ -90,7 +89,9 @@ export function mapOrdysAgeBandFromBounds(
     lowerBound === null ||
     lowerBound === undefined ||
     lowerBound < 0
-  ) return "unknown";
+  ) {
+    return "unknown";
+  }
 
   if (upperBound !== null && upperBound !== undefined) {
     if (!Number.isInteger(upperBound) || upperBound < lowerBound) return "unknown";
