@@ -7,8 +7,9 @@
  */
 export const ORDYS_AGE_ASSURANCE_VERIFIED = false;
 export const ORDYS_GUARDIAN_CONSENT_POLICY_VERIFIED = false;
-export const ORDYS_AI_ACCESS_POLICY_READY =
-  ORDYS_AGE_ASSURANCE_VERIFIED || ORDYS_GUARDIAN_CONSENT_POLICY_VERIFIED;
+// Keep this independent release switch closed until the server also verifies
+// per-user eligibility. Enabling either preparatory policy flag alone is not enough.
+export const ORDYS_AI_ACCESS_POLICY_READY = false;
 
 export const ORDYS_AI_ACCESS_POLICY_LOCK_MESSAGE =
   "Os recursos de IA estão temporariamente indisponíveis enquanto o Ordys conclui a verificação segura de idade e as proteções de dados dos estudantes.";
