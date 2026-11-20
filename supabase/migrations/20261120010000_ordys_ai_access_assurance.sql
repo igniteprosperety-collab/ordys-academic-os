@@ -63,7 +63,9 @@ COMMENT ON COLUMN public.ordys_ai_access_assurance.guardian_evidence_reference I
 
 CREATE TABLE IF NOT EXISTS public.ordys_ai_access_audit (
   event_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  -- Stable keyed pseudonym allows correlation without storing auth.users.id.
+  -- It has no FK, so account deletion cannot mutate immutable audit events.
+  user_ref TEXT NOT NULL CHECK (char_length(user_ref) = 64),
   event_type TEXT NOT NULL CHECK (
     event_type IN (
       'age_assurance_recorded',
@@ -90,7 +92,7 @@ CREATE TABLE IF NOT EXISTS public.ordys_ai_access_audit (
 );
 
 CREATE INDEX IF NOT EXISTS ordys_ai_access_audit_user_time_idx
-  ON public.ordys_ai_access_audit(user_id, occurred_at DESC);
+  ON public.ordys_ai_access_audit(user_ref, occurred_at DESC);
 
 ALTER TABLE public.ordys_ai_access_audit ENABLE ROW LEVEL SECURITY;
 
