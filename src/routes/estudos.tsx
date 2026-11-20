@@ -562,6 +562,9 @@ function FocusPanel({
       finishing.current = true;
       setRunning(false);
       setSaving(true);
+      void cancelNativeFocusTimerAlarm(userId ?? "").catch((error) => {
+        console.error("[focus] could not cancel Android timer alarm", error);
+      });
       const actualMinutes = status === "concluida" ? Math.max(1, elapsedMinutes) : elapsedMinutes;
       try {
         await onSave({
