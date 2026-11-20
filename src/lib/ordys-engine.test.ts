@@ -120,6 +120,65 @@ describe("ORDYS date engine", () => {
     ).resolves.toBe(0);
   });
 
+  it("creates a reminder for a calendar event starting within 24 hours", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 8, 27, 10, 0));
+    try {
+      const startsAt = new Date(Date.now() + 15 * 60_000).toISOString();
+      const rows = buildNotificationRules({
+        userId: "user-1",
+        subjects: [],
+        topics: [],
+        tasks: [],
+        exams: [],
+        plan: [],
+        grades: [],
+        attendance: [],
+        events: [
+          {
+            id: "event-1",
+            user_id: "user-1",
+            title: "Reunião do grupo",
+            kind: "compromisso",
+            source: "manual",
+            starts_at: startsAt,
+            ends_at: null,
+            external_id: null,
+            location: "Biblioteca",
+            subject_id: null,
+            created_at: "2026-09-27T09:00:00.000Z",
+          },
+        ],
+        focus: [],
+        profile: null,
+        prefs: {
+          enabled: true,
+          exams: true,
+          tasks: true,
+          overdue: true,
+          classes: true,
+          study_sessions: true,
+          goals: true,
+          daily_summary: false,
+          weekly_summary: false,
+          monthly_summary: false,
+        },
+      });
+
+      expect(rows).toContainEqual(
+        expect.objectContaining({
+          category: "agenda",
+          title: "Reunião do grupo — compromisso em 15 minuto(s)",
+          body: "Biblioteca",
+          link: "/agenda",
+          dedupe_key: `event:event-1:${startsAt}`,
+        }),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("creates the daily academic summary after the configured closing time", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 8, 27, 20, 15));
