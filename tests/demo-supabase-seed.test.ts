@@ -110,15 +110,10 @@ describe("ORDYS local demonstration dataset", () => {
     ]) {
       expect(row.user_id).toBe(profile.id);
     }
-    for (const row of topics)
-      expect(subjectIds.has(String(row.subject_id))).toBe(true);
+    for (const row of topics) expect(subjectIds.has(String(row.subject_id))).toBe(true);
     for (const row of tasks) {
-      expect(row.subject_id == null || subjectIds.has(row.subject_id)).toBe(
-        true,
-      );
-      expect(row.topic_id == null || topicIds.has(String(row.topic_id))).toBe(
-        true,
-      );
+      expect(row.subject_id == null || subjectIds.has(row.subject_id)).toBe(true);
+      expect(row.topic_id == null || topicIds.has(String(row.topic_id))).toBe(true);
     }
     for (const row of grades) expect(subjectIds.has(row.subject_id)).toBe(true);
     for (const row of answers) expect(topicIds.has(row.topic_id)).toBe(true);
@@ -167,9 +162,7 @@ describe("ORDYS local demonstration dataset", () => {
     const profiles = getLocalProfiles();
     expect(profiles).toHaveLength(2);
     switchLocalProfile(first.id);
-    const restoredSubjectIds = (await readRows("subjects")).map(
-      (row) => row.id,
-    );
+    const restoredSubjectIds = (await readRows("subjects")).map((row) => row.id);
     expect(restoredSubjectIds).toEqual(firstSubjectIds);
   });
 });
