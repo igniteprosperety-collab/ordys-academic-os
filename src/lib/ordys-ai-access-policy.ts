@@ -11,31 +11,10 @@ export const ORDYS_AI_SAFETY_POLICY_VERSION = "2026-11-20.1";
 export const ORDYS_AI_GUARDIAN_CONSENT_POLICY_VERSION = "2026-11-20.1";
 
 export type OrdysAiAgeBand = "under_13" | "13_15" | "16_17" | "18_plus" | "unknown";
-export type OrdysAgeAssuranceStatus =
-  | "verified"
-  | "supervised"
-  | "declared"
-  | "unknown"
-  | "revoked";
-export type OrdysAgeAssuranceSource =
-  | "google_play"
-  | "apple_declared_age_range"
-  | "external_provider"
-  | "operator_review"
-  | "unknown";
-export type OrdysGuardianConsentStatus =
-  | "granted"
-  | "pending"
-  | "denied"
-  | "revoked"
-  | "expired"
-  | "not_required"
-  | "unknown";
-export type OrdysGuardianConsentSource =
-  | "verified_guardian_portal"
-  | "external_provider"
-  | "operator_review"
-  | "unknown";
+export type OrdysAgeAssuranceStatus = "verified" | "supervised" | "declared" | "unknown" | "revoked";
+export type OrdysAgeAssuranceSource = "google_play" | "apple_declared_age_range" | "external_provider" | "operator_review" | "unknown";
+export type OrdysGuardianConsentStatus = "granted" | "pending" | "denied" | "revoked" | "expired" | "not_required" | "unknown";
+export type OrdysGuardianConsentSource = "verified_guardian_portal" | "external_provider" | "operator_review" | "unknown";
 
 export type OrdysAiAssuranceRecord = {
   age_band: OrdysAiAgeBand;
