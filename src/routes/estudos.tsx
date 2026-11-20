@@ -733,7 +733,8 @@ function FocusPanel({
                   setRunning(true);
                 }}
               >
-                <Play className="size-[13px]" strokeWidth={2} /> {sessionStarted ? "Retomar foco" : "Iniciar foco"}
+                <Play className="size-[13px]" strokeWidth={2} />{" "}
+                {sessionStarted ? "Retomar foco" : "Iniciar foco"}
               </Button>
             )}
           </div>
