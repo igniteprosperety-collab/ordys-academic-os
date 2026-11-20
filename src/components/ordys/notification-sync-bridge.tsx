@@ -126,13 +126,7 @@ export function NotificationSyncBridge() {
       window.removeEventListener("focus", deliverFreshNotifications);
       document.removeEventListener("visibilitychange", deliverFreshNotifications);
     };
-  }, [
-    isDemo,
-    notificationQuery.isError,
-    notificationQuery.isLoading,
-    notificationRows,
-    userId,
-  ]);
+  }, [isDemo, notificationQuery.isError, notificationQuery.isLoading, notificationRows, userId]);
 
   const signature = JSON.stringify([
     userId,
