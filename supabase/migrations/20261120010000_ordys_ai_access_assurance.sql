@@ -111,6 +111,8 @@ $ordys_ai_access_audit$;
 
 REVOKE ALL ON FUNCTION public.reject_ordys_ai_access_audit_mutation()
   FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.reject_ordys_ai_access_audit_mutation()
+  TO service_role;
 
 CREATE TRIGGER ordys_ai_access_audit_append_only
 BEFORE UPDATE OR DELETE ON public.ordys_ai_access_audit
