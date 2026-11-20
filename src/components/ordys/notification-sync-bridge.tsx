@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import {
   useAttendance,
+  useCalendarEvents,
   useExams,
   useFocusSessions,
   useGrades,
@@ -34,6 +35,7 @@ export function NotificationSyncBridge() {
   const planQuery = usePlanSessions();
   const gradesQuery = useGrades();
   const attendanceQuery = useAttendance();
+  const eventsQuery = useCalendarEvents();
   const focusQuery = useFocusSessions();
   const prefsQuery = useNotificationPrefs();
   const lastSyncedSignature = useRef<string | null>(null);
@@ -57,6 +59,7 @@ export function NotificationSyncBridge() {
     planQuery,
     gradesQuery,
     attendanceQuery,
+    eventsQuery,
     focusQuery,
     prefsQuery,
   ];
@@ -70,6 +73,7 @@ export function NotificationSyncBridge() {
   const plan = planQuery.data ?? EMPTY_ROWS;
   const grades = gradesQuery.data ?? EMPTY_ROWS;
   const attendance = attendanceQuery.data ?? EMPTY_ROWS;
+  const events = eventsQuery.data ?? EMPTY_ROWS;
   const focus = focusQuery.data ?? EMPTY_ROWS;
   const prefs = prefsQuery.data ?? null;
 
@@ -106,6 +110,7 @@ export function NotificationSyncBridge() {
     plan.map((item) => [item.id, item.status, item.session_date, item.start_time]),
     grades.map((item) => [item.id, item.score, item.max_score, item.weight, item.graded_on]),
     attendance.map((item) => [item.id, item.status, item.class_date, item.subject_id]),
+    events.map((item) => [item.id, item.title, item.starts_at, item.ends_at, item.location]),
     focus.map((item) => [item.id, item.status, item.started_at, item.actual_minutes]),
   ]);
 
@@ -124,6 +129,7 @@ export function NotificationSyncBridge() {
       plan,
       grades,
       attendance,
+      events,
       focus,
       profile,
       prefs,
@@ -139,6 +145,7 @@ export function NotificationSyncBridge() {
       });
   }, [
     attendance,
+    events,
     exams,
     focus,
     grades,
