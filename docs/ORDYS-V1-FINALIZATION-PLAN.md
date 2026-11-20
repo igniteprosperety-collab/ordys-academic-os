@@ -63,7 +63,7 @@ A exclusão desses fluxos da V1 não autoriza apagar tabelas, colunas, relaçõe
 | Data API anônima | **PASS** | 49/49 testes REST contra Supabase local, sem sessão de usuário |
 | RLS / isolamento autenticado | **PASS** | 17/17 asserções pgTAP com dois usuários sintéticos; leitura, inserção, atualização, exclusão, identidade forjada e vínculo entre contas |
 | CI completo do espelho | **PASS** | Execução [44693888138](https://github.com/igniteprosperety-collab/ordys-academic-os/actions/runs/44693888138), SHA `bb6b3edc98d4176e1d5dc66dbb87a4f9bc4a0c84a9` |
-| Correção do cliente Assistente/exclusão | **PASS** | [PR Draft #2](https://github.com/igniteprosperety-collab/ordys-academic-os/pull/2), run [44700553334](https://github.com/igniteprosperety-collab/ordys-academic-os/actions/runs/44700553334): typecheck, 89 testes unitários, lint, build, 46 migrations locais, 49 testes Data API e 17 pgTAP |
+| Correção do cliente Assistente/exclusão | **PASS / MERGED** | [PR #2](https://github.com/igniteprosperety-collab/ordys-academic-os/pull/2) mesclada por squash no commit `c70601ac54a6f54452e08ecf443a92acf44ebfac`; run [44700553334](https://github.com/igniteprosperety-collab/ordys-academic-os/actions/runs/44700553334): typecheck, 89 testes unitários, lint, build, 46 migrations locais, 49 testes Data API e 17 pgTAP |
 | Deploy das Edge Functions no projeto ativo | **BLOQUEADO** | O workflow privado é manual e recusa o projeto Lovable Cloud; exige o fluxo de implantação suportado pelo Lovable. Nenhum deploy foi provado nesta rodada. Issue #332 |
 | Notificações nativas no espelho | **PASS** | Padrão desligado; opt-in explícito; kill-switch de desativação; testes unitários |
 | Arquivo de ambiente versionado | **PASS** | Os seis nomes existentes são públicos e allowlisted; novos nomes não permitidos bloqueiam a CI; `.env` é ignorado para novos arquivos locais |
@@ -96,7 +96,7 @@ Isso prova que a cadeia SQL é executável em uma base limpa e que as regras tes
 6. CLI Supabase fixado na versão 3.2.0 e ações de CI fixadas por SHA para evitar consultas variáveis a `latest`.
 7. Notificações nativas passaram a exigir opt-in explícito no espelho público. O Google Play deve ativá-las explicitamente; o APK direto permanece desativado por padrão.
 
-A correção equivalente de notificações está na PR Draft [#331](https://github.com/igniteprosperety-collab/ordys-academy.app/pull/331) do repositório privado. A correção equivalente do lease de exclusão e o teste estão na branch Draft da PR [#320](https://github.com/igniteprosperety-collab/ordys-academy.app/pull/320). Essas PRs não foram mescladas porque a CI privada ainda não executa etapas.
+A correção do cliente web do Assistente/exclusão foi mesclada na origem pública pela [PR #2](https://github.com/igniteprosperety-collab/ordys-academic-os/pull/2), commit `c70601ac54a6f54452e08ecf443a92acf44ebfac`. Isso altera apenas o espelho público; não publica o app nem implanta Edge Functions. A correção equivalente de notificações está na PR Draft [#331](https://github.com/igniteprosperety-collab/ordys-academy.app/pull/331) do repositório privado. A correção equivalente do lease de exclusão e o teste estão na branch Draft da PR [#320](https://github.com/igniteprosperety-collab/ordys-academy.app/pull/320). Essas PRs privadas não foram mescladas porque a CI privada ainda não executa etapas.
 
 ## Caminho crítico — sem repetir trabalho aprovado
 
