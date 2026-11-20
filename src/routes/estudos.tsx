@@ -330,7 +330,7 @@ function Estudos() {
   async function saveReview() {
     const dueDate = new Date(`${reviewDraft.due_on}T12:00:00`);
     if (
-      !/^\\d{4}-\\d{2}-\\d{2}$/.test(reviewDraft.due_on) ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(reviewDraft.due_on) ||
       !Number.isFinite(dueDate.getTime()) ||
       dateKey(dueDate) !== reviewDraft.due_on
     ) {
