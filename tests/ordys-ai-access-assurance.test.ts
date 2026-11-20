@@ -119,7 +119,10 @@ describe("Ordys server-owned AI access assurance", () => {
   it("does not allow a self-declared adult, even when the profile says 18+", () => {
     expect(
       evaluateOrdysAiAccess(
-        record({ age_assurance_status: "declared", age_assurance_source: "google_play_tier_b_supervised" }),
+        record({
+          age_assurance_status: "declared",
+          age_assurance_source: "google_play_tier_b_supervised",
+        }),
         now,
       ),
     ).toEqual({ allowed: false, tier: "blocked", reason: "age_assurance_invalid" });
