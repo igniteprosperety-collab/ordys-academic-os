@@ -1,9 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { addLocalProfile, startDemoMode } from "../src/lib/demo-mode";
-import {
-  demoSupabase,
-  seedOrdysDemoDataset,
-} from "../src/lib/demo-supabase";
+import { demoSupabase, seedOrdysDemoDataset } from "../src/lib/demo-supabase";
 
 class MemoryStorage {
   private readonly values = new Map<string, string>();
