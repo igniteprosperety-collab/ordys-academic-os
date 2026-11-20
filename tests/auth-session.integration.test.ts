@@ -14,7 +14,7 @@ const initialPassword = `Ordys-Auth-CI-${nonce}-A9!`;
 const updatedPassword = `Ordys-Auth-Updated-${nonce}-B7!`;
 
 type AuthUser = { id?: string; email?: string; email_confirmed_at?: string | null };
-type AuthSession = {
+type AuthSession = AuthUser & {
   access_token?: string;
   refresh_token?: string;
   user?: AuthUser;
@@ -73,8 +73,9 @@ describe.runIf(enabled)("Ordys Supabase Auth lifecycle", () => {
     });
     const signupBody = await parseJson<AuthSession>(signup);
     expect(signup.ok, signupBody.msg ?? signupBody.message ?? "Signup failed.").toBe(true);
-    expect(signupBody.user?.id).toBeTruthy();
-    userId = signupBody.user!.id!;
+    const signupUser = signupBody.user ?? signupBody;
+    expect(signupUser.id).toBeTruthy();
+    userId = signupUser.id!;
 
     // Confirm only this disposable test account, without relying on SMTP.
     const confirmation = await fetch(
