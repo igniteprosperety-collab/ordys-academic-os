@@ -88,7 +88,16 @@ export function NotificationSyncBridge() {
   const notificationRows = notificationQuery.data ?? EMPTY_ROWS;
 
   useEffect(() => {
-    if (!userId || isDemo || isNativeAndroid() || typeof window === "undefined") return;
+    if (
+      !userId ||
+      isDemo ||
+      isNativeAndroid() ||
+      typeof window === "undefined" ||
+      notificationQuery.isLoading ||
+      notificationQuery.isError
+    ) {
+      return;
+    }
     if (!("Notification" in window)) return;
 
     const fresh = collectFreshBrowserNotifications(userId, notificationRows);
@@ -104,7 +113,7 @@ export function NotificationSyncBridge() {
         console.error("[notifications] browser delivery failed", error);
       }
     }
-  }, [isDemo, notificationRows, userId]);
+  }, [isDemo, notificationQuery.isError, notificationQuery.isLoading, notificationRows, userId]);
 
   const signature = JSON.stringify([
     userId,
