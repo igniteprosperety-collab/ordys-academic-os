@@ -54,4 +54,6 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log("Environment-file safety check passed (variable names only; values were not inspected or printed).");
+console.log(
+  "Environment-file safety check passed (variable names only; values were not inspected or printed).",
+);
