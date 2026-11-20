@@ -20,6 +20,8 @@ Há duas origens diferentes; não devem ser tratadas como repositórios intercam
 
 O projeto Lovable continua sem créditos de edição e não está publicado. A sincronização de commits anteriormente observada não prova deploy, estado do banco ou execução de Edge Functions.
 
+**Bloqueio adicional de implantação confirmado em 20/11:** o workflow privado `.github/workflows/deploy-ordys-assistant.yml` rejeita explicitamente o projeto gerenciado `yqljcoukgpqdoxiispyn` no passo de configuração. Ele orienta usar o fluxo suportado do Lovable Cloud e encerra antes de vincular o projeto, executar migrations, gravar secrets ou publicar Edge Functions. Portanto, o GitHub não é atualmente um caminho independente de deploy para o backend gerenciado. Não remover esse bloqueio nem trocar o project ID como atalho. Registro: [Issue #332](https://github.com/igniteprosperety-collab/ordys-academy.app/issues/332).
+
 **Proibido:** copiar integralmente um repositório sobre o outro; substituir `src/integrations/*`, `src/start.ts`, `src/server.ts` ou arquivos de ambiente do Lovable com versões da origem privada; assumir que Git Sync publica migrations ou Edge Functions.
 
 A reconciliação deve ser seletiva, com commits pequenos, diff revisado e caminho de rollback.
@@ -61,6 +63,8 @@ A exclusão desses fluxos da V1 não autoriza apagar tabelas, colunas, relaçõe
 | Data API anônima | **PASS** | 49/49 testes REST contra Supabase local, sem sessão de usuário |
 | RLS / isolamento autenticado | **PASS** | 17/17 asserções pgTAP com dois usuários sintéticos; leitura, inserção, atualização, exclusão, identidade forjada e vínculo entre contas |
 | CI completo do espelho | **PASS** | Execução [44693888138](https://github.com/igniteprosperety-collab/ordys-academic-os/actions/runs/44693888138), SHA `bb6b3edc98d4176e1d5dc66dbb87a4f9bc4a0c84a9` |
+| Correção do cliente Assistente/exclusão | **PASS** | [PR Draft #2](https://github.com/igniteprosperety-collab/ordys-academic-os/pull/2), run [44700553334](https://github.com/igniteprosperety-collab/ordys-academic-os/actions/runs/44700553334): typecheck, 89 testes unitários, lint, build, 46 migrations locais, 49 testes Data API e 17 pgTAP |
+| Deploy das Edge Functions no projeto ativo | **BLOQUEADO** | O workflow privado é manual e recusa o projeto Lovable Cloud; exige o fluxo de implantação suportado pelo Lovable. Nenhum deploy foi provado nesta rodada. Issue #332 |
 | Notificações nativas no espelho | **PASS** | Padrão desligado; opt-in explícito; kill-switch de desativação; testes unitários |
 | Arquivo de ambiente versionado | **PASS** | Os seis nomes existentes são públicos e allowlisted; novos nomes não permitidos bloqueiam a CI; `.env` é ignorado para novos arquivos locais |
 | CI do repositório privado | **BLOQUEADO** | Jobs falham antes de alocar runner; Issue #318. Nenhuma etapa de teste/build foi executada nessa origem. |
@@ -85,6 +89,8 @@ Isso prova que a cadeia SQL é executável em uma base limpa e que as regras tes
 ## Correções entregues nesta rodada
 
 1. Tratamento do bloqueio temporário na exclusão de conta: erro original de conciliação/cancelamento é preservado se a tentativa de liberar o lease falhar.
+2. Correção do cliente do Assistente: remoção do fallback web para `/api/ordys-assistant`, rota que não existe na árvore pública; chamadas mantidas na Edge Function autenticada e mensagens HTTP específicas preservadas.
+3. A tela de exclusão passou a preservar a mensagem específica retornada pela Edge Function, sem perder os estados de exclusão inconclusiva ou parcial.
 2. Teste de regressão para o cenário de erro primário seguido de falha de liberação.
 3. Workflow de CI permanente com typecheck, testes, lint, build, aplicação local das migrations e pgTAP.
 4. CLI Supabase fixado na versão 3.2.0 e ações de CI fixadas por SHA para evitar consultas variáveis a `latest`.
@@ -156,11 +162,12 @@ Até haver um modelo de age assurance/consentimento adequado à audiência real 
 - não declarar que a proteção etária está concluída;
 - manter política, termos, retenção e canal de suporte como itens de aceite da V1.
 
-Issues internas relevantes: #318 (runner privado), #322 (reconciliação de origem), #323 (age assurance), #324 (worker Asaas) e #92 (privacidade, termos e menores).
+Issues internas relevantes: #318 (runner privado), #322 (reconciliação de origem), #323 (age assurance), #324 (worker Asaas), #332 (deploy bloqueado pelo projeto Lovable Cloud) e #92 (privacidade, termos e menores).
 
 ## O que pode ser concluído sem acesso do proprietário ou do Lovable
 
 - Código isolado, testes unitários, typecheck, lint e build.
+- Revisão estática dos contratos de chamadas Edge Function e identificação dos endpoints de backend necessários à V1.
 - Testes pgTAP e migrations em Supabase local descartável.
 - Correções nas branches públicas ou Drafts privados, sem merge/publicação.
 - Revisão estática de rotas, secrets, flags, permissões e contratos entre front-end/Edge Functions.
@@ -172,6 +179,7 @@ Issues internas relevantes: #318 (runner privado), #322 (reconciliação de orig
 - Configuração/entrega real de e-mail de confirmação.
 - Sessão autenticada no preview ou ambiente de homologação.
 - Runner privado e execução de CI no repositório oficial.
+- Acesso ao fluxo suportado Lovable Cloud para implantar e verificar migrations/Edge Functions; o workflow Supabase CLI do repositório privado recusa o project ID gerenciado.
 - Secrets de release e fingerprint da chave Android.
 - Instalação/atualização num aparelho físico.
 - Decisão e revisão sobre idade, consentimento, privacidade e IA.
