@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { useAuth } from "@/hooks/use-auth";
+import { collectFreshBrowserNotifications } from "@/lib/browser-notifications";
 import {
   useAttendance,
   useCalendarEvents,
@@ -8,6 +10,7 @@ import {
   useFocusSessions,
   useGrades,
   useNotificationPrefs,
+  useNotifications,
   usePlanSessions,
   useProfile,
   useSubjects,
@@ -27,7 +30,8 @@ function notificationClockBucket() {
 }
 
 export function NotificationSyncBridge() {
-  const { userId } = useAuth();
+  const { userId, isDemo } = useAuth();
+  const queryClient = useQueryClient();
   const profileQuery = useProfile();
   const subjectsQuery = useSubjects();
   const topicsQuery = useTopics();
@@ -39,6 +43,7 @@ export function NotificationSyncBridge() {
   const eventsQuery = useCalendarEvents();
   const focusQuery = useFocusSessions();
   const prefsQuery = useNotificationPrefs();
+  const notificationQuery = useNotifications();
   const lastSyncedSignature = useRef<string | null>(null);
   const syncInProgress = useRef(false);
   const pendingSync = useRef<{
@@ -80,6 +85,26 @@ export function NotificationSyncBridge() {
   const events = eventsQuery.data ?? EMPTY_ROWS;
   const focus = focusQuery.data ?? EMPTY_ROWS;
   const prefs = prefsQuery.data ?? null;
+  const notificationRows = notificationQuery.data ?? EMPTY_ROWS;
+
+  useEffect(() => {
+    if (!userId || isDemo || isNativeAndroid() || typeof window === "undefined") return;
+    if (!("Notification" in window)) return;
+
+    const fresh = collectFreshBrowserNotifications(userId, notificationRows);
+    if (Notification.permission !== "granted") return;
+
+    for (const notification of fresh) {
+      try {
+        new Notification(notification.title, {
+          body: notification.body,
+          tag: `ordys-${notification.id}`,
+        });
+      } catch (error) {
+        console.error("[notifications] browser delivery failed", error);
+      }
+    }
+  }, [isDemo, notificationRows, userId]);
 
   const signature = JSON.stringify([
     userId,
@@ -150,6 +175,10 @@ export function NotificationSyncBridge() {
       try {
         await syncNotifications(nextInput);
         lastSyncedSignature.current = nextSignature;
+        await queryClient.invalidateQueries({
+          queryKey: ["notifications", nextInput.userId],
+          exact: false,
+        });
         if (isNativeAndroid()) {
           try {
             await syncNativeAcademicNotifications();
@@ -180,6 +209,7 @@ export function NotificationSyncBridge() {
     plan,
     prefs,
     profile,
+    queryClient,
     ready,
     signature,
     clockBucket,
