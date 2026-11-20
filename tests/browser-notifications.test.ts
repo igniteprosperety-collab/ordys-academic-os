@@ -45,9 +45,7 @@ describe("browser notification delivery", () => {
         now,
       ),
     ).toEqual([row("new")]);
-    expect(collectFreshBrowserNotifications("student-a", [row("new")], storage, now)).toEqual(
-      [],
-    );
+    expect(collectFreshBrowserNotifications("student-a", [row("new")], storage, now)).toEqual([]);
   });
 
   it("does not share notification history between student accounts", () => {
