@@ -128,7 +128,7 @@ describe("Ordys server-owned AI access assurance", () => {
     ).toEqual({ allowed: false, tier: "blocked", reason: "age_assurance_invalid" });
   });
 
-  it("allows a 13–17 account only with current trusted age evidence and verified guardian consent", () => {
+  it("allows a 14–17 account only with current trusted age evidence and verified guardian consent", () => {
     expect(
       evaluateOrdysAiAccess(
         record({
