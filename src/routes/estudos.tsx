@@ -279,10 +279,7 @@ function Estudos() {
       toast.error("Uma nova sessão precisa ser marcada para hoje ou uma data futura.");
       return;
     }
-    if (
-      planDraft.start_time &&
-      !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(planDraft.start_time)
-    ) {
+    if (planDraft.start_time && !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(planDraft.start_time)) {
       toast.error("Informe um horário válido.");
       return;
     }
@@ -845,7 +842,11 @@ function Estudos() {
             Cancelar
           </Button>
           <Button disabled={planSaving} onClick={() => void savePlanSession()}>
-            {planSaving ? "Salvando…" : planModal.editing ? "Salvar alterações" : "Adicionar sessão"}
+            {planSaving
+              ? "Salvando…"
+              : planModal.editing
+                ? "Salvar alterações"
+                : "Adicionar sessão"}
           </Button>
         </div>
       </Modal>
