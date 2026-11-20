@@ -13,9 +13,15 @@ import {
   Ring,
   Stat,
 } from "@/components/ordys/primitives";
-import { Button, Field, Select } from "@/components/ordys/form";
+import { Button, Field, Modal, Select } from "@/components/ordys/form";
 import { generateOrdysQuiz, type OrdysQuizQuestion } from "@/lib/ordys-assistant-client";
-import { useOrdysMutations, useQuizAttempts, useSubjects, useTopics } from "@/lib/ordys-db";
+import {
+  useOrdysMutations,
+  useQuizAnswers,
+  useQuizAttempts,
+  useSubjects,
+  useTopics,
+} from "@/lib/ordys-db";
 import { supabase } from "@/integrations/supabase/client";
 import { ORDYS_PLUS_AI_ENABLED, ORDYS_PLUS_LOCK_SHORT_MESSAGE } from "@/lib/ordys-ai-access";
 import { useAuth } from "@/hooks/use-auth";
@@ -48,7 +54,13 @@ function Simulado() {
   const [active, setActive] = useState("Novo simulado");
   const { data: subjects = [] } = useSubjects();
   const { data: attempts = [] } = useQuizAttempts();
+  const { data: quizAnswers = [] } = useQuizAnswers();
   const { userId, refresh } = useOrdysMutations();
+  const [selectedAttemptId, setSelectedAttemptId] = useState<string | null>(null);
+  const selectedAttempt = attempts.find((attempt) => attempt.id === selectedAttemptId) ?? null;
+  const selectedAttemptAnswers = quizAnswers
+    .filter((answer) => answer.attempt_id === selectedAttemptId)
+    .sort((a, b) => a.created_at.localeCompare(b.created_at));
   const { isDemo } = useAuth();
 
   const [subjectId, setSubjectId] = useState("");
@@ -377,9 +389,11 @@ function Simulado() {
           <div className="border-t border-border">
             {attempts.length ? (
               attempts.map((a) => (
-                <div
+                <button
                   key={a.id}
-                  className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-5 py-2.5 text-[12.5px]"
+                  type="button"
+                  onClick={() => setSelectedAttemptId(a.id)}
+                  className="ordys-pressable flex w-full min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border px-5 py-2.5 text-left text-[12.5px] last:border-0 hover:bg-surface"
                 >
                   <span className="min-w-0 flex-1 truncate">
                     {subjects.find((s) => s.id === a.subject_id)?.name ?? "Disciplina"}
@@ -391,7 +405,7 @@ function Simulado() {
                   <span className="num shrink-0 text-[11px] text-muted-foreground">
                     {a.created_at.slice(0, 10)}
                   </span>
-                </div>
+                </button>
               ))
             ) : (
               <p className="px-5 py-6 text-[12px] text-muted-foreground">
@@ -401,6 +415,60 @@ function Simulado() {
           </div>
         </Panel>
       )}
+      <Modal
+        open={selectedAttempt !== null}
+        onClose={() => setSelectedAttemptId(null)}
+        title="Revisão do simulado"
+        subtitle={
+          selectedAttempt
+            ? `${subjects.find((subject) => subject.id === selectedAttempt.subject_id)?.name ?? "Disciplina"} · ${selectedAttempt.created_at.slice(0, 10)} · ${selectedAttempt.correct_count ?? 0}/${selectedAttempt.question_count} acertos`
+            : "Histórico de respostas"
+        }
+        width={720}
+      >
+        {selectedAttemptAnswers.length ? (
+          <div className="max-h-[65vh] space-y-3 overflow-y-auto pr-1">
+            {selectedAttemptAnswers.map((answer, index) => (
+              <div key={answer.id} className="rounded-lg border border-border bg-surface p-3">
+                <div className="flex items-start gap-2">
+                  <Chip tone={answer.is_correct ? "success" : "danger"}>
+                    {answer.is_correct ? "Acertou" : "Errou"}
+                  </Chip>
+                  <p className="min-w-0 flex-1 text-[12px] font-medium">
+                    {index + 1}. {answer.question}
+                  </p>
+                </div>
+                <div className="mt-3 grid gap-2 text-[11.5px]">
+                  <p>
+                    <span className="text-muted-foreground">Sua resposta: </span>
+                    <span className={answer.is_correct ? "text-success" : "text-destructive"}>
+                      {answer.given_answer ?? "Não respondida"}
+                    </span>
+                  </p>
+                  {!answer.is_correct ? (
+                    <p>
+                      <span className="text-muted-foreground">Resposta correta: </span>
+                      <span className="font-medium text-success">{answer.correct_answer}</span>
+                    </p>
+                  ) : null}
+                  {answer.explanation ? (
+                    <p className="leading-relaxed text-muted-foreground">{answer.explanation}</p>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="py-5 text-center text-[12px] text-muted-foreground">
+            Não há respostas detalhadas salvas para esta tentativa antiga.
+          </p>
+        )}
+        <div className="mt-4 flex justify-end">
+          <Button variant="ghost" onClick={() => setSelectedAttemptId(null)}>
+            Fechar
+          </Button>
+        </div>
+      </Modal>
     </Shell>
   );
 }
