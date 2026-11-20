@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS public.ordys_ai_access_assurance (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   CHECK (
-    age_assurance_status <> 'verified'
+    age_assurance_status NOT IN ('verified', 'supervised')
     OR (age_assurance_source <> 'unknown' AND age_assurance_verified_at IS NOT NULL AND age_assurance_expires_at IS NOT NULL)
   ),
   CHECK (
