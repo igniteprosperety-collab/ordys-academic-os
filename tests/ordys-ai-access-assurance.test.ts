@@ -24,6 +24,8 @@ function record(overrides: Partial<OrdysAiAssuranceRecord> = {}): OrdysAiAssuran
     guardian_consent_at: null,
     guardian_consent_expires_at: null,
     guardian_consent_policy_version: null,
+    age_evidence_reference: "age-evidence-reference",
+    guardian_evidence_reference: null,
     ai_safety_policy_version: ORDYS_AI_SAFETY_POLICY_VERSION,
     ...overrides,
   };
@@ -53,6 +55,7 @@ describe("Ordys server-owned AI access assurance", () => {
           guardian_consent_at: current,
           guardian_consent_expires_at: future,
           guardian_consent_policy_version: ORDYS_AI_GUARDIAN_CONSENT_POLICY_VERSION,
+          guardian_evidence_reference: "guardian-evidence-reference",
         }),
         now,
       ),
@@ -91,6 +94,7 @@ describe("Ordys server-owned AI access assurance", () => {
           guardian_consent_at: current,
           guardian_consent_expires_at: future,
           guardian_consent_policy_version: ORDYS_AI_GUARDIAN_CONSENT_POLICY_VERSION,
+          guardian_evidence_reference: "guardian-evidence-reference",
         }),
         now,
       ),
@@ -115,6 +119,7 @@ describe("Ordys server-owned AI access assurance", () => {
             guardian_consent_at: current,
             guardian_consent_expires_at: future,
             guardian_consent_policy_version: ORDYS_AI_GUARDIAN_CONSENT_POLICY_VERSION,
+          guardian_evidence_reference: "guardian-evidence-reference",
           }),
           now,
         ).allowed,
@@ -134,6 +139,7 @@ describe("Ordys server-owned AI access assurance", () => {
           guardian_consent_at: current,
           guardian_consent_expires_at: future,
           guardian_consent_policy_version: ORDYS_AI_GUARDIAN_CONSENT_POLICY_VERSION,
+          guardian_evidence_reference: "guardian-evidence-reference",
         }),
         now,
       ),
@@ -152,6 +158,7 @@ describe("Ordys server-owned AI access assurance", () => {
           guardian_consent_at: current,
           guardian_consent_expires_at: future,
           guardian_consent_policy_version: ORDYS_AI_GUARDIAN_CONSENT_POLICY_VERSION,
+          guardian_evidence_reference: "guardian-evidence-reference",
         }),
         now,
       ),
@@ -163,6 +170,25 @@ describe("Ordys server-owned AI access assurance", () => {
     const futureDated = evaluateOrdysAiAccess(record({ age_assurance_verified_at: future }), now);
     expect(expired.allowed).toBe(false);
     expect(futureDated.allowed).toBe(false);
+  });
+
+  it("blocks guardian consent without an opaque evidence reference", () => {
+    expect(
+      evaluateOrdysAiAccess(
+        record({
+          age_band: "13_15",
+          guardian_consent_status: "granted",
+          guardian_consent_source: "verified_guardian_portal",
+          guardian_identity_verified: true,
+          guardian_relationship_verified: true,
+          guardian_consent_at: current,
+          guardian_consent_expires_at: future,
+          guardian_consent_policy_version: ORDYS_AI_GUARDIAN_CONSENT_POLICY_VERSION,
+          guardian_evidence_reference: null,
+        }),
+        now,
+      ),
+    ).toEqual({ allowed: false, tier: "blocked", reason: "guardian_consent_invalid" });
   });
 
   it("blocks guardian consent with an outdated policy version", () => {
@@ -177,6 +203,7 @@ describe("Ordys server-owned AI access assurance", () => {
           guardian_consent_at: current,
           guardian_consent_expires_at: future,
           guardian_consent_policy_version: "2026-10-01",
+          guardian_evidence_reference: "guardian-evidence-reference",
         }),
         now,
       ),
