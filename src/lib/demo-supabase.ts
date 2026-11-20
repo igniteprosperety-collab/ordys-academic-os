@@ -312,7 +312,7 @@ class DemoQuery implements PromiseLike<Result> {
       const deleted = rows.filter((row) => this.matches(row));
       store[this.table] = rows.filter((row) => !this.matches(row));
 
-      const deletedIds = new Set(deleted.map((row) => row.id).filter(Boolean));
+      const deletedIds = new Set(deleted.map((row) => row["id"]).filter(Boolean));
       const cascadeDelete = (table: string, column: string, ids: Set<unknown>) => {
         if (!ids.size) return;
         const childRows = store[table] ?? [];
@@ -333,9 +333,9 @@ class DemoQuery implements PromiseLike<Result> {
       } else if (this.table === "subjects") {
         cascadeDelete("subject_schedules", "subject_id", deletedIds);
         const deletedTopics = (store["topics"] ?? []).filter((row) =>
-          deletedIds.has(row.subject_id),
+          deletedIds.has(row["subject_id"]),
         );
-        const deletedTopicIds = new Set(deletedTopics.map((row) => row.id));
+        const deletedTopicIds = new Set(deletedTopics.map((row) => row["id"]));
         cascadeDelete("topics", "subject_id", deletedIds);
         cascadeDelete("reviews", "topic_id", deletedTopicIds);
         cascadeDelete("exam_topics", "topic_id", deletedTopicIds);
