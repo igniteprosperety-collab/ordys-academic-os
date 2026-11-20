@@ -579,7 +579,9 @@ function Disciplinas() {
       toast.success("Frequência atualizada");
       setAttendanceModal(null);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Não foi possível atualizar a frequência.");
+      toast.error(
+        error instanceof Error ? error.message : "Não foi possível atualizar a frequência.",
+      );
     } finally {
       setAttendanceSaving(false);
     }
@@ -597,8 +599,7 @@ function Disciplinas() {
         return;
       }
       const existing = attendance.find(
-        (record) =>
-          record.subject_id === selected.id && record.class_date === attendanceDate,
+        (record) => record.subject_id === selected.id && record.class_date === attendanceDate,
       );
       if (existing) {
         await update("attendance_records", existing.id, { status });
@@ -753,10 +754,7 @@ function Disciplinas() {
                   {subjectSchedules.length ? (
                     subjectSchedules
                       .slice()
-                      .sort(
-                        (a, b) =>
-                          a.weekday - b.weekday || a.start_time.localeCompare(b.start_time),
-                      )
+                      .sort((a, b) => a.weekday - b.weekday || a.start_time.localeCompare(b.start_time))
                       .map((schedule) => (
                         <div
                           key={schedule.id}
@@ -1069,7 +1067,9 @@ function Disciplinas() {
                       </div>
                     </Panel>
                     <Panel className="px-5 py-4">
-                      <p className="text-[12px] font-semibold">{editingGrade ? "Editar nota" : "Registrar nota"}</p>
+                      <p className="text-[12px] font-semibold">
+                        {editingGrade ? "Editar nota" : "Registrar nota"}
+                      </p>
                       <div className="mt-3 grid gap-2.5">
                         <Field label="Avaliação">
                           <TextInput
@@ -1116,7 +1116,11 @@ function Disciplinas() {
                               Cancelar
                             </Button>
                           ) : null}
-                          <Button className="flex-1" onClick={saveGrade} disabled={!gradeForm.score}>
+                          <Button
+                            className="flex-1"
+                            onClick={saveGrade}
+                            disabled={!gradeForm.score}
+                          >
                             {editingGrade ? "Salvar alterações" : "Salvar nota"}
                           </Button>
                         </div>
@@ -1385,7 +1389,11 @@ function Disciplinas() {
             disabled={examSaving || !examForm.title.trim() || !examForm.exam_at}
             onClick={() => void saveExam()}
           >
-            {examSaving ? "Salvando…" : examModal.editing ? "Salvar alterações" : "Cadastrar avaliação"}
+            {examSaving
+              ? "Salvando…"
+              : examModal.editing
+                ? "Salvar alterações"
+                : "Cadastrar avaliação"}
           </Button>
         </div>
       </Modal>
