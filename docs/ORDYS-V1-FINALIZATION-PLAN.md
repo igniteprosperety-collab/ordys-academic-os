@@ -162,6 +162,19 @@ A implementação privada que contém a sequência reserva → claim → cancela
 
 **Não fazer:** reset remoto, aplicar 46 migrations em lote, editar ledger por suposição, executar migrations financeiras em produção ou remover o trigger de confirmação de e-mail antes de comprovar entrega normal de Gmail com Auto-confirm desativado.
 
+### Gate 2B — Auth e entrega real de e-mail
+
+A origem privada possui uma proteção explícita para não remover o mecanismo temporário de auto-confirmação antes de a entrega normal do Supabase Auth ser comprovada.
+
+- A migration `20261029233000_remove_untracked_auto_confirm_email.sql` remove o trigger não versionado `ordys_auto_confirm_email_trigger` e a função `public.ordys_auto_confirm_email()`. Depois dela, novas contas dependem da confirmação real do endereço.
+- O workflow privado exige a confirmação manual `email_confirmation_delivery_verified=true`. Enquanto essa confirmação não for dada e a migration ainda não estiver no ledger remoto, ele retira do lote **essa migration e todas as posteriores**, preservando a ordem das versões.
+- O workflow também exige a declaração manual `production_backup_verified=true` depois de exportar um backup completo para fora do Lovable, abri-lo ou validar sua integridade e armazená-lo fora da plataforma.
+- Antes de deploy, o verificador lê a configuração Auth real (sem imprimir segredos) e falha se: signup ou email auth estiverem desligados; Auto-confirm estiver ligado; senha mínima for menor que 8; HIBP/leaked-password protection ou secure email-change estiverem desligados; Google OAuth estiver sem Client ID/Secret; callback nativo Android ou callbacks web exatos estiverem ausentes; Site URL não corresponder à origem oficial; SMTP customizado estiver parcialmente preenchido/inválido.
+- SMTP customizado totalmente ausente gera aviso, não aprovação da entrega: a própria auditoria exige testar cadastro e recuperação com um Gmail comum, fora da equipe, antes do release. Sem origem web oficial configurada, recuperação no browser permanece fail-closed; o deep-link Android continua disponível.
+- A query `scripts/queries/auth-trigger-readiness.sql` detecta o trigger/função por nome ou por referência a `email_confirmed_at`, sem ler linhas de `auth.users`, tokens ou credenciais. Os testes `tests/auth-trigger-readiness.test.ts` e `tests/supabase-auth-config.test.ts` cobrem o escopo da query e os critérios da auditoria.
+
+**Estado atual:** os guardrails e testes existem no código privado, mas nenhum Gmail externo foi validado nesta rodada, nenhum backup remoto foi exportado/verificado por esta sessão e o deploy do Lovable Cloud continua indisponível pelo fluxo GitHub. Portanto, não aprovar a remoção do trigger, não destravar a migration `20261029233000` e não marcar Auth de produção como aceita.
+
 ### Gate 3 — autenticação e persistência ponta a ponta
 
 Usar contas sintéticas:
