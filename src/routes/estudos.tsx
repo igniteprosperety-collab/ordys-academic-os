@@ -503,6 +503,7 @@ function FocusPanel({
   const [hydrated, setHydrated] = useState(false);
   const startedAt = useRef<string | null>(null);
   const timerEndAt = useRef<number | null>(null);
+  const finishing = useRef(false);
 
   useEffect(() => {
     if (!userId) {
@@ -548,7 +549,8 @@ function FocusPanel({
 
   const finish = useCallback(
     async (status: "concluida" | "cancelada") => {
-      if (saving || !startedAt.current) return;
+      if (saving || finishing.current || !startedAt.current) return;
+      finishing.current = true;
       setRunning(false);
       setSaving(true);
       const actualMinutes = status === "concluida" ? Math.max(1, elapsedMinutes) : elapsedMinutes;
@@ -580,6 +582,7 @@ function FocusPanel({
         setLeft(remaining);
         persistTimer("paused", remaining, null);
       } finally {
+        finishing.current = false;
         setSaving(false);
       }
     },
@@ -618,7 +621,7 @@ function FocusPanel({
               <button
                 type="button"
                 key={m}
-                disabled={sessionStarted}
+                disabled={!hydrated || sessionStarted}
                 onClick={() => {
                   setMinutes(m);
                   setLeft(m * 60);
@@ -636,7 +639,7 @@ function FocusPanel({
           <Field label="Disciplina">
             <Select
               value={subjectId}
-              disabled={sessionStarted}
+              disabled={!hydrated || sessionStarted}
               onChange={(e) => {
                 setSubjectId(e.target.value);
                 setTopicId("");
@@ -653,7 +656,7 @@ function FocusPanel({
           <Field label="Conteúdo">
             <Select
               value={topicId}
-              disabled={sessionStarted}
+              disabled={!hydrated || sessionStarted}
               onChange={(e) => setTopicId(e.target.value)}
             >
               <option value="">Sem conteúdo</option>
@@ -670,7 +673,7 @@ function FocusPanel({
             <Field label="Vincular a uma sessão do plano">
               <Select
                 value={planId}
-                disabled={sessionStarted}
+                disabled={!hydrated || sessionStarted}
                 onChange={(e) => setPlanId(e.target.value)}
               >
                 <option value="">Sem vínculo</option>
@@ -689,9 +692,6 @@ function FocusPanel({
                   variant="ghost"
                   disabled={saving}
                   onClick={() => {
-                    if (timerEndAt.current !== null) {
-                      setLeft(Math.max(0, Math.ceil((timerEndAt.current - Date.now()) / 1000)));
-                    }
                     const remaining =
                       timerEndAt.current === null
                         ? left
@@ -722,7 +722,7 @@ function FocusPanel({
                   setRunning(true);
                 }}
               >
-                <Play className="size-[13px]" strokeWidth={2} /> Iniciar foco
+                <Play className="size-[13px]" strokeWidth={2} /> {sessionStarted ? "Retomar foco" : "Iniciar foco"}
               </Button>
             )}
           </div>
