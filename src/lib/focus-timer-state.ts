@@ -53,7 +53,9 @@ function isValidFocusTimerState(value: unknown, userId: string): value is FocusT
     return false;
   }
 
-  if (state.status === "running") return Number.isFinite(state.endsAtMs);
+  if (state.status === "running") {
+    return typeof state.endsAtMs === "number" && Number.isFinite(state.endsAtMs);
+  }
   return state.endsAtMs === null;
 }
 
