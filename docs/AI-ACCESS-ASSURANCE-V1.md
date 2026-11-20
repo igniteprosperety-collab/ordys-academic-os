@@ -51,7 +51,7 @@ A parent-managed Google account / Apple family relationship, a mailbox link, a s
 
 - Evidence is stored as opaque provider references, not identity documents or raw provider payloads.
 - The evidence table is inaccessible to `anon` and `authenticated`; only trusted server code can read/write it.
-- The audit log is server-only and append-only for grant, denial, expiry, revocation and policy events.
+- The audit log is server-only and append-only for grant, denial, expiry, revocation and policy events. It stores a project-keyed HMAC reference rather than the raw account UUID, and has no `auth.users` foreign key that could block account deletion.
 - Context selection remains opt-in and per message. Only selected academic context is sent.
 - Apply age-appropriate input/output filters, abuse/risk monitoring, reporting and escalation before opening access to minors.
 - Keep OpenAI credentials server-side. Do not put provider secrets or proof payloads in the client, Vite variables, logs, or chat.
