@@ -75,6 +75,34 @@ const TRUSTED_GUARDIAN_SOURCES = new Set<OrdysGuardianConsentSource>([
   "external_provider_verified",
 ]);
 
+
+/**
+ * Convert a provider's exact numeric age bounds into a policy band.
+ * Broad ranges crossing the V1 minimum (for example 13–15) remain unknown
+ * and cannot be rounded up to an eligible minor band.
+ */
+export function mapOrdysAgeBandFromBounds(
+  lowerBound: number | null | undefined,
+  upperBound: number | null | undefined,
+): OrdysAiAgeBand {
+  if (
+    !Number.isInteger(lowerBound) ||
+    lowerBound === null ||
+    lowerBound === undefined ||
+    lowerBound < 0
+  ) return "unknown";
+
+  if (upperBound !== null && upperBound !== undefined) {
+    if (!Number.isInteger(upperBound) || upperBound < lowerBound) return "unknown";
+    if (upperBound < 14) return "under_14";
+    if (lowerBound >= 14 && upperBound <= 15) return "14_15";
+    if (lowerBound >= 16 && upperBound <= 17) return "16_17";
+  }
+
+  if (lowerBound >= 18) return "18_plus";
+  return "unknown";
+}
+
 /**
  * Map the current Google Play Age Signals source after Play Integrity has been
  * verified server-side. TIER_A (declared) and TIER_C (estimated) are not used
