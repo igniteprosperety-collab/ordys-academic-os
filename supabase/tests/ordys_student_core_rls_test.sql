@@ -132,7 +132,7 @@ insert into public.ordys_ai_access_audit (
   'age_assurance_recorded',
   'operator',
   '18_plus',
-  'operator_review',
+  'external_provider_verified',
   'test-age-evidence-reference'
 );
 
