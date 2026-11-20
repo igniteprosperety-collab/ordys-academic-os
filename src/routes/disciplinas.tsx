@@ -152,6 +152,8 @@ function Disciplinas() {
   const [editingGrade, setEditingGrade] = useState<Grade | null>(null);
   const [attendanceModal, setAttendanceModal] = useState<AttendanceRecord | null>(null);
   const [attendanceEditStatus, setAttendanceEditStatus] = useState("presente");
+  const [attendanceEditDate, setAttendanceEditDate] = useState("");
+  const [attendanceDate, setAttendanceDate] = useState(() => dateKey(new Date()));
   const [attendanceSaving, setAttendanceSaving] = useState(false);
   const [examModal, setExamModal] = useState<{ open: boolean; editing?: Exam }>({ open: false });
   const [examForm, setExamForm] = useState<ExamForm>(emptyExamForm);
@@ -552,8 +554,27 @@ function Disciplinas() {
     if (!attendanceModal) return;
     setAttendanceSaving(true);
     try {
+      if (!attendanceEditDate || !/^\\d{4}-\\d{2}-\\d{2}$/.test(attendanceEditDate)) {
+        toast.error("Informe uma data válida para a aula.");
+        return;
+      }
+      if (attendanceEditDate > dateKey(new Date())) {
+        toast.error("A frequência não pode ser registrada em uma data futura.");
+        return;
+      }
+      const duplicate = attendance.some(
+        (record) =>
+          record.id !== attendanceModal.id &&
+          record.subject_id === attendanceModal.subject_id &&
+          record.class_date === attendanceEditDate,
+      );
+      if (duplicate) {
+        toast.error("Já existe um registro desta disciplina nessa data.");
+        return;
+      }
       await update("attendance_records", attendanceModal.id, {
         status: attendanceEditStatus,
+        class_date: attendanceEditDate,
       });
       toast.success("Frequência atualizada");
       setAttendanceModal(null);
@@ -567,16 +588,24 @@ function Disciplinas() {
   async function markAttendance(status: string) {
     if (!selected) return;
     try {
-      const today = dateKey(new Date());
+      if (!attendanceDate || !/^\\d{4}-\\d{2}-\\d{2}$/.test(attendanceDate)) {
+        toast.error("Selecione a data da aula.");
+        return;
+      }
+      if (attendanceDate > dateKey(new Date())) {
+        toast.error("A frequência não pode ser registrada em uma data futura.");
+        return;
+      }
       const existing = attendance.find(
-        (record) => record.subject_id === selected.id && record.class_date === today,
+        (record) =>
+          record.subject_id === selected.id && record.class_date === attendanceDate,
       );
       if (existing) {
         await update("attendance_records", existing.id, { status });
       } else {
         await insert("attendance_records", {
           subject_id: selected.id,
-          class_date: today,
+          class_date: attendanceDate,
           status,
         });
       }
@@ -1128,6 +1157,7 @@ function Disciplinas() {
                                   onClick={() => {
                                     setAttendanceModal(a);
                                     setAttendanceEditStatus(a.status);
+                                    setAttendanceEditDate(a.class_date);
                                   }}
                                   aria-label="Editar frequência"
                                 >
@@ -1157,8 +1187,16 @@ function Disciplinas() {
                       </div>
                     </Panel>
                     <Panel className="px-5 py-4">
-                      <p className="text-[12px] font-semibold">Registrar aula de hoje</p>
+                      <p className="text-[12px] font-semibold">Registrar frequência</p>
                       <div className="mt-3 flex flex-col gap-2">
+                        <Field label="Data da aula">
+                          <TextInput
+                            type="date"
+                            value={attendanceDate}
+                            max={dateKey(new Date())}
+                            onChange={(event) => setAttendanceDate(event.target.value)}
+                          />
+                        </Field>
                         <Button onClick={() => markAttendance("presente")}>Presente</Button>
                         <Button variant="ghost" onClick={() => markAttendance("falta")}>
                           Falta
@@ -1462,6 +1500,14 @@ function Disciplinas() {
         width={420}
       >
         <div className="space-y-4">
+          <Field label="Data da aula">
+            <TextInput
+              type="date"
+              value={attendanceEditDate}
+              max={dateKey(new Date())}
+              onChange={(event) => setAttendanceEditDate(event.target.value)}
+            />
+          </Field>
           <Field label="Situação da aula">
             <Select
               value={attendanceEditStatus}
