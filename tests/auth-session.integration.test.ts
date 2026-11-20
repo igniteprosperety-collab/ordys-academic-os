@@ -38,7 +38,7 @@ function publicHeaders(): HeadersInit {
 }
 
 async function parseJson<T>(response: Response): Promise<T> {
-  return await response.json().catch(() => ({})) as T;
+  return (await response.json().catch(() => ({}))) as T;
 }
 
 async function signIn(password: string): Promise<Response> {
@@ -52,10 +52,10 @@ async function signIn(password: string): Promise<Response> {
 describe.runIf(enabled)("Ordys Supabase Auth lifecycle", () => {
   afterAll(async () => {
     if (!userId) return;
-    const deletion = await fetch(
-      `${URL}/auth/v1/admin/users/${encodeURIComponent(userId)}`,
-      { method: "DELETE", headers: serviceHeaders() },
-    );
+    const deletion = await fetch(`${URL}/auth/v1/admin/users/${encodeURIComponent(userId)}`, {
+      method: "DELETE",
+      headers: serviceHeaders(),
+    });
     if (!deletion.ok && deletion.status !== 404) {
       throw new Error(`Falha ao remover usuário temporário: HTTP ${deletion.status}`);
     }
@@ -78,14 +78,11 @@ describe.runIf(enabled)("Ordys Supabase Auth lifecycle", () => {
     userId = signupUser.id!;
 
     // Confirm only this disposable test account, without relying on SMTP.
-    const confirmation = await fetch(
-      `${URL}/auth/v1/admin/users/${encodeURIComponent(userId)}`,
-      {
-        method: "PUT",
-        headers: serviceHeaders(),
-        body: JSON.stringify({ email_confirm: true }),
-      },
-    );
+    const confirmation = await fetch(`${URL}/auth/v1/admin/users/${encodeURIComponent(userId)}`, {
+      method: "PUT",
+      headers: serviceHeaders(),
+      body: JSON.stringify({ email_confirm: true }),
+    });
     expect(confirmation.ok, await confirmation.clone().text()).toBe(true);
 
     const wrongPassword = await signIn(`${initialPassword}-wrong`);
@@ -149,7 +146,10 @@ describe.runIf(enabled)("Ordys Supabase Auth lifecycle", () => {
 
     const newPassword = await signIn(updatedPassword);
     const newPasswordBody = await parseJson<AuthSession>(newPassword);
-    expect(newPassword.ok, newPasswordBody.msg ?? newPasswordBody.message ?? "Updated password login failed.").toBe(true);
+    expect(
+      newPassword.ok,
+      newPasswordBody.msg ?? newPasswordBody.message ?? "Updated password login failed.",
+    ).toBe(true);
     expect(newPasswordBody.user?.id).toBe(userId);
     expect(newPasswordBody.access_token).toBeTruthy();
   }, 60_000);
