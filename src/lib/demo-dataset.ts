@@ -102,7 +102,6 @@ export function createOrdysDemoDataset(userId: string, profileName: string, now 
     { id: uid(), title: "Linha do tempo: Era Vargas", description: "Organizar os principais acontecimentos em ordem cronológica.", subject_id: history.id, topic_id: historyVargas.id, due_at: dateTime(now, 5, "18:00"), estimated_minutes: 50, priority: "media", status: "pendente", completed_at: null },
   ].map((task) => ({ ...task, user_id: userId, created_at: createdAt, updated_at: updatedAt }));
 
-  const completedTask = tasks.find((row) => row.status === "concluida");
   const lateTask = tasks.find((row) => row.title === "Lista de exercícios — funções");
   const upcomingTask = tasks.find((row) => row.title === "Resumo: funções da linguagem");
 
@@ -137,7 +136,12 @@ export function createOrdysDemoDataset(userId: string, profileName: string, now 
   );
 
   const currentClassDate = new Date(now);
-  currentClassDate.setHours(currentClassDate.getHours() + 1, 0, 0, 0);
+  if (currentClassDate.getHours() >= 21) {
+    currentClassDate.setDate(currentClassDate.getDate() + 1);
+    currentClassDate.setHours(8, 0, 0, 0);
+  } else {
+    currentClassDate.setHours(currentClassDate.getHours() + 1, 0, 0, 0);
+  }
   const scheduleOffsets = [0, 1, 2, 3];
   const schedules = subjects.map((subject, index) => {
     const scheduledDate = dateAfter(currentClassDate, scheduleOffsets[index] ?? index);
@@ -158,8 +162,13 @@ export function createOrdysDemoDataset(userId: string, profileName: string, now 
   });
 
   const studyStart = new Date(now);
-  studyStart.setMinutes(0, 0, 0);
-  studyStart.setHours(studyStart.getHours() + 1);
+  if (studyStart.getHours() >= 21) {
+    studyStart.setDate(studyStart.getDate() + 1);
+    studyStart.setHours(9, 0, 0, 0);
+  } else {
+    studyStart.setMinutes(0, 0, 0);
+    studyStart.setHours(studyStart.getHours() + 1);
+  }
   const studyDayOffset = dateKey(studyStart) === dateKey(now) ? 0 : 1;
   const plannedSessions = [
     { id: uid(), subject_id: math.id, topic_id: mathFunctions.id, task_id: lateTask?.id ?? null, exam_id: null, session_date: dateKey(studyStart), start_time: timeString(studyStart), duration_minutes: 45, kind: "estudo", priority: 1, status: "planejada", reason: "Praticar funções do 1º grau", generated: true },
