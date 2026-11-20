@@ -901,7 +901,9 @@ function Perfil() {
                   </div>
                 ))
               ) : (
-                <p className="text-[12px] text-muted-foreground">Nenhum calendário externo vinculado.</p>
+                <p className="text-[12px] text-muted-foreground">
+                  Nenhum calendário externo vinculado.
+                </p>
               )}
             </div>
           </div>
