@@ -75,6 +75,31 @@ jobs:
       - name: Apply the complete migration chain from an empty database
         run: supabase db reset --local --no-seed
 
+      - name: Configure local API endpoint for anonymous integration tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          status="$(supabase status -o env)"
+          api_url="$(printf '%s\n' "$status" | sed -n 's/^API_URL=//p' | head -n 1 | sed -e 's/^"//' -e 's/"$//')"
+          anon_key="$(printf '%s\n' "$status" | sed -n 's/^ANON_KEY=//p' | head -n 1 | sed -e 's/^"//' -e 's/"$//')"
+          test -n "$api_url"
+          test -n "$anon_key"
+          {
+            printf 'VITE_SUPABASE_URL=%s\n' "$api_url"
+            printf 'VITE_SUPABASE_PUBLISHABLE_KEY=%s\n' "$anon_key"
+          } >> "$GITHUB_ENV"
+
+      - name: Install Bun for local Data API tests
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: "1.4.4"
+
+      - name: Install locked dependencies for local Data API tests
+        run: bun install --frozen-lockfile
+
+      - name: Verify anonymous Data API isolation against local Supabase
+        run: bun run test tests/data-isolation.test.ts
+
       - name: Run database security and integrity tests (pgTAP)
         run: supabase test db
 
