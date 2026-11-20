@@ -1,0 +1,59 @@
+name: Ordys isolated CI repair
+
+on:
+  push:
+    branches:
+      - chore/ordys-ci-repair-20261120
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ordys-ci-repair-20261120
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Format, tests, lint and production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: "true"
+      VITE_SUPABASE_URL: ""
+      VITE_SUPABASE_PUBLISHABLE_KEY: ""
+      VITE_SUPABASE_PROJECT_ID: ""
+      SUPABASE_URL: ""
+      SUPABASE_PUBLISHABLE_KEY: ""
+    steps:
+      - name: Checkout isolated repair branch
+        uses: actions/checkout@v4
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.4"
+
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Apply safe ESLint and Prettier autofixes
+        run: bunx eslint . --fix
+
+      - name: Commit formatting changes on this isolated branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -u
+          if ! git diff --cached --quiet; then
+            git commit -m "style: apply consistent formatting across Ordys"
+            git push
+          fi
+
+      - name: Run unit tests
+        run: bun run test
+
+      - name: Verify lint
+        run: bun run lint
+
+      - name: Build production bundle
+        run: bun run build
