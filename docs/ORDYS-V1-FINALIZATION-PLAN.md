@@ -5,7 +5,7 @@
 
 ## Decisão executiva
 
-A V1 será o núcleo individual do estudante. A ordem é: estabilizar a origem do código, reconciliar o banco real, provar autenticação e persistência, testar a versão de distribuição e só então publicar.
+A V1 será o núcleo individual do estudante **com as funcionalidades de IA já previstas no produto**. Assistente, simulados gerados, pesquisa, configuração assistida, mapas mentais e recursos multimodais permanecem no escopo; não serão removidos para contornar o gate de idade. A ordem é: estabilizar a origem do código, reconciliar o banco real, implementar elegibilidade individual e consentimento aplicável no servidor, provar autenticação/persistência/IA, testar a versão de distribuição e só então publicar.
 
 Não ampliar o escopo enquanto os fluxos centrais não forem aceitos. Não trocar framework, banco ou hospedagem. Não aplicar migrations remotas por lote. Não mesclar código de um repositório no outro sem revisão seletiva.
 
@@ -58,6 +58,10 @@ A configuração verificada em Git define `verify_jwt=false` apenas para recuper
 - Agenda, planejamento, sessões de foco e revisões.
 - Metas, check-in e desempenho.
 - Persistência após fechar/reabrir e isolamento entre contas.
+- **IA na V1:** Assistente acadêmico, geração de simulados, pesquisa assistida/profunda, configuração da rotina, mapas mentais, análise de anexos e transcrição de áudio/vídeo nas modalidades já previstas no produto, respeitando os entitlements definidos para cada plano.
+- Relato de conteúdo inseguro ou incorreto gerado pela IA, com canal de revisão e escalonamento.
+- Acesso individual à IA condicionado a estado server-side: adulto com sinal de idade apropriado ou adolescente com consentimento válido do responsável; nenhuma data editável no perfil ou flag enviada pelo cliente pode conceder acesso.
+- Proteções específicas para adolescentes: aviso em linguagem adequada, filtro de conteúdo, monitoramento/denúncia e minimização do contexto acadêmico enviado ao provedor.
 - Exclusão de conta sem perda parcial silenciosa ou repetição insegura.
 
 ### Fica fora da liberação inicial
@@ -67,7 +71,7 @@ A configuração verificada em Git define `verify_jwt=false` apenas para recuper
 - Workspace docente, turmas, convites, submissões e devolutivas.
 - Upload de fotos/arquivos de estudantes.
 - Push/notificações Android até o perfil de distribuição e permissões estarem aceitos em aparelho.
-- Recursos que enviam conteúdo acadêmico à OpenAI até que a questão de idade/consentimento tenha uma solução verificável e revisada.
+- Ativação comercial do Ordys Plus e cobrança Asaas continuam fora da primeira liberação até a homologação Sandbox; isso **não** retira as funcionalidades de IA do produto nem autoriza apagar seus fluxos ou telas.
 
 A exclusão desses fluxos da V1 não autoriza apagar tabelas, colunas, relações ou dados docentes que já existem.
 
@@ -216,19 +220,39 @@ Notificações: o APK direto deve permanecer sem as permissões de notificação
 
 **Conclusão do Gate 4:** manter o APK direto bloqueado até corrigir o versionCode, restaurar CI privada, configurar/validar a assinatura permanente, gerar o APK com SHA aprovado e executar instalação + atualização sobre versão anterior em aparelho real com Play Protect ativo. O AAB da Play também requer as mesmas verificações de assinatura, build e aceite, além da validação específica de permissões e revisão da ficha/conta de desenvolvedor.
 
-### Gate 5 — idade, IA e privacidade
+### Gate 5 — IA, idade e privacidade
 
-A data de nascimento em `profiles.birth_date` é editável pelo próprio usuário; por isso, não é prova confiável de idade. O gate de 18+ que depende desse campo pode ser contornado por alteração do perfil.
+**Decisão de produto registrada em 20/11/2026:** as funcionalidades de IA pertencem à V1 e não podem ser removidas para simplificar o lançamento. O bloqueio global criado em novembro é uma contenção temporária contra autodeclaração de idade; não é o escopo final do Ordys.
 
-**Consistência do cálculo de idade entre origens (20/11/2026):** o espelho público calcula a idade civil usando `profiles.timezone`, e os testes cobrem mudança de dia no aniversário e fuso inválido. O `main` privado ainda usa apenas `birth_date` e a data local do runtime em seu cliente e nos endpoints Assistant, video transcription e checkout. A branch privada da PR Draft #320 tem o cálculo por IANA time zone e os call sites de backend correspondentes, mas essa PR também traz mudanças amplas de billing/migrations e não deve ser mesclada integralmente apenas para obter o helper. Isso cria possível divergência de algumas horas na data de aniversário entre o cliente público e o backend privado; foi registrada nas Issues [#322](https://github.com/igniteprosperety-collab/ordys-academy.app/issues/322) e [#323](https://github.com/igniteprosperety-collab/ordys-academy.app/issues/323). A correção técnica futura é portar seletivamente o helper e seus testes, atualizando juntos Assistant, transcrição e checkout. Isso melhora a consistência da data civil, mas **não** estabelece idade verdadeira: tanto nascimento quanto fuso continuam editáveis pelo titular.
+A data de nascimento em `profiles.birth_date` e o fuso em `profiles.timezone` são editáveis pelo titular. Eles podem ajudar a personalizar a experiência, mas **não concedem acesso à IA** nem comprovam idade.
 
-Até haver um modelo de age assurance/consentimento adequado à audiência real e revisão de privacidade/ECA Digital:
-- não habilitar Plus nem cobrança;
-- não liberar novas capacidades que enviem dados acadêmicos à OpenAI;
-- não declarar que a proteção etária está concluída;
-- manter política, termos, retenção e canal de suporte como itens de aceite da V1.
+### Modelo de acesso que deve substituir o bloqueio global
 
-Issues internas relevantes: #318 (runner privado), #322 (reconciliação de origem), #323 (age assurance), #324 (worker Asaas), #332 (deploy bloqueado pelo projeto Lovable Cloud) e #92 (privacidade, termos e menores).
+- **Adulto:** acesso quando houver sinal de idade apropriado e confiável para o canal de distribuição; o backend registra a origem, a faixa etária, a data e a versão da política.
+- **Adolescente (14–17):** acesso após consentimento afirmativo do responsável legal, vinculado à conta do estudante, com informação clara sobre o uso da OpenAI, tipos de dados enviados, anexos e possibilidade de revogação.
+- **Desconhecido, pendente, negado ou revogado:** as chamadas à OpenAI permanecem bloqueadas para aquela conta; os demais módulos acadêmicos continuam funcionando.
+
+O estado de autorização será individual, controlado pelo servidor e não gravável pelo usuário. Assistente, simulados, polling de pesquisa, configuração, mapas mentais e transcrição precisam consultar a mesma decisão no backend antes de ler anexos, consumir cotas, devolver respostas já concluídas ou chamar o provedor. A flag global pode funcionar como kill switch operacional, mas não pode permanecer como a regra de produto.
+
+### Salvaguardas obrigatórias para IA
+
+1. Preservar as categorias de contexto opcionais, desmarcadas por padrão, e enviar somente o contexto selecionado para a próxima mensagem.
+2. Exibir aviso adequado à idade sobre o uso de IA e as limitações das respostas.
+3. Aplicar moderação/filtros de entrada e saída adequados à idade, com limites para conteúdos sensíveis e instruções de segurança.
+4. Manter denúncia de resposta e um fluxo de revisão/escalonamento para riscos envolvendo menores.
+5. Não usar IA para tomar decisões acadêmicas de alto impacto, classificar emocionalmente o estudante ou substituir profissionais responsáveis.
+6. Usar retenção mínima no provedor e não enviar dados pessoais de menores de 13 anos sem a configuração contratual/técnica de Zero Data Retention exigida pela orientação da OpenAI.
+7. Registrar consentimento, política aceita, escopo e revogação sem armazenar documentos de identidade ou dados excessivos quando um sinal de idade/consentimento menos intrusivo for suficiente.
+
+### Sinais de idade por plataforma
+
+O Android Play Age Signals pode fornecer faixa etária, mas a documentação oficial informa que, no Brasil, os estados disponíveis são `DECLARED`, `UNKNOWN` ou `null`; isso não deve ser rotulado como verificação independente. O sinal também é limitado a aplicativos atualizados pelo Google Play, portanto não cobre por si só o APK de instalação direta nem o uso web. A Apple oferece a Declared Age Range API e PermissionKit, sujeitos à versão do sistema, região e consentimentos aplicáveis. Esses sinais devem ser tratados conforme a origem e o grau de confirmação, sem transformar `DECLARED` em `VERIFIED`.
+
+**Bloqueio atual:** o projeto ainda não possui estado server-side individual de idade/consentimento, fluxo de responsável nem moderação específica por faixa etária. Não basta trocar `ORDYS_AI_ACCESS_POLICY_READY=false` por `true`. Primeiro implementar e testar o modelo acima em ambiente descartável; depois liberar por conta, sem desativar o kill switch de emergência.
+
+**Consistência do cálculo de idade entre origens (20/11/2026):** o espelho público calcula a idade civil usando `profiles.timezone`; o `main` privado ainda usa apenas `birth_date` e a data local do runtime em alguns call sites. A branch privada da PR Draft #320 contém o cálculo por IANA time zone, mas não deve ser mesclada integralmente apenas para obter esse helper. Essa correção é necessária para consistência de data civil, mas não estabelece idade verdadeira.
+
+Issues internas relevantes: #318 (runner privado), #322 (reconciliação de origem), #323 (idade/consentimento e liberação individual de IA), #324 (worker Asaas), #332 (deploy bloqueado pelo projeto Lovable Cloud) e #92 (privacidade, termos e menores).
 
 ## O que pode ser concluído sem acesso do proprietário ou do Lovable
 
