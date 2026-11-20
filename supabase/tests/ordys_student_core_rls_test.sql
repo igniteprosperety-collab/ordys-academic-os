@@ -121,8 +121,9 @@ select ok(
 
 select ok(
   not has_function_privilege('anon', 'public.reject_ordys_ai_access_audit_mutation()', 'EXECUTE')
-  and not has_function_privilege('authenticated', 'public.reject_ordys_ai_access_audit_mutation()', 'EXECUTE'),
-  'client roles cannot invoke the audit mutation trigger function directly'
+  and not has_function_privilege('authenticated', 'public.reject_ordys_ai_access_audit_mutation()', 'EXECUTE')
+  and has_function_privilege('service_role', 'public.reject_ordys_ai_access_audit_mutation()', 'EXECUTE'),
+  'only the trusted server role can invoke the audit mutation trigger function directly'
 );
 
 insert into public.ordys_ai_access_audit (
