@@ -2,8 +2,6 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   ORDYS_AI_ACCESS_POLICY_READY,
   ORDYS_AI_ACCESS_POLICY_LOCK_MESSAGE,
-  ORDYS_PLUS_LOCK_MESSAGE,
-  ORDYS_PLUS_LOCK_SHORT_MESSAGE,
 } from "./ordys-ai-access-shared";
 
 export {
