@@ -80,7 +80,10 @@ describe("focus timer persistence", () => {
 
   it("rejects malformed or cross-account data", () => {
     const storage = new MemoryStorage();
-    storage.setItem(focusTimerStorageKey("student-a"), JSON.stringify({ ...makeState(), userId: "student-b" }));
+    storage.setItem(
+      focusTimerStorageKey("student-a"),
+      JSON.stringify({ ...makeState(), userId: "student-b" }),
+    );
 
     expect(readFocusTimerState("student-a", storage)).toBeNull();
     expect(storage.getItem(focusTimerStorageKey("student-a"))).toBeNull();
