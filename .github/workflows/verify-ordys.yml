@@ -72,6 +72,9 @@ jobs:
       - name: Apply the complete migration chain from an empty database
         run: supabase db reset --local --no-seed
 
+      - name: Run database security and integrity tests (pgTAP)
+        run: supabase test db
+
       - name: Stop local Supabase services
         if: always()
         run: supabase stop --no-backup
