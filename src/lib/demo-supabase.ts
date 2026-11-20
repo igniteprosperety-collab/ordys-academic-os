@@ -9,9 +9,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { createOrdysDemoDataset } from "@/lib/demo-dataset";
 
 type AnyRow = Record<string, any>;
-type Filter = { kind: "eq" | "neq" | "in" | "gte" | "lte" | "is"; column: string; value: any };
+type Filter = {
+  kind: "eq" | "neq" | "in" | "gte" | "lte" | "is";
+  column: string;
+  value: any;
+};
 type Sort = { column: string; ascending: boolean; nullsFirst?: boolean };
-type Result = { data: any; error: { message: string } | null; count?: number | null };
+type Result = {
+  data: any;
+  error: { message: string } | null;
+  count?: number | null;
+};
 
 const STORAGE_PREFIX = "ordys_local_db_v3:";
 const now = () => new Date().toISOString();
@@ -48,7 +56,10 @@ const TABLES = [
 ] as const;
 
 function emptyStore(_profile: LocalProfile): Record<string, AnyRow[]> {
-  return Object.fromEntries(TABLES.map((table) => [table, []])) as Record<string, AnyRow[]>;
+  return Object.fromEntries(TABLES.map((table) => [table, []])) as Record<
+    string,
+    AnyRow[]
+  >;
 }
 
 function ensureProfile() {
@@ -73,7 +84,9 @@ function readStore(): Record<string, AnyRow[]> {
     const raw = window.localStorage.getItem(storageKey());
     if (raw) {
       const parsed = JSON.parse(raw) as Record<string, AnyRow[]>;
-      return parsed && typeof parsed === "object" ? parsed : emptyStore(ensureProfile());
+      return parsed && typeof parsed === "object"
+        ? parsed
+        : emptyStore(ensureProfile());
     }
     const initial = emptyStore(ensureProfile());
     initial["profiles"] = [
@@ -141,7 +154,8 @@ function compare(a: any, b: any) {
 }
 
 class DemoQuery implements PromiseLike<Result> {
-  private action: "select" | "insert" | "update" | "delete" | "upsert" = "select";
+  private action: "select" | "insert" | "update" | "delete" | "upsert" =
+    "select";
   private payload: AnyRow | AnyRow[] | null = null;
   private filters: Filter[] = [];
   private sorts: Sort[] = [];
@@ -224,7 +238,10 @@ class DemoQuery implements PromiseLike<Result> {
     onfulfilled?: ((value: Result) => TResult1 | PromiseLike<TResult1>) | null,
     onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null,
   ): Promise<TResult1 | TResult2> {
-    return Promise.resolve(this.execute()).then(onfulfilled ?? undefined, onrejected ?? undefined);
+    return Promise.resolve(this.execute()).then(
+      onfulfilled ?? undefined,
+      onrejected ?? undefined,
+    );
   }
 
   private matches(row: AnyRow) {
@@ -259,11 +276,14 @@ class DemoQuery implements PromiseLike<Result> {
       if (out.length !== 1)
         return {
           data: null,
-          error: { message: out.length ? "Multiple rows returned" : "No rows returned" },
+          error: {
+            message: out.length ? "Multiple rows returned" : "No rows returned",
+          },
         };
       return { data: out[0], error: null };
     }
-    if (this.singleMode === "maybeSingle") return { data: out[0] ?? null, error: null };
+    if (this.singleMode === "maybeSingle")
+      return { data: out[0] ?? null, error: null };
     return { data: out, error: null };
   }
 
@@ -271,10 +291,13 @@ class DemoQuery implements PromiseLike<Result> {
     const store = readStore();
     const rows = store[this.table] ?? [];
 
-    if (this.action === "select") return this.project(rows.filter((r) => this.matches(r)));
+    if (this.action === "select")
+      return this.project(rows.filter((r) => this.matches(r)));
 
     if (this.action === "insert") {
-      const incoming = Array.isArray(this.payload) ? this.payload : [this.payload!];
+      const incoming = Array.isArray(this.payload)
+        ? this.payload
+        : [this.payload!];
       const created = incoming.map((row) => ({
         id: row.id ?? uid(),
         created_at: row.created_at ?? now(),
@@ -283,7 +306,9 @@ class DemoQuery implements PromiseLike<Result> {
       }));
       store[this.table] = [...rows, ...created];
       writeStore(store);
-      return this.singleMode ? this.project(created) : { data: created, error: null };
+      return this.singleMode
+        ? this.project(created)
+        : { data: created, error: null };
     }
 
     if (this.action === "update") {
@@ -295,7 +320,9 @@ class DemoQuery implements PromiseLike<Result> {
         return next;
       });
       writeStore(store);
-      return this.singleMode ? this.project(updated) : { data: updated, error: null };
+      return this.singleMode
+        ? this.project(updated)
+        : { data: updated, error: null };
     }
 
     if (this.action === "delete") {
@@ -305,7 +332,9 @@ class DemoQuery implements PromiseLike<Result> {
       return { data: deleted, error: null };
     }
 
-    const incoming = (Array.isArray(this.payload) ? this.payload : [this.payload!]).map((row) => ({
+    const incoming = (
+      Array.isArray(this.payload) ? this.payload : [this.payload!]
+    ).map((row) => ({
       id: row.id ?? uid(),
       created_at: row.created_at ?? now(),
       updated_at: row.updated_at ?? now(),
@@ -329,7 +358,9 @@ class DemoQuery implements PromiseLike<Result> {
       }
     }
     writeStore(store);
-    return this.singleMode ? this.project(output) : { data: output, error: null };
+    return this.singleMode
+      ? this.project(output)
+      : { data: output, error: null };
   }
 }
 
@@ -347,7 +378,10 @@ export function seedOrdysDemoDataset(): boolean {
   const profile = ensureProfile();
   const store = readStore();
   const hasExistingData = TABLES.some(
-    (table) => table !== "profiles" && table !== "notification_preferences" && (store[table]?.length ?? 0) > 0,
+    (table) =>
+      table !== "profiles" &&
+      table !== "notification_preferences" &&
+      (store[table]?.length ?? 0) > 0,
   );
   if (hasExistingData) return false;
 
@@ -381,5 +415,8 @@ export function installDemoSupabaseBridge() {
   bridged = true;
 }
 function isDemoBridgeActive() {
-  return typeof window !== "undefined" && window.localStorage.getItem("ordys_demo_mode") === "1";
+  return (
+    typeof window !== "undefined" &&
+    window.localStorage.getItem("ordys_demo_mode") === "1"
+  );
 }
