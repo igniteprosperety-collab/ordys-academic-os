@@ -470,6 +470,7 @@ function Tarefas() {
                     ) : null}
                   </div>
                 </div>
+              );
             })
           ) : (
             <EmptyState
