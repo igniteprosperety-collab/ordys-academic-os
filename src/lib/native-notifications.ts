@@ -274,7 +274,6 @@ export async function syncNativeAcademicNotifications() {
     planResult.error,
     schedulesResult.error,
     focusResult.error,
-    eventsResult.error,
     subjectsResult.error,
   ].filter(Boolean);
 
@@ -290,7 +289,10 @@ export async function syncNativeAcademicNotifications() {
   const plan = planResult.data;
   const schedules = schedulesResult.data;
   const focus = focusResult.data;
-  const events = eventsResult.data;
+  const events = eventsResult.data ?? [];
+  if (eventsResult.error) {
+    console.warn("[notifications] calendar event reminders unavailable during this sync");
+  }
   const subjects = subjectsResult.data;
 
   const prefixes = NOTIFICATION_PREFIXES;
