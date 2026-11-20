@@ -38,6 +38,37 @@ describe("Ordys server-owned AI access assurance", () => {
     });
   });
 
+
+  it("accepts a supervised minor only after separate verified guardian consent", () => {
+    expect(
+      evaluateOrdysAiAccess(
+        record({
+          age_band: "13_15",
+          age_assurance_status: "supervised",
+          age_assurance_source: "google_play",
+          guardian_consent_status: "granted",
+          guardian_consent_source: "external_provider",
+          guardian_identity_verified: true,
+          guardian_relationship_verified: true,
+          guardian_consent_at: current,
+          guardian_consent_expires_at: future,
+          guardian_consent_policy_version: ORDYS_AI_GUARDIAN_CONSENT_POLICY_VERSION,
+        }),
+        now,
+      ),
+    ).toEqual({
+      allowed: true,
+      tier: "minor_protected",
+      reason: "verified_guardian_consent",
+    });
+  });
+
+  it("does not treat a supervised account as an adult", () => {
+    expect(
+      evaluateOrdysAiAccess(record({ age_assurance_status: "supervised" }), now),
+    ).toEqual({ allowed: false, tier: "blocked", reason: "age_assurance_invalid" });
+  });
+
   it("does not allow a self-declared adult, even when the profile says 18+", () => {
     expect(
       evaluateOrdysAiAccess(
