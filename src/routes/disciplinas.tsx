@@ -23,6 +23,7 @@ import {
   useAttendance,
   useExams,
   useGrades,
+  type Exam,
   useOrdysMutations,
   useProfile,
   useSchedules,
@@ -67,6 +68,29 @@ export const Route = createFileRoute("/disciplinas")({
 
 const groups = [{ items: ["Ativas", "Arquivadas", "Conteúdos", "Notas", "Frequência"] }];
 const tabs = ["Conteúdos", "Tarefas", "Avaliações", "Notas", "Frequência"];
+
+type ExamForm = {
+  title: string;
+  exam_at: string;
+  kind: string;
+  weight: string;
+  content: string;
+};
+
+function toLocalDateTimeInput(value?: string | null) {
+  const date = value ? new Date(value) : new Date(Date.now() + 7 * 24 * 60 * 60_000);
+  if (!Number.isFinite(date.getTime())) return "";
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
+}
+
+const emptyExamForm = (): ExamForm => ({
+  title: "",
+  exam_at: toLocalDateTimeInput(),
+  kind: "prova",
+  weight: "",
+  content: "",
+});
 
 type SubjectForm = {
   name: string;
@@ -129,6 +153,11 @@ function Disciplinas() {
   const [attendanceModal, setAttendanceModal] = useState<AttendanceRecord | null>(null);
   const [attendanceEditStatus, setAttendanceEditStatus] = useState("presente");
   const [attendanceSaving, setAttendanceSaving] = useState(false);
+  const [examModal, setExamModal] = useState<{ open: boolean; editing?: Exam }>({ open: false });
+  const [examForm, setExamForm] = useState<ExamForm>(emptyExamForm);
+  const [examSaving, setExamSaving] = useState(false);
+  const [examToDelete, setExamToDelete] = useState<Exam | null>(null);
+  const [examDeleting, setExamDeleting] = useState(false);
   const [subjectToDelete, setSubjectToDelete] = useState<Subject | null>(null);
   const [deleteSubjectBusy, setDeleteSubjectBusy] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState<{
@@ -231,6 +260,78 @@ function Disciplinas() {
       toast.error(error instanceof Error ? error.message : "Não foi possível remover o horário.");
     } finally {
       setScheduleDeleting(false);
+    }
+  }
+
+  function openCreateExam() {
+    setExamForm(emptyExamForm());
+    setExamModal({ open: true });
+  }
+
+  function openEditExam(exam: Exam) {
+    setExamForm({
+      title: exam.title,
+      exam_at: toLocalDateTimeInput(exam.exam_at),
+      kind: exam.kind,
+      weight: exam.weight ?? "",
+      content: exam.content ?? "",
+    });
+    setExamModal({ open: true, editing: exam });
+  }
+
+  async function saveExam() {
+    if (!selected) return;
+    const title = examForm.title.trim();
+    const examDate = new Date(examForm.exam_at);
+    if (!title) {
+      toast.error("Informe o nome da avaliação.");
+      return;
+    }
+    if (!examForm.exam_at || !Number.isFinite(examDate.getTime())) {
+      toast.error("Informe uma data e horário válidos.");
+      return;
+    }
+    if (examForm.weight.trim().length > 30 || examForm.content.length > 4000) {
+      toast.error("Revise o peso e o conteúdo da avaliação.");
+      return;
+    }
+
+    setExamSaving(true);
+    try {
+      const payload = {
+        title,
+        subject_id: selected.id,
+        exam_at: examDate.toISOString(),
+        kind: examForm.kind,
+        weight: examForm.weight.trim() || null,
+        content: examForm.content.trim() || null,
+      };
+      if (examModal.editing) {
+        await update("exams", examModal.editing.id, payload);
+        toast.success("Avaliação atualizada.");
+      } else {
+        await insert("exams", payload);
+        toast.success("Avaliação cadastrada.");
+      }
+      setExamModal({ open: false });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível salvar a avaliação.");
+    } finally {
+      setExamSaving(false);
+    }
+  }
+
+  async function confirmDeleteExam() {
+    if (!examToDelete || examDeleting) return;
+    setExamDeleting(true);
+    try {
+      await remove("exams", examToDelete.id);
+      toast.success("Avaliação excluída.");
+      setExamToDelete(null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível excluir a avaliação.");
+    } finally {
+      setExamDeleting(false);
     }
   }
 
@@ -832,32 +933,62 @@ function Disciplinas() {
 
                 {tab === "Avaliações" ? (
                   <Panel>
-                    <PanelHeader title="Avaliações" hint="provas e trabalhos" />
+                    <PanelHeader
+                      title="Avaliações"
+                      hint={`${exams.filter((exam) => exam.subject_id === selected.id).length} prova(s) e trabalho(s)`}
+                      action={
+                        <Button variant="ghost" onClick={openCreateExam}>
+                          <Plus className="size-[13px]" strokeWidth={2} /> Nova avaliação
+                        </Button>
+                      }
+                    />
                     <div className="border-t border-border">
-                      {exams.filter((e) => e.subject_id === selected.id).length ? (
+                      {exams.filter((exam) => exam.subject_id === selected.id).length ? (
                         exams
-                          .filter((e) => e.subject_id === selected.id)
-                          .map((e) => (
-                            <div key={e.id} className="px-5 py-3">
-                              <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5 text-[12.5px]">
-                                <span className="min-w-0 flex-1 basis-[10rem] break-words font-medium">
-                                  {e.title}
-                                </span>
-                                {e.weight ? <Chip tone="gold">{e.weight}</Chip> : null}
-                                <span className="num ml-auto text-[11px] text-muted-foreground">
-                                  {formatDateTime(e.exam_at)}
-                                </span>
+                          .filter((exam) => exam.subject_id === selected.id)
+                          .slice()
+                          .sort((a, b) => a.exam_at.localeCompare(b.exam_at))
+                          .map((exam) => (
+                            <div
+                              key={exam.id}
+                              className="flex min-w-0 items-start gap-2 border-b border-border px-4 py-3 last:border-0 sm:gap-3 sm:px-5"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5 text-[12.5px]">
+                                  <span className="min-w-0 flex-1 basis-[10rem] break-words font-medium">
+                                    {exam.title}
+                                  </span>
+                                  <Chip>{exam.kind === "simulado" ? "Simulado" : exam.kind}</Chip>
+                                  {exam.weight ? <Chip tone="gold">{exam.weight}</Chip> : null}
+                                  <span className="num text-[11px] text-muted-foreground">
+                                    {formatDateTime(exam.exam_at)}
+                                  </span>
+                                </div>
+                                {exam.content ? (
+                                  <p className="mt-1 text-[11.5px] text-muted-foreground">
+                                    {exam.content}
+                                  </p>
+                                ) : null}
                               </div>
-                              {e.content ? (
-                                <p className="mt-1 text-[11.5px] text-muted-foreground">
-                                  {e.content}
-                                </p>
-                              ) : null}
+                              <Button
+                                variant="ghost"
+                                onClick={() => openEditExam(exam)}
+                                aria-label={`Editar ${exam.title}`}
+                              >
+                                <Pencil className="size-[13px]" strokeWidth={1.8} />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                onClick={() => setExamToDelete(exam)}
+                                aria-label={`Excluir ${exam.title}`}
+                              >
+                                <Trash2 className="size-[13px]" strokeWidth={1.8} />
+                              </Button>
                             </div>
                           ))
                       ) : (
                         <p className="px-5 py-6 text-[12px] text-muted-foreground">
-                          Use a captura rápida para adicionar uma prova.
+                          Nenhuma avaliação cadastrada nesta disciplina.
                         </p>
                       )}
                     </div>
@@ -1142,6 +1273,100 @@ function Disciplinas() {
         </div>
       </Modal>
 
+      <Modal
+        open={examModal.open}
+        onClose={() => {
+          if (!examSaving) setExamModal({ open: false });
+        }}
+        title={examModal.editing ? "Editar avaliação" : "Nova avaliação"}
+        subtitle={selected ? `Avaliação de ${selected.name}` : "Avaliação da disciplina"}
+        width={520}
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Título" className="sm:col-span-2">
+            <TextInput
+              maxLength={160}
+              value={examForm.title}
+              onChange={(event) =>
+                setExamForm((current) => ({ ...current, title: event.target.value }))
+              }
+            />
+          </Field>
+          <Field label="Data e horário">
+            <TextInput
+              type="datetime-local"
+              value={examForm.exam_at}
+              onChange={(event) =>
+                setExamForm((current) => ({ ...current, exam_at: event.target.value }))
+              }
+            />
+          </Field>
+          <Field label="Tipo">
+            <Select
+              value={examForm.kind}
+              onChange={(event) =>
+                setExamForm((current) => ({ ...current, kind: event.target.value }))
+              }
+            >
+              <option value="prova">Prova</option>
+              <option value="trabalho">Trabalho</option>
+              <option value="simulado">Simulado</option>
+              <option value="apresentacao">Apresentação</option>
+              <option value="outro">Outro</option>
+            </Select>
+          </Field>
+          <Field label="Peso (opcional)">
+            <TextInput
+              maxLength={30}
+              value={examForm.weight}
+              onChange={(event) =>
+                setExamForm((current) => ({ ...current, weight: event.target.value }))
+              }
+              placeholder="Ex.: 2"
+            />
+          </Field>
+          <Field label="Conteúdo (opcional)" className="sm:col-span-2">
+            <TextArea
+              value={examForm.content}
+              onChange={(event) =>
+                setExamForm((current) => ({ ...current, content: event.target.value }))
+              }
+              maxLength={4000}
+            />
+          </Field>
+        </div>
+        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button
+            variant="ghost"
+            disabled={examSaving}
+            onClick={() => setExamModal({ open: false })}
+          >
+            Cancelar
+          </Button>
+          <Button
+            disabled={examSaving || !examForm.title.trim() || !examForm.exam_at}
+            onClick={() => void saveExam()}
+          >
+            {examSaving ? "Salvando…" : examModal.editing ? "Salvar alterações" : "Cadastrar avaliação"}
+          </Button>
+        </div>
+      </Modal>
+      <ConfirmDialog
+        open={examToDelete !== null}
+        title="Excluir avaliação?"
+        description={
+          examToDelete
+            ? `“${examToDelete.title}” será removida. Notas associadas permanecem registradas sem vínculo com a prova.`
+            : ""
+        }
+        confirmLabel="Excluir avaliação"
+        loading={examDeleting}
+        loadingLabel="Excluindo…"
+        onClose={() => {
+          if (!examDeleting) setExamToDelete(null);
+        }}
+        onConfirm={() => void confirmDeleteExam()}
+      />
       <Modal
         open={scheduleModal.open}
         onClose={() => {
