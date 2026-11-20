@@ -30,6 +30,7 @@ const NOTIFICATION_IDS = {
   class: 400000,
   summary: 500000,
   event: 600000,
+  focusTimer: 700000,
 };
 const NOTIFICATION_PREFIXES = Object.values(NOTIFICATION_IDS);
 
@@ -156,6 +157,19 @@ export async function scheduleNativeNotification(params: {
     ],
   });
   return true;
+}
+
+export async function scheduleNativeFocusTimerAlarm(endsAtMs: number) {
+  return scheduleNativeNotification({
+    id: NOTIFICATION_IDS.focusTimer,
+    title: "Tempo de foco concluído",
+    body: "Sua sessão de estudo terminou. Registre seu progresso no ORDYS.",
+    at: new Date(endsAtMs),
+  });
+}
+
+export async function cancelNativeFocusTimerAlarm() {
+  await cancelNativeNotifications([NOTIFICATION_IDS.focusTimer]);
 }
 
 export async function cancelNativeNotifications(ids: number[]) {
