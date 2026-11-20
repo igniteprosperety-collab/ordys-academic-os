@@ -14,7 +14,10 @@ import {
 import { signOutCurrentSession } from "@/lib/ordys-session";
 import { withAuthRequestTimeout } from "@/lib/auth-request-timeout";
 import { isInconclusiveFunctionRequestError } from "@/lib/function-request-outcome";
-import { edgeFunctionUnavailableMessage } from "@/lib/edge-function-errors";
+import {
+  edgeFunctionResponseErrorMessage,
+  edgeFunctionUnavailableMessage,
+} from "@/lib/edge-function-errors";
 import {
   isConfirmedAccountDeletionResponse,
   isUnconfirmedAuthIdentityDeletionPayload,
@@ -157,8 +160,10 @@ function DeleteAccountPage() {
           "O servidor não confirmou o resultado da exclusão. A solicitação pode ter sido concluída; verifique o acesso antes de tentar novamente.",
         );
       } else {
+        const responseMessage = await edgeFunctionResponseErrorMessage(error);
         toast.error(
-          edgeFunctionUnavailableMessage(error, "account-deletion") ??
+          responseMessage ??
+            edgeFunctionUnavailableMessage(error, "account-deletion") ??
             (error instanceof Error ? error.message : "Não foi possível concluir a exclusão."),
         );
       }
