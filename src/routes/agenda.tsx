@@ -4,14 +4,7 @@ import { CalendarPlus, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Shell } from "@/components/ordys/shell";
 import { Chip, Dot, Panel, PanelHeader, PageTitle, Stat } from "@/components/ordys/primitives";
-import {
-  Button,
-  ConfirmDialog,
-  Field,
-  Modal,
-  Select,
-  TextInput,
-} from "@/components/ordys/form";
+import { Button, ConfirmDialog, Field, Modal, Select, TextInput } from "@/components/ordys/form";
 import {
   subjectAttendance,
   subjectAverage,
@@ -192,7 +185,9 @@ function Agenda() {
       setEventEditorOpen(false);
       setEditingEvent(null);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Não foi possível salvar o compromisso.");
+      toast.error(
+        error instanceof Error ? error.message : "Não foi possível salvar o compromisso.",
+      );
     } finally {
       setEventSaving(false);
     }
@@ -206,7 +201,9 @@ function Agenda() {
       toast.success("Compromisso excluído.");
       setEventToDelete(null);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Não foi possível excluir o compromisso.");
+      toast.error(
+        error instanceof Error ? error.message : "Não foi possível excluir o compromisso.",
+      );
     } finally {
       setEventDeleting(false);
     }
@@ -1614,7 +1611,9 @@ function Agenda() {
                       >
                         <Dot color={color(e.subject_id, "var(--muted-foreground)")} />
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[12.5px] font-medium">{e.title}</span>
+                          <span className="block truncate text-[12.5px] font-medium">
+                            {e.title}
+                          </span>
                           <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
                             {e.location ?? (e.kind === "compromisso" ? "Compromisso" : e.kind)}
                             {e.subject_id ? ` · ${name(e.subject_id)}` : ""}
@@ -1644,7 +1643,8 @@ function Agenda() {
                   <div className="px-5 py-7 text-center">
                     <p className="text-[12px] font-medium">Sua agenda de eventos está vazia.</p>
                     <p className="mt-1 text-[11px] text-muted-foreground">
-                      Cadastre provas, compromissos pessoais, entregas externas ou atividades importantes.
+                      Cadastre provas, compromissos pessoais, entregas externas ou atividades
+                      importantes.
                     </p>
                   </div>
                 )}
@@ -1735,11 +1735,19 @@ function Agenda() {
             />
           </Field>
           <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
-            <Button variant="ghost" disabled={eventSaving} onClick={() => setEventEditorOpen(false)}>
+            <Button
+              variant="ghost"
+              disabled={eventSaving}
+              onClick={() => setEventEditorOpen(false)}
+            >
               Cancelar
             </Button>
             <Button disabled={eventSaving} onClick={() => void saveCalendarEvent()}>
-              {eventSaving ? "Salvando…" : editingEvent ? "Salvar alterações" : "Adicionar à agenda"}
+              {eventSaving
+                ? "Salvando…"
+                : editingEvent
+                  ? "Salvar alterações"
+                  : "Adicionar à agenda"}
             </Button>
           </div>
         </div>
