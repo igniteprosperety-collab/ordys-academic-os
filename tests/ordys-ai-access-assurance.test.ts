@@ -87,7 +87,7 @@ describe("Ordys server-owned AI access assurance", () => {
     expect(
       evaluateOrdysAiAccess(
         record({
-          age_band: "13_15",
+          age_band: "14_15",
           age_assurance_status: "supervised",
           age_assurance_source: "google_play_tier_b_supervised",
           guardian_consent_status: "granted",
@@ -158,7 +158,7 @@ describe("Ordys server-owned AI access assurance", () => {
       expect(
         evaluateOrdysAiAccess(
           record({
-            age_band: "13_15",
+            age_band: "14_15",
             guardian_consent_status,
             guardian_consent_source: "verified_guardian_portal",
             guardian_identity_verified: true,
@@ -178,7 +178,7 @@ describe("Ordys server-owned AI access assurance", () => {
     expect(
       evaluateOrdysAiAccess(
         record({
-          age_band: "13_15",
+          age_band: "14_15",
           guardian_consent_status: "granted",
           guardian_consent_source: "verified_guardian_portal",
           guardian_identity_verified: true,
@@ -193,11 +193,11 @@ describe("Ordys server-owned AI access assurance", () => {
     ).toEqual({ allowed: false, tier: "blocked", reason: "guardian_consent_invalid" });
   });
 
-  it("blocks unsupported under-13 accounts, even when a guardian consent exists", () => {
+  it("blocks unsupported under-14 accounts, even when a guardian consent exists", () => {
     expect(
       evaluateOrdysAiAccess(
         record({
-          age_band: "under_13",
+          age_band: "under_14",
           guardian_consent_status: "granted",
           guardian_consent_source: "verified_guardian_portal",
           guardian_identity_verified: true,
@@ -223,7 +223,7 @@ describe("Ordys server-owned AI access assurance", () => {
     expect(
       evaluateOrdysAiAccess(
         record({
-          age_band: "13_15",
+          age_band: "14_15",
           guardian_consent_status: "granted",
           guardian_consent_source: "verified_guardian_portal",
           guardian_identity_verified: true,
@@ -242,7 +242,7 @@ describe("Ordys server-owned AI access assurance", () => {
     expect(
       evaluateOrdysAiAccess(
         record({
-          age_band: "13_15",
+          age_band: "14_15",
           guardian_consent_status: "granted",
           guardian_consent_source: "external_provider_verified",
           guardian_identity_verified: true,
