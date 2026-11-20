@@ -57,7 +57,11 @@ export function collectFreshBrowserNotifications(
     ? rows.filter((row) => {
         if (!row.id || seen.has(row.id)) return false;
         const createdAt = Date.parse(row.created_at);
-        return Number.isFinite(createdAt) && nowMs - createdAt >= 0 && nowMs - createdAt <= MAX_DELIVERY_AGE_MS;
+        return (
+          Number.isFinite(createdAt) &&
+          nowMs - createdAt >= 0 &&
+          nowMs - createdAt <= MAX_DELIVERY_AGE_MS
+        );
       })
     : [];
 
