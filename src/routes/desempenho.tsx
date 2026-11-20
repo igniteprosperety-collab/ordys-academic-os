@@ -140,6 +140,7 @@ function Desempenho() {
   const { data: checkins = [] } = useCheckins();
   const { insert, update, remove } = useOrdysMutations();
   const [modal, setModal] = useState(false);
+  const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [form, setForm] = useState({
     title: "",
     metric: "horas_estudo",
@@ -355,19 +356,44 @@ function Desempenho() {
     }
 
     try {
-      await insert("goals", {
+      const payload = {
         title,
         metric: form.metric,
         target,
         period: form.period,
         subject_id: form.subject_id || null,
-      });
+      };
+      if (editingGoal) {
+        await update("goals", editingGoal.id, payload);
+        toast.success("Meta atualizada");
+      } else {
+        await insert("goals", payload);
+        toast.success("Meta criada");
+      }
       setForm({ title: "", metric: "horas_estudo", target: "", period: "semanal", subject_id: "" });
+      setEditingGoal(null);
       setModal(false);
-      toast.success("Meta criada");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao criar meta");
+      toast.error(err instanceof Error ? err.message : "Erro ao salvar meta");
     }
+  }
+
+  function openCreateGoal() {
+    setEditingGoal(null);
+    setForm({ title: "", metric: "horas_estudo", target: "", period: "semanal", subject_id: "" });
+    setModal(true);
+  }
+
+  function openEditGoal(goal: Goal) {
+    setEditingGoal(goal);
+    setForm({
+      title: goal.title,
+      metric: goal.metric,
+      target: String(goal.target),
+      period: goal.period,
+      subject_id: goal.subject_id ?? "",
+    });
+    setModal(true);
   }
 
   return (
@@ -380,7 +406,7 @@ function Desempenho() {
     >
       <div className="flex flex-wrap items-end justify-between gap-3">
         <PageTitle title="Desempenho" subtitle="Notas, estudo, frequência e cumprimento do plano" />
-        <Button onClick={() => setModal(true)}>
+        <Button onClick={openCreateGoal}>
           <Plus className="size-[13px]" strokeWidth={2} /> Nova meta
         </Button>
       </div>
@@ -611,6 +637,13 @@ function Desempenho() {
                       <span className="num ml-auto text-muted-foreground">
                         {progress.toFixed(0)}%
                       </span>
+                      <Button
+                        variant="ghost"
+                        onClick={() => openEditGoal(g)}
+                        aria-label="Editar meta"
+                      >
+                        <Pencil className="size-[13px]" strokeWidth={1.8} />
+                      </Button>
                       <button
                         type="button"
                         className="min-h-11 shrink-0 rounded-md px-2 text-[11px] text-muted-foreground hover:bg-secondary hover:text-foreground sm:min-h-8"
@@ -681,7 +714,14 @@ function Desempenho() {
         </div>
       ) : null}
 
-      <Modal open={modal} onClose={() => setModal(false)} title="Nova meta">
+      <Modal
+        open={modal}
+        onClose={() => {
+          setModal(false);
+          setEditingGoal(null);
+        }}
+        title={editingGoal ? "Editar meta" : "Nova meta"}
+      >
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Título" className="sm:col-span-2">
             <TextInput
@@ -733,11 +773,17 @@ function Desempenho() {
           </Field>
         </div>
         <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <Button variant="ghost" onClick={() => setModal(false)}>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setModal(false);
+              setEditingGoal(null);
+            }}
+          >
             Cancelar
           </Button>
           <Button onClick={saveGoal} disabled={!form.title.trim() || !form.target}>
-            Criar meta
+            {editingGoal ? "Salvar alterações" : "Criar meta"}
           </Button>
         </div>
       </Modal>
