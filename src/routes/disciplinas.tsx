@@ -554,7 +554,7 @@ function Disciplinas() {
     if (!attendanceModal) return;
     setAttendanceSaving(true);
     try {
-      if (!attendanceEditDate || !/^\\d{4}-\\d{2}-\\d{2}$/.test(attendanceEditDate)) {
+      if (!attendanceEditDate || !/^\d{4}-\d{2}-\d{2}$/.test(attendanceEditDate)) {
         toast.error("Informe uma data válida para a aula.");
         return;
       }
@@ -588,7 +588,7 @@ function Disciplinas() {
   async function markAttendance(status: string) {
     if (!selected) return;
     try {
-      if (!attendanceDate || !/^\\d{4}-\\d{2}-\\d{2}$/.test(attendanceDate)) {
+      if (!attendanceDate || !/^\d{4}-\d{2}-\d{2}$/.test(attendanceDate)) {
         toast.error("Selecione a data da aula.");
         return;
       }
