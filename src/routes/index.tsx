@@ -73,7 +73,6 @@ function Home() {
   const { data: focus = [] } = useFocusSessions();
   const { data: reviews = [] } = useReviews();
   const { data: events = [] } = useCalendarEvents();
-  const { data: prefs } = useNotificationPrefs();
 
   const now = new Date();
   const todayKey = dateKey(now);
