@@ -5,6 +5,7 @@ import { Mail, Lock, UserPlus, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { seedOrdysDemoDataset } from "@/lib/demo-supabase";
 import {
   addLocalProfile,
   getActiveLocalProfile,
@@ -378,6 +379,25 @@ function AuthPage() {
       toast.error(error instanceof Error ? error.message : "Não foi possível criar o perfil.");
     }
   }
+ 
+  function createSampleDemoProfile() {
+    try {
+      const name = localName.trim() || "Demonstração ORDYS";
+      addLocalProfile(name);
+      startDemoMode();
+      const seeded = seedOrdysDemoDataset();
+      setLocalProfiles(getLocalProfiles());
+      setSelectedLocalProfileId(getActiveLocalProfile()?.id ?? "");
+      toast.success(
+        seeded
+          ? "Demonstração pronta. Os dados são fictícios e ficam somente neste dispositivo."
+          : "O perfil já contém dados e foi preservado.",
+      );
+      navigate({ to: "/", replace: true });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível abrir a demonstração.");
+    }
+  }
 
   return (
     <div className="dark flex min-h-screen min-h-[100dvh] items-center justify-center bg-background px-4 py-10 text-foreground">
@@ -623,9 +643,9 @@ function AuthPage() {
 
         {showLocalSetup ? (
           <div className="mt-3 panel px-5 py-5 ordys-motion-enter">
-            <p className="text-[13px] font-semibold">Novo perfil local</p>
+            <p className="text-[13px] font-semibold">Acessar sem conta</p>
             <p className="mt-1 text-[11.5px] leading-relaxed text-muted-foreground">
-              Apenas um nome é necessário. Nenhum e-mail será usado.
+              Crie um perfil vazio ou abra uma demonstração com dados fictícios. Nada será enviado ao banco online.
             </p>
             <div className="mt-4">
               <Field label="Nome">
@@ -640,9 +660,12 @@ function AuthPage() {
                 />
               </Field>
             </div>
-            <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row">
+            <div className="mt-4 flex flex-col gap-2">
               <Button type="button" onClick={createLocalProfile} disabled={!localName.trim()}>
-                Começar
+                Criar perfil vazio
+              </Button>
+              <Button type="button" variant="ghost" onClick={createSampleDemoProfile}>
+                Abrir demonstração pronta
               </Button>
               <Button type="button" variant="ghost" onClick={() => setShowLocalSetup(false)}>
                 Cancelar
