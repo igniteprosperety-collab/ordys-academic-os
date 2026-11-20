@@ -71,6 +71,17 @@ describe("per-account AI access status client", () => {
       error: null,
     });
 
+    mocks.invoke.mockResolvedValueOnce({
+      data: {
+        status: "completed",
+        access: {
+          allowed: true,
+          tier: "minor_protected",
+          reason: "verified_guardian_consent",
+        },
+      },
+      error: null,
+    });
     await expect(assertOrdysAiAccessPolicyReady()).resolves.toBeUndefined();
     expect(mocks.invoke).toHaveBeenCalledOnce();
   });
