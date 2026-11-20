@@ -71,17 +71,6 @@ describe("per-account AI access status client", () => {
       error: null,
     });
 
-    mocks.invoke.mockResolvedValueOnce({
-      data: {
-        status: "completed",
-        access: {
-          allowed: true,
-          tier: "minor_protected",
-          reason: "verified_guardian_consent",
-        },
-      },
-      error: null,
-    });
     await expect(assertOrdysAiAccessPolicyReady()).resolves.toBeUndefined();
     expect(mocks.invoke).toHaveBeenCalledOnce();
   });
@@ -99,6 +88,17 @@ describe("per-account AI access status client", () => {
       error: null,
     });
 
+    mocks.invoke.mockResolvedValueOnce({
+      data: {
+        status: "completed",
+        access: {
+          allowed: false,
+          tier: "blocked",
+          reason: "guardian_consent_required",
+        },
+      },
+      error: null,
+    });
     await expect(getOrdysAiAccessStatus()).resolves.toMatchObject({
       allowed: false,
       tier: "blocked",
@@ -130,7 +130,7 @@ describe("per-account AI access status client", () => {
     // A missing reason is normalized to a non-authorizing state.
     await expect(getOrdysAiAccessStatus()).resolves.toMatchObject({
       allowed: false,
-      tier: "adult",
+      tier: "blocked",
       reason: "assurance_missing",
     });
   });
