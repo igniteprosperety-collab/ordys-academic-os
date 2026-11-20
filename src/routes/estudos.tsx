@@ -258,7 +258,7 @@ function Estudos() {
   async function savePlanSession() {
     const title = planDraft.reason.trim();
     const duration = Number(planDraft.duration_minutes);
-    if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(planDraft.session_date)) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(planDraft.session_date)) {
       toast.error("Selecione uma data válida.");
       return;
     }
@@ -273,7 +273,7 @@ function Estudos() {
     }
     if (
       planDraft.start_time &&
-      !/^(?:[01]\\d|2[0-3]):[0-5]\\d$/.test(planDraft.start_time)
+      !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(planDraft.start_time)
     ) {
       toast.error("Informe um horário válido.");
       return;
