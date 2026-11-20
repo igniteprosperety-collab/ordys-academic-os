@@ -274,29 +274,6 @@ export function buildCandidates(input: PlanInput): Candidate[] {
     }
   }
 
-  if (!prefs || prefs.classes) {
-    for (const event of events) {
-      const startsAt = new Date(event.starts_at);
-      const distance = startsAt.getTime() - now.getTime();
-      if (!Number.isFinite(startsAt.getTime()) || distance <= 0 || distance > 24 * 60 * 60 * 1000) {
-        continue;
-      }
-      const when =
-        distance < 60 * 60 * 1000
-          ? `em ${Math.max(1, Math.ceil(distance / 60_000))} minuto(s)`
-          : dateKey(startsAt) === dateKey(now)
-            ? "hoje"
-            : "amanhã";
-      rows.push({
-        category: "agenda",
-        title: `${event.title} — compromisso ${when}`,
-        body: event.location ?? (event.kind === "compromisso" ? "Seu compromisso está chegando." : event.kind),
-        link: "/agenda",
-        dedupe_key: `event:${event.id}:${startsAt.toISOString()}`,
-      });
-    }
-  }
-
   for (const task of tasks) {
     if (task.status === "concluida") continue;
     const left = daysUntil(task.due_at);
@@ -695,6 +672,29 @@ export function buildNotificationRules(input: NotifyInput) {
           : (exam.content ?? "Revise os conteúdos da avaliação."),
         link: "/agenda",
         dedupe_key: `exam:${exam.id}:${left}`,
+      });
+    }
+  }
+
+  if (!prefs || prefs.classes) {
+    for (const event of events) {
+      const startsAt = new Date(event.starts_at);
+      const distance = startsAt.getTime() - now.getTime();
+      if (!Number.isFinite(startsAt.getTime()) || distance <= 0 || distance > 24 * 60 * 60 * 1000) {
+        continue;
+      }
+      const when =
+        distance < 60 * 60 * 1000
+          ? `em ${Math.max(1, Math.ceil(distance / 60_000))} minuto(s)`
+          : dateKey(startsAt) === dateKey(now)
+            ? "hoje"
+            : "amanhã";
+      rows.push({
+        category: "agenda",
+        title: `${event.title} — compromisso ${when}`,
+        body: event.location ?? (event.kind === "compromisso" ? "Seu compromisso está chegando." : event.kind),
+        link: "/agenda",
+        dedupe_key: `event:${event.id}:${startsAt.toISOString()}`,
       });
     }
   }
