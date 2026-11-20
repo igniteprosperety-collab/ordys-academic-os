@@ -18,7 +18,11 @@ import {
   useTopics,
 } from "@/lib/ordys-db";
 import { dateKey, syncNotifications } from "@/lib/ordys-engine";
-import { isNativeAndroid, syncNativeAcademicNotifications } from "@/lib/native-notifications";
+import {
+  isNativeAndroid,
+  isWithinQuietHours,
+  syncNativeAcademicNotifications,
+} from "@/lib/native-notifications";
 
 const EMPTY_ROWS: never[] = [];
 
@@ -103,6 +107,15 @@ export function NotificationSyncBridge() {
     const deliverFreshNotifications = () => {
       // Do not mark alerts as seen until the browser grants permission.
       if (Notification.permission !== "granted") return;
+      if (
+        isWithinQuietHours(
+          new Date(),
+          prefs?.quiet_start ?? "22:00:00",
+          prefs?.quiet_end ?? "07:00:00",
+        )
+      ) {
+        return;
+      }
       const fresh = collectFreshBrowserNotifications(userId, notificationRows);
       for (const notification of fresh) {
         try {
