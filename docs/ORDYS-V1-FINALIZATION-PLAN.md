@@ -67,13 +67,16 @@ A exclusão desses fluxos da V1 não autoriza apagar tabelas, colunas, relaçõe
 | APK assinado e aparelho | **NÃO ACEITO** | Workflows e configuração Android existem na origem privada, mas nenhum artefato final foi construído/instalado nesta rodada |
 | Publicação | **NÃO FEITA** | O projeto Lovable permanece não publicado |
 
-Execução de CI aprovada: https://github.com/igniteprosperety-collab/ordys-academic-os/actions/runs/44693029274
+Execução completa de CI aprovada: https://github.com/igniteprosperety-collab/ordys-academic-os/actions/runs/44693888138
 
 O teste de banco mais recente terminou com:
 - 46 migrations aplicadas sem erro em base descartável;
-- `ordys_student_core_rls_test.sql`: 17 testes;
-- `Result: PASS`;
+- `tests/data-isolation.test.ts`: 49 testes contra a Data API local;
+- `supabase/tests/ordys_student_core_rls_test.sql`: 17 testes pgTAP;
+- `Result: PASS` para pgTAP;
 - stack local parada ao final.
+  
+O teste HTTP usa somente a URL local e a chave anônima da instância descartável. Nenhuma URL, chave ou dado do projeto remoto é utilizado.
 
 Isso prova que a cadeia SQL é executável em uma base limpa e que as regras testadas isolam as duas identidades sintéticas. **Não prova** que o schema remoto corresponda à cadeia atual nem que todas as tabelas/fluxos estejam corretos em produção.
 
