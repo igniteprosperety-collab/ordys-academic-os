@@ -1,10 +1,18 @@
 /**
- * Temporary Ordys AI access policy while recurring billing is paused.
+ * Ordys AI stays closed until the product has a trusted, server-verifiable
+ * age/guardian policy and a deployed backend that enforces the same decision.
  *
- * Keep Plus features disabled until the billing entitlement is implemented and
- * checked server-side in every generation path, including the web quiz handler.
- * Never enable this flag merely because checkout UI exists.
+ * profiles.birth_date is self-declared and editable by the account holder;
+ * it must never be the sole authority for sending student data to an AI vendor.
  */
+export const ORDYS_AGE_ASSURANCE_VERIFIED = false;
+export const ORDYS_GUARDIAN_CONSENT_POLICY_VERIFIED = false;
+export const ORDYS_AI_ACCESS_POLICY_READY =
+  ORDYS_AGE_ASSURANCE_VERIFIED || ORDYS_GUARDIAN_CONSENT_POLICY_VERIFIED;
+
+export const ORDYS_AI_ACCESS_POLICY_LOCK_MESSAGE =
+  "Os recursos de IA estão temporariamente indisponíveis enquanto o Ordys conclui a verificação segura de idade e as proteções de dados dos estudantes.";
+
 export const ORDYS_PLUS_AI_ENABLED = false;
 
 export const ORDYS_FREE_ASSIST_HOURLY_LIMIT = 2;
