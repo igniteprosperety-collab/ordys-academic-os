@@ -204,6 +204,18 @@ Não recriar esse pipeline no espelho público. Antes do release privado:
 
 Notificações: o APK direto deve permanecer sem as permissões de notificação. O Google Play só habilita notificações por opt-in explícito e após aceite do manifesto.
 
+**Auditoria estática dos workflows Android em 20/11/2026:**
+
+- `capacitor.config.ts` usa `appId=app.ordys.academy`, bundle estático local em `mobile-dist/client` e não define `server.url`; o APK não depende de abrir o preview Lovable como servidor remoto.
+- `Build ORDYS Android Direct Install Release` é manual, exige os cinco secrets de assinatura (keystore Base64, senha do keystore, alias, senha da chave e fingerprint SHA-256 esperado), rejeita certificado debug/teste, valida assinatura v2/v3, package, target SDK 36, label, deep link, launcher, permissões e hash, e publica somente APK + SHA-256 (retenção de 14 dias).
+- `Build ORDYS Android` é manual e define `versionCode`/ `versionName` antes de gerar APK e AAB; o AAB compila novamente o cliente com notificações disponíveis para opt-in, mantém permissões de lembretes e remove permissões de alarmes exatos. APK e AAB são verificados contra o mesmo fingerprint esperado.
+- O manifesto do APK direto remove `POST_NOTIFICATIONS`, `RECEIVE_BOOT_COMPLETED`, `WAKE_LOCK`, `SCHEDULE_EXACT_ALARM` e `USE_EXACT_ALARM`; o AAB Google Play mantém as três permissões de notificações e remove os dois tipos de alarmes exatos.
+- Os dois workflows são código versionado apenas. Nenhum foi executado com runner privado nesta rodada, nenhum APK/AAB foi gerado e nenhuma chave de assinatura foi lida.
+
+**Bloqueio adicional encontrado no APK direto:** o workflow de instalação direta chama `npx cap add android` e `assembleRelease`, mas não define `versionCode` nem `versionName`. O template oficial do Capacitor 8.5.2 usado pelo projeto define por padrão `versionCode 1` e `versionName "1.0"`. Ao contrário do workflow Google Play, o direto não injeta um número crescente; portanto, uma atualização posterior do mesmo pacote, assinada pela mesma chave, pode ser rejeitada pelo Android por não ter versionCode superior. Issue [#333](https://github.com/igniteprosperety-collab/ordys-academy.app/issues/333) registra a correção necessária: definir versão crescente no workflow, acrescentar regressão estática e validar os valores no APK final.
+
+**Conclusão do Gate 4:** manter o APK direto bloqueado até corrigir o versionCode, restaurar CI privada, configurar/validar a assinatura permanente, gerar o APK com SHA aprovado e executar instalação + atualização sobre versão anterior em aparelho real com Play Protect ativo. O AAB da Play também requer as mesmas verificações de assinatura, build e aceite, além da validação específica de permissões e revisão da ficha/conta de desenvolvedor.
+
 ### Gate 5 — idade, IA e privacidade
 
 A data de nascimento em `profiles.birth_date` é editável pelo próprio usuário; por isso, não é prova confiável de idade. O gate de 18+ que depende desse campo pode ser contornado por alteração do perfil.
