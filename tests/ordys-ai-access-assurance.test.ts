@@ -5,6 +5,7 @@ import {
   ORDYS_AI_SAFETY_POLICY_VERSION,
   mapOrdysAppleAgeDeclaration,
   mapOrdysGooglePlayAgeSource,
+  mapOrdysAgeBandFromBounds,
   type OrdysAiAssuranceRecord,
 } from "../src/lib/ordys-ai-access-policy";
 
@@ -272,4 +273,16 @@ describe("Ordys server-owned AI access assurance", () => {
       reason: "assurance_missing",
     });
   });
+
+  it("never rounds a provider age range that crosses the V1 minimum upward", () => {
+    expect(mapOrdysAgeBandFromBounds(13, 15)).toBe("unknown");
+    expect(mapOrdysAgeBandFromBounds(13, 17)).toBe("unknown");
+    expect(mapOrdysAgeBandFromBounds(0, 13)).toBe("under_14");
+    expect(mapOrdysAgeBandFromBounds(14, 15)).toBe("14_15");
+    expect(mapOrdysAgeBandFromBounds(16, 17)).toBe("16_17");
+    expect(mapOrdysAgeBandFromBounds(18, null)).toBe("18_plus");
+    expect(mapOrdysAgeBandFromBounds(18, 99)).toBe("18_plus");
+    expect(mapOrdysAgeBandFromBounds(15, 14)).toBe("unknown");
+  });
+
 });
