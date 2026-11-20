@@ -692,7 +692,9 @@ export function buildNotificationRules(input: NotifyInput) {
       rows.push({
         category: "agenda",
         title: `${event.title} — compromisso ${when}`,
-        body: event.location ?? (event.kind === "compromisso" ? "Seu compromisso está chegando." : event.kind),
+        body:
+          event.location ??
+          (event.kind === "compromisso" ? "Seu compromisso está chegando." : event.kind),
         link: "/agenda",
         dedupe_key: `event:${event.id}:${startsAt.toISOString()}`,
       });
