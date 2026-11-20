@@ -11,9 +11,9 @@ When enabled, the authenticated server endpoint `ordys-assistant` action `access
 ## Account states
 
 - **Adult:** age band 18+, a current verified age-assurance status, trusted source, validity timestamps, current policy version, and opaque evidence reference.
-- **Minor 13–17:** a current age-band signal plus a separate, explicit, current, revocable AI consent from a verified legal guardian; guardian identity and relationship must both be verified; the consent must be tied to the exact policy version.
+- **Minor 14–17:** a current age-band signal plus a separate, explicit, current, revocable AI consent from a verified legal guardian; guardian identity and relationship must both be verified; the consent must be tied to the exact policy version.
 - **Unknown, declared-only, expired, pending, denied, revoked, inconsistent, or unverifiable:** only the OpenAI calls for that account are blocked. The student core and local/non-AI functions remain available.
-- **Under 13:** not enabled in this initial AI integration.
+- **Under 14:** not enabled in this initial AI integration.
 
 A profile birth date, timezone, self-attestation, local-storage flag, client-supplied boolean, or ordinary email verification is never sufficient evidence.
 
