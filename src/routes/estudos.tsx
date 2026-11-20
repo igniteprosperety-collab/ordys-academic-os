@@ -43,6 +43,13 @@ import {
   summarize,
   planStatusLabel,
 } from "@/lib/ordys-engine";
+import {
+  clearFocusTimerState,
+  getFocusTimerRemainingSeconds,
+  readFocusTimerState,
+  writeFocusTimerState,
+  type FocusTimerStatus,
+} from "@/lib/focus-timer-state";
 
 export const Route = createFileRoute("/estudos")({
   head: () => ({
@@ -340,6 +347,8 @@ function Estudos() {
 
       {active === "Foco" ? (
         <FocusPanel
+          key={userId ?? "no-user"}
+          userId={userId}
           subjects={subjects}
           topics={topics}
           plan={plan.filter((p) => p.session_date === todayKey && p.status === "planejada")}
@@ -466,6 +475,7 @@ function Estudos() {
 }
 
 function FocusPanel({
+  userId,
   subjects,
   topics,
   plan,
@@ -474,6 +484,7 @@ function FocusPanel({
   weekMinutes,
   target,
 }: {
+  userId: string | null;
   subjects: { id: string; name: string; color: string }[];
   topics: { id: string; title: string; subject_id: string }[];
   plan: PlanSession[];
@@ -489,11 +500,48 @@ function FocusPanel({
   const [left, setLeft] = useState(50 * 60);
   const [running, setRunning] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
   const startedAt = useRef<string | null>(null);
   const timerEndAt = useRef<number | null>(null);
 
+  useEffect(() => {
+    if (!userId) {
+      setHydrated(true);
+      return;
+    }
+
+    const saved = readFocusTimerState(userId);
+    if (saved) {
+      setMinutes(saved.minutes);
+      setSubjectId(saved.subjectId ?? "");
+      setTopicId(saved.topicId ?? "");
+      setPlanId(saved.planId ?? "");
+      setLeft(getFocusTimerRemainingSeconds(saved));
+      startedAt.current = saved.startedAt;
+      timerEndAt.current = saved.endsAtMs;
+      setRunning(saved.status === "running");
+    }
+    setHydrated(true);
+  }, [userId]);
+
   const sessionStarted = startedAt.current !== null;
   const elapsedMinutes = Math.max(0, Math.round((minutes * 60 - left) / 60));
+
+  function persistTimer(status: FocusTimerStatus, remainingSeconds: number, endsAtMs: number | null) {
+    if (!userId || !startedAt.current) return;
+    writeFocusTimerState(userId, {
+      version: 1,
+      userId,
+      minutes,
+      startedAt: startedAt.current,
+      status,
+      endsAtMs,
+      remainingSeconds,
+      subjectId: subjectId || null,
+      topicId: topicId || null,
+      planId: planId || null,
+    });
+  }
 
   const finish = useCallback(
     async (status: "concluida" | "cancelada") => {
@@ -512,6 +560,7 @@ function FocusPanel({
           ended_at: new Date().toISOString(),
           status,
         });
+        if (userId) clearFocusTimerState(userId);
         startedAt.current = null;
         timerEndAt.current = null;
         setLeft(minutes * 60);
@@ -522,12 +571,16 @@ function FocusPanel({
         const message =
           error instanceof Error ? error.message : "Não foi possível salvar a sessão.";
         toast.error(message);
-        setLeft((current) => Math.max(1, current));
+        const remaining = Math.max(1, left);
+        timerEndAt.current = null;
+        setRunning(false);
+        setLeft(remaining);
+        persistTimer("paused", remaining, null);
       } finally {
         setSaving(false);
       }
     },
-    [elapsedMinutes, minutes, onSave, planId, saving, subjectId, topicId],
+    [elapsedMinutes, left, minutes, onSave, planId, saving, subjectId, topicId, userId],
   );
 
   useEffect(() => {
@@ -541,10 +594,6 @@ function FocusPanel({
     const id = window.setInterval(tick, 500);
     return () => window.clearInterval(id);
   }, [running]);
-
-  useEffect(() => {
-    setLeft(minutes * 60);
-  }, [minutes]);
 
   useEffect(() => {
     if (!running || left > 0) return;
@@ -567,7 +616,10 @@ function FocusPanel({
                 type="button"
                 key={m}
                 disabled={sessionStarted}
-                onClick={() => setMinutes(m)}
+                onClick={() => {
+                  setMinutes(m);
+                  setLeft(m * 60);
+                }}
                 className={`min-h-11 rounded-lg border px-3 py-1.5 text-[12px] transition-colors disabled:opacity-40 ${
                   minutes === m
                     ? "border-primary/40 bg-primary-soft"
@@ -637,8 +689,14 @@ function FocusPanel({
                     if (timerEndAt.current !== null) {
                       setLeft(Math.max(0, Math.ceil((timerEndAt.current - Date.now()) / 1000)));
                     }
+                    const remaining =
+                      timerEndAt.current === null
+                        ? left
+                        : Math.max(0, Math.ceil((timerEndAt.current - Date.now()) / 1000));
                     timerEndAt.current = null;
+                    setLeft(remaining);
                     setRunning(false);
+                    persistTimer("paused", remaining, null);
                   }}
                 >
                   <Pause className="size-[13px]" strokeWidth={1.8} /> Pausar
@@ -652,9 +710,12 @@ function FocusPanel({
               </>
             ) : (
               <Button
+                disabled={!hydrated}
                 onClick={() => {
                   startedAt.current = startedAt.current ?? new Date().toISOString();
-                  timerEndAt.current = Date.now() + left * 1000;
+                  const deadline = Date.now() + left * 1000;
+                  timerEndAt.current = deadline;
+                  persistTimer("running", left, deadline);
                   setRunning(true);
                 }}
               >
