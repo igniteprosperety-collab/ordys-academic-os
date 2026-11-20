@@ -10,7 +10,7 @@
 export const ORDYS_AI_SAFETY_POLICY_VERSION = "2026-11-20.1";
 export const ORDYS_AI_GUARDIAN_CONSENT_POLICY_VERSION = "2026-11-20.1";
 
-export type OrdysAiAgeBand = "under_13" | "13_15" | "16_17" | "18_plus" | "unknown";
+export type OrdysAiAgeBand = "under_14" | "14_15" | "16_17" | "18_plus" | "unknown";
 export type OrdysAgeAssuranceStatus =
   "verified" | "supervised" | "declared" | "unknown" | "revoked";
 export type OrdysAgeAssuranceSource =
@@ -188,7 +188,7 @@ export function evaluateOrdysAiAccess(
     return { allowed: false, tier: "blocked", reason: "assurance_missing" };
   }
 
-  if (record.age_band === "under_13") {
+  if (record.age_band === "under_14") {
     return { allowed: false, tier: "blocked", reason: "age_band_unsupported" };
   }
 
@@ -203,7 +203,7 @@ export function evaluateOrdysAiAccess(
     return { allowed: true, tier: "adult", reason: "verified_adult" };
   }
 
-  if (record.age_band !== "13_15" && record.age_band !== "16_17") {
+  if (record.age_band !== "14_15" && record.age_band !== "16_17") {
     return { allowed: false, tier: "blocked", reason: "age_band_unsupported" };
   }
 
