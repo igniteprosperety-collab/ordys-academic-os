@@ -1,7 +1,7 @@
 export type BrowserNotificationRow = {
   id: string;
   title: string;
-  body: string;
+  body: string | null;
   created_at: string;
 };
 
