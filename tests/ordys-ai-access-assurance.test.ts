@@ -284,5 +284,4 @@ describe("Ordys server-owned AI access assurance", () => {
     expect(mapOrdysAgeBandFromBounds(18, 99)).toBe("18_plus");
     expect(mapOrdysAgeBandFromBounds(15, 14)).toBe("unknown");
   });
-
 });
