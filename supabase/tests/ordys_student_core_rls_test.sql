@@ -137,17 +137,17 @@ insert into public.ordys_ai_access_audit (
 );
 
 select throws_ok(
-  $update public.ordys_ai_access_audit
-    set actor_type = 'system'
-    where user_id = '10000000-0000-4000-8000-000000000001'$,
+  'update public.ordys_ai_access_audit
+    set actor_type = ''system''
+    where user_id = ''10000000-0000-4000-8000-000000000001''',
   'P0001',
   'ORDYS_AI_ACCESS_AUDIT_APPEND_ONLY',
   'AI access audit events cannot be updated'
 );
 
 select throws_ok(
-  $delete from public.ordys_ai_access_audit
-    where user_id = '10000000-0000-4000-8000-000000000001'$,
+  'delete from public.ordys_ai_access_audit
+    where user_id = ''10000000-0000-4000-8000-000000000001''',
   'P0001',
   'ORDYS_AI_ACCESS_AUDIT_APPEND_ONLY',
   'AI access audit events cannot be deleted'
