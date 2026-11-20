@@ -55,7 +55,8 @@ export type OrdysAiAccessDecision =
         | "age_assurance_invalid"
         | "guardian_consent_required"
         | "guardian_consent_invalid"
-        | "policy_version_outdated";
+        | "policy_version_outdated"
+        | "policy_not_deployed";
     };
 
 const VERIFIED_AGE_SOURCES = new Set<OrdysAgeAssuranceSource>([
