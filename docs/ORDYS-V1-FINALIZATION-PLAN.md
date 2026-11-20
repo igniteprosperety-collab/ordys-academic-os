@@ -128,6 +128,18 @@ Um snapshot interno de 13/11/2026 registrava 18 migrations no ledger remoto cont
 
 Como billing/Asaas está fora do escopo da V1, não portar automaticamente essas 11 migrations à origem privada nem apagá-las do espelho. O ledger e o schema remoto continuam **não verificados**.
 
+**Incompatibilidade de contrato descoberta na revisão detalhada:** quatro dessas migrations redefinem `public.delete_own_data()` e acrescentam guardas de billing/reconciliação:
+- `20261103030000_guard_delete_own_data_billing_reconciliation.sql`
+- `20261105010000_ordys_guard_delete_own_data_unmatched_webhooks.sql`
+- `20261105060000_ordys_block_checkout_with_unreconciled_webhooks.sql`
+- `20261112010000_ordys_asaas_cron_worker.sql`
+
+Quando os objetos de billing existem, as versões posteriores exigem uma reserva/processing lease válido para a exclusão e incluem verificações de eventos não reconciliados. A Edge Function em `main` do repositório privado ainda usa `supabase/functions/_shared/ordys-delete-account-billing.ts` antigo: consulta o status e cancela checkouts/assinaturas, mas não chama `ordys_reserve_account_deletion`, `ordys_claim_account_deletion_processing`, `ordys_release_account_deletion_processing` nem `ordys_has_unreconciled_billing_events`. Assim, aplicar essas migrations em um banco com billing e manter a Edge Function privada atual pode fazer `delete_own_data()` rejeitar a exclusão por ausência do lease.
+
+A implementação privada que contém a sequência reserva → claim → cancelamento/reconciliação → liberação está apenas na branch da PR Draft [#320](https://github.com/igniteprosperety-collab/ordys-academy.app/pull/320), cuja CI privada ainda não executa. Isso não prova o estado do banco remoto, que continua sem leitura/ledger verificado. A divergência foi registrada também na [Issue #322](https://github.com/igniteprosperety-collab/ordys-academy.app/issues/322).
+
+**Gate obrigatório:** não aplicar essas migrations ao remoto nem implantar a Edge Function antiga sem antes reconciliar schema/ledger e alinhar a versão de backend ao contrato SQL; testar exclusão de conta, checkout concorrente, webhooks pendentes e retentativas em ambiente descartável.
+
 **Não fazer:** reset remoto, aplicar 46 migrations em lote, editar ledger por suposição, executar migrations financeiras em produção ou remover o trigger de confirmação de e-mail antes de comprovar entrega normal de Gmail com Auto-confirm desativado.
 
 ### Gate 3 — autenticação e persistência ponta a ponta
