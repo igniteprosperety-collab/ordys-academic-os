@@ -32,7 +32,10 @@ export async function edgeFunctionResponseErrorMessage(error: unknown): Promise<
   if (!(context instanceof Response)) return null;
 
   try {
-    const payload = (await context.clone().json().catch(() => null)) as { error?: unknown } | null;
+    const payload = (await context
+      .clone()
+      .json()
+      .catch(() => null)) as { error?: unknown } | null;
     return typeof payload?.error === "string" && payload.error.trim()
       ? payload.error.trim().slice(0, 500)
       : null;
