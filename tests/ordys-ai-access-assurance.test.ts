@@ -3,6 +3,8 @@ import {
   evaluateOrdysAiAccess,
   ORDYS_AI_GUARDIAN_CONSENT_POLICY_VERSION,
   ORDYS_AI_SAFETY_POLICY_VERSION,
+  mapOrdysAppleAgeDeclaration,
+  mapOrdysGooglePlayAgeSource,
   type OrdysAiAssuranceRecord,
 } from "../src/lib/ordys-ai-access-policy";
 
@@ -14,7 +16,7 @@ function record(overrides: Partial<OrdysAiAssuranceRecord> = {}): OrdysAiAssuran
   return {
     age_band: "18_plus",
     age_assurance_status: "verified",
-    age_assurance_source: "external_provider",
+    age_assurance_source: "external_provider_verified",
     age_assurance_verified_at: current,
     age_assurance_expires_at: future,
     guardian_consent_status: "not_required",
@@ -31,6 +33,47 @@ function record(overrides: Partial<OrdysAiAssuranceRecord> = {}): OrdysAiAssuran
   };
 }
 
+describe("Ordys platform age signal mapping", () => {
+  it("accepts Google Play TIER_D as verified age evidence", () => {
+    expect(mapOrdysGooglePlayAgeSource("TIER_D")).toEqual({
+      status: "verified",
+      source: "google_play_tier_d",
+    });
+  });
+
+  it("maps Google Play TIER_B to supervised, not verified, age evidence", () => {
+    expect(mapOrdysGooglePlayAgeSource("TIER_B")).toEqual({
+      status: "supervised",
+      source: "google_play_tier_b_supervised",
+    });
+  });
+
+  it.each(["TIER_A", "TIER_C", "UNSPECIFIED", null, undefined])(
+    "does not use Google Play %s as verified age evidence",
+    (source) => {
+      expect(mapOrdysGooglePlayAgeSource(source)).toBeNull();
+    },
+  );
+
+  it("accepts Apple's confirmed declaration as verified age evidence", () => {
+    expect(mapOrdysAppleAgeDeclaration("confirmed")).toEqual({
+      status: "verified",
+      source: "apple_confirmed_age_range",
+    });
+  });
+
+  it("maps Apple's guardian declaration to supervised age evidence", () => {
+    expect(mapOrdysAppleAgeDeclaration("guardianDeclared")).toEqual({
+      status: "supervised",
+      source: "apple_guardian_declared_age_range",
+    });
+  });
+
+  it("does not use Apple's self-declared age range as verified evidence", () => {
+    expect(mapOrdysAppleAgeDeclaration("selfDeclared")).toBeNull();
+  });
+});
+
 describe("Ordys server-owned AI access assurance", () => {
   it("allows an adult only with a current trusted age-assurance record", () => {
     expect(evaluateOrdysAiAccess(record(), now)).toEqual({
@@ -46,9 +89,9 @@ describe("Ordys server-owned AI access assurance", () => {
         record({
           age_band: "13_15",
           age_assurance_status: "supervised",
-          age_assurance_source: "google_play",
+          age_assurance_source: "google_play_tier_b_supervised",
           guardian_consent_status: "granted",
-          guardian_consent_source: "external_provider",
+          guardian_consent_source: "external_provider_verified",
           guardian_identity_verified: true,
           guardian_relationship_verified: true,
           guardian_consent_at: current,
@@ -76,7 +119,7 @@ describe("Ordys server-owned AI access assurance", () => {
   it("does not allow a self-declared adult, even when the profile says 18+", () => {
     expect(
       evaluateOrdysAiAccess(
-        record({ age_assurance_status: "declared", age_assurance_source: "google_play" }),
+        record({ age_assurance_status: "declared", age_assurance_source: "google_play_tier_b_supervised" }),
         now,
       ),
     ).toEqual({ allowed: false, tier: "blocked", reason: "age_assurance_invalid" });
@@ -87,7 +130,7 @@ describe("Ordys server-owned AI access assurance", () => {
       evaluateOrdysAiAccess(
         record({
           age_band: "16_17",
-          age_assurance_source: "apple_declared_age_range",
+          age_assurance_source: "apple_confirmed_age_range",
           guardian_consent_status: "granted",
           guardian_consent_source: "verified_guardian_portal",
           guardian_identity_verified: true,
@@ -198,7 +241,7 @@ describe("Ordys server-owned AI access assurance", () => {
         record({
           age_band: "13_15",
           guardian_consent_status: "granted",
-          guardian_consent_source: "operator_review",
+          guardian_consent_source: "external_provider_verified",
           guardian_identity_verified: true,
           guardian_relationship_verified: true,
           guardian_consent_at: current,
