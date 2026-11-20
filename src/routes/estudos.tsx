@@ -106,16 +106,12 @@ type PlanSessionDraft = {
   kind: string;
 };
 
-function soonTimeInput() {
-  const date = new Date(Date.now() + 60 * 60_000);
-  date.setMinutes(Math.ceil(date.getMinutes() / 15) * 15, 0, 0);
-  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
-}
-
 function emptyPlanSessionDraft(): PlanSessionDraft {
+  const startAt = new Date(Date.now() + 60 * 60_000);
+  startAt.setMinutes(Math.ceil(startAt.getMinutes() / 15) * 15, 0, 0);
   return {
-    session_date: dateKey(new Date()),
-    start_time: soonTimeInput(),
+    session_date: dateKey(startAt),
+    start_time: `${String(startAt.getHours()).padStart(2, "0")}:${String(startAt.getMinutes()).padStart(2, "0")}`,
     duration_minutes: "45",
     subject_id: "",
     reason: "",
