@@ -27,11 +27,7 @@ describe("Ordys AI client policy enforcement", () => {
 
   it.each([
     ["quiz", "export async function generateOrdysQuiz(", "function readFunctionResult("],
-    [
-      "video transcription",
-      "async function transcribeOrdysVideo(",
-      "export async function askOrdysAssistant(",
-    ],
+
     [
       "assistant",
       "export async function askOrdysAssistant(",
@@ -54,6 +50,26 @@ describe("Ordys AI client policy enforcement", () => {
     });
     const firstNetworkOrSessionCall = Math.min(...callPositions);
     expect(policyCheck).toBeLessThan(firstNetworkOrSessionCall);
+  });
+
+  it("checks the account policy before transcribing videos in the main assistant flow", () => {
+    const body = functionBody(
+      "export async function askOrdysAssistant(",
+      "export async function pollOrdysResearch(",
+    );
+    const policyCheck = body.indexOf("await assertOrdysAiAccessPolicyReady()");
+    const transcription = body.indexOf("videoAttachments.map(transcribeOrdysVideo)");
+    expect(policyCheck).toBeGreaterThanOrEqual(0);
+    expect(transcription).toBeGreaterThan(policyCheck);
+  });
+
+  it("keeps the transcription endpoint as a separate server-side authorization boundary", () => {
+    const transcription = functionBody(
+      "async function transcribeOrdysVideo(",
+      "export async function askOrdysAssistant(",
+    );
+    expect(transcription).toContain('supabase.functions.invoke("ordys-video-transcribe"');
+    expect(transcription).toContain("filename: attachment.name");
   });
 
   it("allows cancellation of an existing research response while all new AI work is blocked", () => {

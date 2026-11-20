@@ -7,8 +7,9 @@
  */
 export const ORDYS_AGE_ASSURANCE_VERIFIED = false;
 export const ORDYS_GUARDIAN_CONSENT_POLICY_VERIFIED = false;
-// Keep this independent release switch closed until the server also verifies
-// per-user eligibility. Enabling either preparatory policy flag alone is not enough.
+// Deployment/rollout switch only. Keep false until the assurance migration and
+// Edge Functions are deployed and verified. Once enabled, server-side per-account
+// assurance (not these global booleans or profiles.birth_date) decides access.
 export const ORDYS_AI_ACCESS_POLICY_READY = false;
 
 export const ORDYS_AI_ACCESS_POLICY_LOCK_MESSAGE =
