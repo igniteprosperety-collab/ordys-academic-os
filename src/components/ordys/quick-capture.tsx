@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button, Field, Modal, Select, TextInput } from "@/components/ordys/form";
-import { useOrdysMutations, useSubjects, useTopics } from "@/lib/ordys-db";
+import { useOrdysMutations, useProfile, useSubjects, useTopics } from "@/lib/ordys-db";
 import { dateKey } from "@/lib/ordys-engine";
 
 const kinds = [
@@ -26,7 +26,9 @@ export function QuickCapture() {
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
   const { data: subjects = [] } = useSubjects();
+  const { data: profile } = useProfile();
   const { data: topics = [] } = useTopics(subjectId || null);
+  const gradeScale = Number(profile?.grade_scale_max ?? 10);
   const { insert } = useOrdysMutations();
 
   function reset() {
@@ -65,9 +67,15 @@ export function QuickCapture() {
       toast.error("A duração da sessão deve ficar entre 5 e 1.440 minutos.");
       return;
     }
-    if (kind === "nota" && numericValue !== null && numericValue < 0) {
-      toast.error("A nota não pode ser negativa.");
-      return;
+    if (kind === "nota") {
+      if (numericValue === null) {
+        toast.error("Informe a nota obtida.");
+        return;
+      }
+      if (numericValue < 0 || numericValue > gradeScale) {
+        toast.error(`A nota deve ficar entre 0 e ${gradeScale}.`);
+        return;
+      }
     }
 
     setBusy(true);
@@ -100,7 +108,9 @@ export function QuickCapture() {
         await insert("grades", {
           title: cleanTitle || "Avaliação",
           subject_id: subject,
-          score: numericValue ?? 0,
+          score: numericValue,
+          max_score: gradeScale,
+          weight: 1,
           graded_on: when ? when.slice(0, 10) : dateKey(new Date()),
         });
       } else if (kind === "revisao") {
@@ -108,7 +118,7 @@ export function QuickCapture() {
         await insert("reviews", {
           topic_id: topicId,
           due_on: when ? when.slice(0, 10) : dateKey(new Date()),
-          reason: cleanTitle || "Revisão criada manualmente",
+          reason: value.trim() || cleanTitle || "Revisão criada manualmente",
           source: "manual",
         });
       } else {
@@ -143,7 +153,9 @@ export function QuickCapture() {
           ? "Estimativa (min)"
           : kind === "prova"
             ? "Conteúdo"
-            : "Local";
+            : kind === "revisao"
+              ? "Motivo"
+              : "Local";
 
   return (
     <>
