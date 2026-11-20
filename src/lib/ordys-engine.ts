@@ -901,18 +901,13 @@ export async function syncNotifications(input: NotifyInput) {
   // Reconcile only automatic ORDYS keys. User-created or already dismissed
   // notifications are preserved, while completed/deleted academic items and
   // disabled preference categories stop leaving stale alerts in the center.
-  const { data: activeRows, error: readError } = await client
-    .from("notifications")
+  const { data: activeRows, error: readError } = await client.from("notifications")
     .select("id,dedupe_key")
     .eq("user_id", input.userId)
     .is("dismissed_at", null);
   if (readError) throw new Error(readError.message);
 
-  const staleIds = ((activeRows ?? []) as Array<{
-    id: string;
-    dedupe_key: string | null;
-  }>)
-    .filter(
+  const staleIds = ((activeRows ?? []) as Array<{ id: string; dedupe_key: string | null }>).filter(
       (notification) =>
         isManagedOrdysNotificationKey(notification.dedupe_key) &&
         !activeKeys.has(notification.dedupe_key ?? ""),
