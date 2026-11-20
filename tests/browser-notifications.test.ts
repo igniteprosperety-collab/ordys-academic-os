@@ -45,9 +45,9 @@ describe("browser notification delivery", () => {
         now,
       ),
     ).toEqual([row("new")]);
-    expect(
-      collectFreshBrowserNotifications("student-a", [row("new")], storage, now),
-    ).toEqual([]);
+    expect(collectFreshBrowserNotifications("student-a", [row("new")], storage, now)).toEqual(
+      [],
+    );
   });
 
   it("does not share notification history between student accounts", () => {
@@ -66,8 +66,8 @@ describe("browser notification delivery", () => {
     const invalid = { ...row("invalid"), created_at: "not-a-date" };
     const future = { ...row("future"), created_at: new Date(now + 60_000).toISOString() };
 
-    expect(
-      collectFreshBrowserNotifications("student-a", [invalid, future], storage, now),
-    ).toEqual([]);
+    expect(collectFreshBrowserNotifications("student-a", [invalid, future], storage, now)).toEqual(
+      [],
+    );
   });
 });
