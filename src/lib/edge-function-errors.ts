@@ -26,7 +26,6 @@ export function edgeFunctionUnavailableMessage(
     : null;
 }
 
-
 export async function edgeFunctionResponseErrorMessage(error: unknown): Promise<string | null> {
   if (!error || typeof error !== "object") return null;
   const context = (error as { context?: unknown }).context;
