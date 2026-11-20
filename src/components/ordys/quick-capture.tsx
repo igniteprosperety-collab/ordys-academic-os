@@ -101,6 +101,9 @@ export function QuickCapture() {
           title: cleanTitle,
           subject_id: subject,
           starts_at: new Date(when || Date.now()).toISOString(),
+          ends_at: null,
+          kind: "compromisso",
+          source: "manual",
           location: value.trim() || null,
         });
       } else if (kind === "nota") {
