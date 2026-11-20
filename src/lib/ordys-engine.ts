@@ -349,15 +349,13 @@ export async function generateWeeklyPlan(input: PlanInput) {
     Math.min(1440, Number(input.profile?.daily_load_limit_minutes ?? 240)),
   );
 
-  const { error: clearError } = await dataClient()
-    .from("plan_sessions")
-    .delete()
-    .eq("user_id", input.userId)
-    .eq("generated", true)
-    .eq("status", "planejada")
-    .gte("session_date", rangeStart)
-    .lte("session_date", rangeEnd);
-  if (clearError) throw new Error(clearError.message);
+  const generatedToReplace = input.existing.filter(
+    (session) =>
+      session.generated &&
+      session.status === "planejada" &&
+      session.session_date >= rangeStart &&
+      session.session_date <= rangeEnd,
+  );
 
   const manual = input.existing.filter(
     (s) =>
@@ -483,11 +481,35 @@ export async function generateWeeklyPlan(input: PlanInput) {
     }
   }
 
+  // Build the replacement before touching the current plan. If the new insert
+  // fails after the delete succeeds, restore the previous generated sessions.
+  const { error: clearError } = await dataClient()
+    .from("plan_sessions")
+    .delete()
+    .eq("user_id", input.userId)
+    .eq("generated", true)
+    .eq("status", "planejada")
+    .gte("session_date", rangeStart)
+    .lte("session_date", rangeEnd);
+  if (clearError) throw new Error(clearError.message);
+
   if (rows.length) {
     const { error } = await dataClient()
       .from("plan_sessions")
       .insert(rows as never);
-    if (error) throw new Error(error.message);
+    if (error) {
+      if (generatedToReplace.length) {
+        const { error: restoreError } = await dataClient()
+          .from("plan_sessions")
+          .insert(generatedToReplace as never);
+        if (restoreError) {
+          throw new Error(
+            `Não foi possível salvar o novo plano (${error.message}) nem restaurar o plano anterior (${restoreError.message}).`,
+          );
+        }
+      }
+      throw new Error(error.message);
+    }
   }
   return rows.length;
 }
