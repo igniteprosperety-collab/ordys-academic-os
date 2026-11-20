@@ -889,9 +889,7 @@ export async function syncNotifications(input: NotifyInput) {
   const activeKeys = new Set(rows.map((row) => row.dedupe_key));
 
   if (rows.length) {
-    const { error } = await client
-      .from("notifications")
-      .upsert(rows as never, {
+    const { error } = await client.from("notifications").upsert(rows as never, {
         onConflict: "user_id,dedupe_key",
         ignoreDuplicates: true,
       });
@@ -907,7 +905,10 @@ export async function syncNotifications(input: NotifyInput) {
     .is("dismissed_at", null);
   if (readError) throw new Error(readError.message);
 
-  const staleIds = ((activeRows ?? []) as Array<{ id: string; dedupe_key: string | null }>).filter(
+  const staleIds = (
+    (activeRows ?? []) as Array<{ id: string; dedupe_key: string | null }>
+  )
+    .filter(
       (notification) =>
         isManagedOrdysNotificationKey(notification.dedupe_key) &&
         !activeKeys.has(notification.dedupe_key ?? ""),
