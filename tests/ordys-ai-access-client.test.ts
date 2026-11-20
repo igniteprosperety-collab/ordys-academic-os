@@ -108,6 +108,27 @@ describe("per-account AI access status client", () => {
     );
   });
 
+  it("shows the deployment lock when client and server rollout switches are out of sync", async () => {
+    mocks.invoke.mockResolvedValueOnce({
+      data: {
+        status: "completed",
+        access: {
+          allowed: false,
+          tier: "blocked",
+          reason: "policy_not_deployed",
+        },
+      },
+      error: null,
+    });
+
+    await expect(getOrdysAiAccessStatus()).resolves.toMatchObject({
+      allowed: false,
+      tier: "blocked",
+      reason: "policy_not_deployed",
+      message: "A autorização ainda não foi implantada.",
+    });
+  });
+
   it("fails closed when the access endpoint is unavailable", async () => {
     mocks.invoke.mockResolvedValueOnce({
       data: null,
