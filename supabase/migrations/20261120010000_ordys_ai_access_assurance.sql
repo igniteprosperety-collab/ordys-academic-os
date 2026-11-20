@@ -12,13 +12,13 @@ CREATE TABLE IF NOT EXISTS public.ordys_ai_access_assurance (
   age_assurance_status TEXT NOT NULL DEFAULT 'unknown'
     CHECK (age_assurance_status IN ('verified', 'supervised', 'declared', 'unknown', 'revoked')),
   age_assurance_source TEXT NOT NULL DEFAULT 'unknown'
-    CHECK (age_assurance_source IN ('google_play', 'apple_declared_age_range', 'external_provider', 'operator_review', 'unknown')),
+    CHECK (age_assurance_source IN ('google_play_tier_d', 'google_play_tier_b_supervised', 'apple_confirmed_age_range', 'apple_guardian_declared_age_range', 'external_provider_verified', 'unknown')),
   age_assurance_verified_at TIMESTAMPTZ,
   age_assurance_expires_at TIMESTAMPTZ,
   guardian_consent_status TEXT NOT NULL DEFAULT 'unknown'
     CHECK (guardian_consent_status IN ('granted', 'pending', 'denied', 'revoked', 'expired', 'not_required', 'unknown')),
   guardian_consent_source TEXT NOT NULL DEFAULT 'unknown'
-    CHECK (guardian_consent_source IN ('verified_guardian_portal', 'external_provider', 'operator_review', 'unknown')),
+    CHECK (guardian_consent_source IN ('verified_guardian_portal', 'external_provider_verified', 'unknown')),
   guardian_identity_verified BOOLEAN NOT NULL DEFAULT FALSE,
   guardian_relationship_verified BOOLEAN NOT NULL DEFAULT FALSE,
   guardian_consent_at TIMESTAMPTZ,
@@ -79,9 +79,9 @@ CREATE TABLE IF NOT EXISTS public.ordys_ai_access_audit (
     actor_type IN ('student', 'guardian', 'provider', 'operator', 'system')
   ),
   age_band TEXT CHECK (age_band IS NULL OR age_band IN ('under_13', '13_15', '16_17', '18_plus', 'unknown')),
-  age_assurance_source TEXT CHECK (age_assurance_source IS NULL OR age_assurance_source IN ('google_play', 'apple_declared_age_range', 'external_provider', 'operator_review', 'unknown')),
+  age_assurance_source TEXT CHECK (age_assurance_source IS NULL OR age_assurance_source IN ('google_play_tier_d', 'google_play_tier_b_supervised', 'apple_confirmed_age_range', 'apple_guardian_declared_age_range', 'external_provider_verified', 'unknown')),
   guardian_consent_status TEXT CHECK (guardian_consent_status IS NULL OR guardian_consent_status IN ('granted', 'pending', 'denied', 'revoked', 'expired', 'not_required', 'unknown')),
-  guardian_consent_source TEXT CHECK (guardian_consent_source IS NULL OR guardian_consent_source IN ('verified_guardian_portal', 'external_provider', 'operator_review', 'unknown')),
+  guardian_consent_source TEXT CHECK (guardian_consent_source IS NULL OR guardian_consent_source IN ('verified_guardian_portal', 'external_provider_verified', 'unknown')),
   guardian_consent_policy_version TEXT,
   ai_safety_policy_version TEXT,
   age_evidence_reference TEXT CHECK (age_evidence_reference IS NULL OR char_length(btrim(age_evidence_reference)) BETWEEN 1 AND 200),
