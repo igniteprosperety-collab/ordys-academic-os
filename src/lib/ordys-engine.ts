@@ -859,13 +859,74 @@ export function buildNotificationRules(input: NotifyInput) {
   return rows;
 }
 
+const MANAGED_NOTIFICATION_DEDUPE_PREFIXES = [
+  "exam:",
+  "event:",
+  "task:",
+  "task-late:",
+  "replan:",
+  "plan-today:",
+  "summary-day:",
+  "summary-week:",
+  "summary-month:",
+  "goal-grade:",
+  "att:",
+] as const;
+
+export function isManagedOrdysNotificationKey(value: string | null | undefined) {
+  return (
+    typeof value === "string" &&
+    MANAGED_NOTIFICATION_DEDUPE_PREFIXES.some((prefix) => value.startsWith(prefix))
+  );
+}
+
 export async function syncNotifications(input: NotifyInput) {
-  const rows = buildNotificationRules(input).map((r) => ({ ...r, user_id: input.userId }));
-  if (!rows.length) return 0;
-  const { error } = await dataClient()
+  const client = dataClient();
+  const rows = buildNotificationRules(input).map((row) => ({
+    ...row,
+    user_id: input.userId,
+  }));
+  const activeKeys = new Set(rows.map((row) => row.dedupe_key));
+
+  if (rows.length) {
+    const { error } = await client
+      .from("notifications")
+      .upsert(rows as never, {
+        onConflict: "user_id,dedupe_key",
+        ignoreDuplicates: true,
+      });
+    if (error) throw new Error(error.message);
+  }
+
+  // Reconcile only automatic ORDYS keys. User-created or already dismissed
+  // notifications are preserved, while completed/deleted academic items and
+  // disabled preference categories stop leaving stale alerts in the center.
+  const { data: activeRows, error: readError } = await client
     .from("notifications")
-    .upsert(rows as never, { onConflict: "user_id,dedupe_key", ignoreDuplicates: true });
-  if (error) throw new Error(error.message);
+    .select("id,dedupe_key")
+    .eq("user_id", input.userId)
+    .is("dismissed_at", null);
+  if (readError) throw new Error(readError.message);
+
+  const staleIds = (activeRows ?? [])
+    .filter(
+      (notification) =>
+        isManagedOrdysNotificationKey(notification.dedupe_key) &&
+        !activeKeys.has(notification.dedupe_key),
+    )
+    .map((notification) => notification.id)
+    .filter((id): id is string => typeof id === "string" && id.length > 0);
+
+  if (staleIds.length) {
+    const { error } = await client
+      .from("notifications")
+      .update({ dismissed_at: new Date().toISOString() })
+      .eq("user_id", input.userId)
+      .is("dismissed_at", null)
+      .in("id", staleIds);
+    if (error) throw new Error(error.message);
+  }
+
   return rows.length;
 }
 
