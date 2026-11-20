@@ -29,6 +29,7 @@ const NOTIFICATION_IDS = {
   study: 300000,
   class: 400000,
   summary: 500000,
+  event: 600000,
 };
 const NOTIFICATION_PREFIXES = Object.values(NOTIFICATION_IDS);
 
@@ -199,6 +200,7 @@ export async function syncNativeAcademicNotifications() {
     planResult,
     schedulesResult,
     focusResult,
+    eventsResult,
     subjectsResult,
   ] = await Promise.all([
     supabase.from("notification_preferences").select("*").eq("user_id", userId).maybeSingle(),
@@ -236,6 +238,13 @@ export async function syncNativeAcademicNotifications() {
       .eq("status", "concluida")
       .order("started_at", { ascending: false })
       .limit(120),
+    supabase
+      .from("calendar_events")
+      .select("id,title,kind,location,starts_at")
+      .eq("user_id", userId)
+      .gte("starts_at", new Date().toISOString())
+      .order("starts_at")
+      .limit(100),
     supabase.from("subjects").select("id,name").eq("user_id", userId),
   ]);
 
@@ -246,6 +255,7 @@ export async function syncNativeAcademicNotifications() {
     planResult.error,
     schedulesResult.error,
     focusResult.error,
+    eventsResult.error,
     subjectsResult.error,
   ].filter(Boolean);
 
@@ -261,6 +271,7 @@ export async function syncNativeAcademicNotifications() {
   const plan = planResult.data;
   const schedules = schedulesResult.data;
   const focus = focusResult.data;
+  const events = eventsResult.data;
   const subjects = subjectsResult.data;
 
   const prefixes = NOTIFICATION_PREFIXES;
@@ -445,6 +456,28 @@ export async function syncNativeAcademicNotifications() {
               at.getTime() < due.getTime() &&
               !isWithinQuietHours(at, quietStart, quietEnd),
           );
+        })),
+    ...(prefs?.classes === false
+      ? []
+      : (events ?? []).flatMap((event) => {
+          const startsAt = new Date(event.starts_at);
+          if (!Number.isFinite(startsAt.getTime())) return [];
+          const reminder = new Date(startsAt.getTime() - 10 * 60 * 1000);
+          if (
+            reminder.getTime() <= now ||
+            reminder.getTime() > horizon.getTime() ||
+            isWithinQuietHours(reminder, quietStart, quietEnd)
+          ) {
+            return [];
+          }
+          return [
+            {
+              id: stableId(NOTIFICATION_IDS.event, `${event.id}:10m`),
+              title: `${event.title} — em 10 minutos`,
+              body: event.location ?? (event.kind === "compromisso" ? "Seu compromisso está começando." : event.kind),
+              at: reminder,
+            },
+          ];
         })),
     ...(prefs?.study_sessions === false
       ? []
