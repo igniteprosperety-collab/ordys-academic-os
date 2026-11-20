@@ -15,10 +15,7 @@ import {
   useTopics,
 } from "@/lib/ordys-db";
 import { dateKey, syncNotifications } from "@/lib/ordys-engine";
-import {
-  isNativeAndroid,
-  syncNativeAcademicNotifications,
-} from "@/lib/native-notifications";
+import { isNativeAndroid, syncNativeAcademicNotifications } from "@/lib/native-notifications";
 
 const EMPTY_ROWS: never[] = [];
 
