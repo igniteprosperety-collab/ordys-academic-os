@@ -873,9 +873,9 @@ function Perfil() {
           <PanelHeader title="Integrações de agenda" hint="eventos externos" />
           <div className="border-t border-border px-5 py-4">
             <p className="text-[12px] text-muted-foreground">
-              Eventos importados aparecem na agenda junto das aulas, provas e sessões de estudo. As
-              conexões disponíveis ficam vinculadas à sua conta e podem ser removidas a qualquer
-              momento.
+              A conexão automática com Google Agenda e Outlook ainda não está habilitada nesta
+              versão. Conexões já vinculadas à conta podem ser consultadas e removidas aqui. Para
+              cadastrar compromissos pessoais, use a seção Eventos da Agenda do Ordys.
             </p>
             <div className="mt-3 space-y-2">
               {connections.length ? (
@@ -901,7 +901,7 @@ function Perfil() {
                   </div>
                 ))
               ) : (
-                <p className="text-[12px] text-muted-foreground">Nenhuma conexão ativa.</p>
+                <p className="text-[12px] text-muted-foreground">Nenhum calendário externo vinculado.</p>
               )}
             </div>
           </div>
