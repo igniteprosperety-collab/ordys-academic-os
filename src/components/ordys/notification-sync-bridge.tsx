@@ -106,7 +106,7 @@ export function NotificationSyncBridge() {
     for (const notification of fresh) {
       try {
         new Notification(notification.title, {
-          body: notification.body,
+          body: notification.body ?? "",
           tag: `ordys-${notification.id}`,
         });
       } catch (error) {
