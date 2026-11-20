@@ -12,10 +12,11 @@ vi.mock("../edge-functions/_shared/ordys-billing.ts", () => ({
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
   },
-  billingResponse: (body: unknown, status = 200) => new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
-  }),
+  billingResponse: (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+    }),
   getBillingSchemaStatus: mocks.getBillingSchemaStatus,
   serviceRest: mocks.serviceRest,
   authenticateBillingRequest: mocks.authenticateBillingRequest,
@@ -48,10 +49,13 @@ async function setup(options: {
   });
 
   vi.stubGlobal("Deno", {
-    serve: (handler: BillingStatusHandler) => { registeredHandler = handler; },
+    serve: (handler: BillingStatusHandler) => {
+      registeredHandler = handler;
+    },
   });
   await import("../edge-functions/ordys-billing-status/index.ts");
-  if (!registeredHandler) throw new Error("Billing status Edge Function did not register its HTTP handler.");
+  if (!registeredHandler)
+    throw new Error("Billing status Edge Function did not register its HTTP handler.");
 
   return { handler: registeredHandler };
 }
@@ -95,15 +99,17 @@ describe("ORDYS billing status schema readiness", () => {
     const { handler } = await setup({
       schemaStatus: "ready",
       billingEnabled: false,
-      subscriptions: [{
-        plan_code: "plus_monthly",
-        status: "active",
-        amount_cents: 5990,
-        currency: "BRL",
-        current_period_end: "2099-01-01T00:00:00.000Z",
-        grace_until: null,
-        cancelled_at: null,
-      }],
+      subscriptions: [
+        {
+          plan_code: "plus_monthly",
+          status: "active",
+          amount_cents: 5990,
+          currency: "BRL",
+          current_period_end: "2099-01-01T00:00:00.000Z",
+          grace_until: null,
+          cancelled_at: null,
+        },
+      ],
     });
 
     const response = await handler(request());

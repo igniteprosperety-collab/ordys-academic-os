@@ -44,10 +44,7 @@ describe("password recovery session initialization", () => {
   it("stops waiting when the session lookup does not settle", async () => {
     vi.useFakeTimers();
 
-    const resolution = resolveRecoveryScreenMode(
-      () => new Promise<never>(() => undefined),
-      500,
-    );
+    const resolution = resolveRecoveryScreenMode(() => new Promise<never>(() => undefined), 500);
 
     await vi.advanceTimersByTimeAsync(500);
 

@@ -29,7 +29,9 @@ const corsHeaders = {
 };
 
 function jsonObject(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 }
 
 function response(body: unknown, status = 200) {
@@ -46,7 +48,9 @@ async function getBillingSchemaStatus(signal: AbortSignal): Promise<string> {
     signal,
   });
   if (typeof status !== "string") {
-    throw new Error("Não foi possível confirmar a estrutura de assinaturas. Nenhum dado foi apagado.");
+    throw new Error(
+      "Não foi possível confirmar a estrutura de assinaturas. Nenhum dado foi apagado.",
+    );
   }
   return status;
 }
@@ -99,30 +103,39 @@ Deno.serve(async (request) => {
         AUTH_USER_TIMEOUT_MS,
       );
     } catch {
-      return response({ error: "Não foi possível validar sua sessão agora. Tente novamente." }, 503);
+      return response(
+        { error: "Não foi possível validar sua sessão agora. Tente novamente." },
+        503,
+      );
     }
 
     if (userResult.status === 401 || userResult.status === 403) {
       return response({ error: "Sessão inválida." }, 401);
     }
     if (!userResult.ok) {
-      return response({ error: "O serviço de autenticação está indisponível. Nenhum dado foi apagado." }, 503);
+      return response(
+        { error: "O serviço de autenticação está indisponível. Nenhum dado foi apagado." },
+        503,
+      );
     }
 
     let user: Record<string, unknown>;
     try {
       user = jsonObject(
-        await responseJsonWithOutboundTimeout<unknown>(
-          userResult,
-          AUTH_USER_BODY_TIMEOUT_MS,
-        ),
+        await responseJsonWithOutboundTimeout<unknown>(userResult, AUTH_USER_BODY_TIMEOUT_MS),
       );
     } catch {
-      return response({ error: "Não foi possível validar sua sessão. Nenhum dado foi apagado." }, 503);
+      return response(
+        { error: "Não foi possível validar sua sessão. Nenhum dado foi apagado." },
+        503,
+      );
     }
     const userId = typeof user["id"] === "string" ? user["id"] : "";
     if (!userId) {
-      return response({ error: "Não foi possível validar sua sessão. Nenhum dado foi apagado." }, 503);
+      return response(
+        { error: "Não foi possível validar sua sessão. Nenhum dado foi apagado." },
+        503,
+      );
     }
 
     // The request gateway's idle timeout is 150 seconds. Leave room for the
@@ -173,13 +186,17 @@ Deno.serve(async (request) => {
         "ORDYS account deletion blocked by billing cancellation:",
         error instanceof Error ? error.name : "unknown_error",
       );
-      return response({
-        error: error instanceof OutboundRequestTimeoutError
-          ? "Não foi possível confirmar o estado das cobranças agora. Nenhum dado foi apagado. Tente novamente após a conciliação."
-          : error instanceof Error
-            ? error.message
-            : "Não foi possível cancelar as cobranças da conta. Nenhum dado foi apagado.",
-      }, 502);
+      return response(
+        {
+          error:
+            error instanceof OutboundRequestTimeoutError
+              ? "Não foi possível confirmar o estado das cobranças agora. Nenhum dado foi apagado. Tente novamente após a conciliação."
+              : error instanceof Error
+                ? error.message
+                : "Não foi possível cancelar as cobranças da conta. Nenhum dado foi apagado.",
+        },
+        502,
+      );
     }
 
     try {
@@ -199,10 +216,14 @@ Deno.serve(async (request) => {
           requestTimeoutWithinLease(ACCOUNT_DATA_DELETE_TIMEOUT_MS),
         );
       } catch {
-        return response({
-          error: "Não foi possível confirmar a remoção dos dados. A solicitação pode ter sido concluída; verifique o acesso antes de repetir.",
-          code: "account_data_deletion_unconfirmed",
-        }, 502);
+        return response(
+          {
+            error:
+              "Não foi possível confirmar a remoção dos dados. A solicitação pode ter sido concluída; verifique o acesso antes de repetir.",
+            code: "account_data_deletion_unconfirmed",
+          },
+          502,
+        );
       }
       if (!clearResult.ok) {
         return response({ error: "Não foi possível excluir os dados da conta." }, 502);
@@ -221,31 +242,45 @@ Deno.serve(async (request) => {
           requestTimeoutWithinLease(AUTH_ADMIN_DELETE_TIMEOUT_MS),
         );
       } catch {
-        return response({
-          error: "Os dados do Ordys foram removidos, mas não foi possível confirmar se a conta de acesso foi excluída. Encerre a sessão e verifique o acesso antes de solicitar outra exclusão.",
-          code: "auth_identity_deletion_unconfirmed",
-        }, 502);
+        return response(
+          {
+            error:
+              "Os dados do Ordys foram removidos, mas não foi possível confirmar se a conta de acesso foi excluída. Encerre a sessão e verifique o acesso antes de solicitar outra exclusão.",
+            code: "auth_identity_deletion_unconfirmed",
+          },
+          502,
+        );
       }
       if (!deleteResult.ok) {
-        return response({
-          error: "Os dados do Ordys foram removidos, mas o Supabase não confirmou a exclusão da conta de acesso. Encerre a sessão e verifique o acesso antes de solicitar outra exclusão.",
-          code: "auth_identity_deletion_unconfirmed",
-        }, 502);
+        return response(
+          {
+            error:
+              "Os dados do Ordys foram removidos, mas o Supabase não confirmou a exclusão da conta de acesso. Encerre a sessão e verifique o acesso antes de solicitar outra exclusão.",
+            code: "auth_identity_deletion_unconfirmed",
+          },
+          502,
+        );
       }
       return response({ deleted: true });
     } finally {
       if (processingToken) {
-        await releaseOrdysAccountDeletionProcessing(userId, processingToken, boundedServiceRest)
-          .catch((error) => {
-            console.error(
-              "ORDYS account deletion processing lease release failed:",
-              error instanceof Error ? error.name : "unknown_error",
-            );
-          });
+        await releaseOrdysAccountDeletionProcessing(
+          userId,
+          processingToken,
+          boundedServiceRest,
+        ).catch((error) => {
+          console.error(
+            "ORDYS account deletion processing lease release failed:",
+            error instanceof Error ? error.name : "unknown_error",
+          );
+        });
       }
     }
   } catch (error) {
-    console.error("ORDYS account deletion failed:", error instanceof Error ? error.name : "unknown_error");
+    console.error(
+      "ORDYS account deletion failed:",
+      error instanceof Error ? error.name : "unknown_error",
+    );
     return response({ error: "Não foi possível concluir a exclusão da conta." }, 500);
   }
 });

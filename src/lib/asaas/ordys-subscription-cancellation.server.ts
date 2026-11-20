@@ -8,9 +8,7 @@ export type SubscriptionCancellationClaim =
   | { status: "confirmed"; cancellationRequestedAt: string | null };
 
 function jsonObject(value: unknown): JsonRecord {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? value as JsonRecord
-    : {};
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as JsonRecord) : {};
 }
 
 /**
@@ -26,15 +24,16 @@ export async function claimOrdysSubscriptionCancellation(
   serviceRest: ServiceRest,
 ): Promise<SubscriptionCancellationClaim> {
   if (!userId || !subscriptionId) {
-    throw new Error("Não foi possível identificar a conta e a assinatura para reservar o cancelamento.");
+    throw new Error(
+      "Não foi possível identificar a conta e a assinatura para reservar o cancelamento.",
+    );
   }
 
   const claimId = crypto.randomUUID();
   const encodedUserId = encodeURIComponent(userId);
   const encodedSubscriptionId = encodeURIComponent(subscriptionId);
   const cancellationRequestedAt = new Date().toISOString();
-  const claimQuery =
-    `ordys_billing_subscriptions?id=eq.${encodedSubscriptionId}&user_id=eq.${encodedUserId}&status=in.(pending,active,past_due,suspended,cancelled)&cancellation_requested_at=is.null&cancellation_claim_id=is.null&cancellation_confirmed_at=is.null`;
+  const claimQuery = `ordys_billing_subscriptions?id=eq.${encodedSubscriptionId}&user_id=eq.${encodedUserId}&status=in.(pending,active,past_due,suspended,cancelled)&cancellation_requested_at=is.null&cancellation_claim_id=is.null&cancellation_confirmed_at=is.null`;
 
   let claimResult: unknown;
   try {
@@ -56,10 +55,11 @@ export async function claimOrdysSubscriptionCancellation(
   if (Array.isArray(claimResult)) {
     const claimed = claimResult
       .map(jsonObject)
-      .find((row) =>
-        row["id"] === subscriptionId &&
-        row["cancellation_claim_id"] === claimId &&
-        row["cancellation_requested_at"] === cancellationRequestedAt
+      .find(
+        (row) =>
+          row["id"] === subscriptionId &&
+          row["cancellation_claim_id"] === claimId &&
+          row["cancellation_requested_at"] === cancellationRequestedAt,
       );
     if (claimed) return { status: "claimed", cancellationRequestedAt };
   }
@@ -68,7 +68,9 @@ export async function claimOrdysSubscriptionCancellation(
     `ordys_billing_subscriptions?select=id,status,provider_status,cancellation_requested_at,cancellation_confirmed_at,cancellation_claim_id&user_id=eq.${encodedUserId}&id=eq.${encodedSubscriptionId}&limit=1`,
   );
   if (!Array.isArray(latestResult) || latestResult.length !== 1) {
-    throw new Error("Não foi possível confirmar a reserva do cancelamento da assinatura. Nenhum dado foi apagado.");
+    throw new Error(
+      "Não foi possível confirmar a reserva do cancelamento da assinatura. Nenhum dado foi apagado.",
+    );
   }
 
   const latest = jsonObject(latestResult[0]);
@@ -76,9 +78,10 @@ export async function claimOrdysSubscriptionCancellation(
     throw new Error("A assinatura retornada não corresponde à solicitação de cancelamento.");
   }
 
-  const latestRequestedAt = typeof latest["cancellation_requested_at"] === "string"
-    ? latest["cancellation_requested_at"]
-    : null;
+  const latestRequestedAt =
+    typeof latest["cancellation_requested_at"] === "string"
+      ? latest["cancellation_requested_at"]
+      : null;
   if (
     typeof latest["cancellation_confirmed_at"] === "string" ||
     latest["provider_status"] === "DELETED"

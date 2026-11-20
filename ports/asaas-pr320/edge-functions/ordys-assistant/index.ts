@@ -14,8 +14,10 @@ const corsHeaders = {
 };
 
 const OPENAI_URL = "https://api.openai.com/v1/responses";
-const OPENAI_UNAVAILABLE_MESSAGE = "O serviço de IA está temporariamente indisponível. Tente novamente.";
-const OPENAI_REJECTED_MESSAGE = "O serviço de IA não conseguiu processar a solicitação. Tente novamente.";
+const OPENAI_UNAVAILABLE_MESSAGE =
+  "O serviço de IA está temporariamente indisponível. Tente novamente.";
+const OPENAI_REJECTED_MESSAGE =
+  "O serviço de IA não conseguiu processar a solicitação. Tente novamente.";
 // Keep model IDs aligned with the current public OpenAI API catalog.
 const ASSIST_MODEL = "gpt-6-luna";
 const RESEARCH_MODEL = "gpt-6-luna";
@@ -77,7 +79,9 @@ function response(body: unknown, status = 200) {
 }
 
 function jsonObject(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 }
 
 function stringValue(value: unknown, max = 500) {
@@ -88,30 +92,43 @@ function queryValue(value: unknown) {
   return encodeURIComponent(String(value));
 }
 
-
 function normalizeHistory(value: unknown) {
   if (!Array.isArray(value)) return [];
-  return value.filter((item) => typeof jsonObject(item)["content"] === "string").map((item) => {
-    const obj = jsonObject(item);
-    return { role: obj["role"] === "assistant" ? "assistant" : "user", content: String(obj["content"]).slice(0, 4000) };
-  }).slice(-8);
+  return value
+    .filter((item) => typeof jsonObject(item)["content"] === "string")
+    .map((item) => {
+      const obj = jsonObject(item);
+      return {
+        role: obj["role"] === "assistant" ? "assistant" : "user",
+        content: String(obj["content"]).slice(0, 4000),
+      };
+    })
+    .slice(-8);
 }
 
 function attachmentPayload(value: unknown) {
   if (!Array.isArray(value)) return [];
-  if (value.length > MAX_ATTACHMENTS) throw new Error(`O Ordys aceita até ${MAX_ATTACHMENTS} anexos por mensagem.`);
+  if (value.length > MAX_ATTACHMENTS)
+    throw new Error(`O Ordys aceita até ${MAX_ATTACHMENTS} anexos por mensagem.`);
   let total = 0;
   return value.map((item) => {
     const obj = jsonObject(item);
-    const kind = obj["kind"] === "image" || obj["kind"] === "file" || obj["kind"] === "video" ? obj["kind"] : null;
+    const kind =
+      obj["kind"] === "image" || obj["kind"] === "file" || obj["kind"] === "video"
+        ? obj["kind"]
+        : null;
     const name = stringValue(obj["name"], 180);
     const mimeType = stringValue(obj["mimeType"], 120);
     const rawDataUrl = typeof obj["dataUrl"] === "string" ? obj["dataUrl"].trim() : "";
     const frames = Array.isArray(obj["frames"])
-      ? obj["frames"].filter((frame) => typeof frame === "string").map((frame) => frame.trim()).slice(0, 6)
+      ? obj["frames"]
+          .filter((frame) => typeof frame === "string")
+          .map((frame) => frame.trim())
+          .slice(0, 6)
       : [];
     if (!kind || !name) throw new Error("Um dos anexos possui metadados inválidos.");
-    if ((kind === "image" || kind === "file") && !rawDataUrl.startsWith("data:")) throw new Error(`${name}: conteúdo inválido.`);
+    if ((kind === "image" || kind === "file") && !rawDataUrl.startsWith("data:"))
+      throw new Error(`${name}: conteúdo inválido.`);
     if ((kind === "image" || kind === "file") && rawDataUrl.length > MAX_ATTACHMENT_CHARS) {
       throw new Error(`${name}: o arquivo excede o limite permitido.`);
     }
@@ -133,26 +150,48 @@ function attachmentPayload(value: unknown) {
       }
     }
 
-    if (kind === "video" && (!frames.length || frames.some((frame) => !/^data:image\/(?:png|jpe?g|webp);base64,/i.test(frame)))) {
+    if (
+      kind === "video" &&
+      (!frames.length ||
+        frames.some((frame) => !/^data:image\/(?:png|jpe?g|webp);base64,/i.test(frame)))
+    ) {
       throw new Error(`${name}: quadros de vídeo inválidos.`);
     }
 
-    const durationSeconds = typeof obj["durationSeconds"] === "number" && Number.isFinite(obj["durationSeconds"])
-      ? Math.min(Math.max(obj["durationSeconds"], 0), 86_400)
-      : null;
+    const durationSeconds =
+      typeof obj["durationSeconds"] === "number" && Number.isFinite(obj["durationSeconds"])
+        ? Math.min(Math.max(obj["durationSeconds"], 0), 86_400)
+        : null;
 
-    total += kind === "video" ? frames.reduce((sum, frame) => sum + frame.length, 0) : rawDataUrl.length;
+    total +=
+      kind === "video" ? frames.reduce((sum, frame) => sum + frame.length, 0) : rawDataUrl.length;
     if (total > MAX_ATTACHMENT_CHARS) throw new Error("Os anexos excedem o limite desta mensagem.");
-    return { kind, name, mimeType, dataUrl: kind === "video" ? "" : rawDataUrl, frames, durationSeconds };
+    return {
+      kind,
+      name,
+      mimeType,
+      dataUrl: kind === "video" ? "" : rawDataUrl,
+      frames,
+      durationSeconds,
+    };
   });
 }
 
-function buildInput(message: string, history: Array<{ role: string; content: string }>, attachments: ReturnType<typeof attachmentPayload>) {
-  const historyText = history.map((item) => `${item.role === "assistant" ? "ORDYS" : "ESTUDANTE"}: ${item.content}`).join("\n\n").slice(0, MAX_HISTORY_CHARS);
-  const content: Array<Record<string, unknown>> = [{
-    type: "input_text",
-    text: `HISTÓRICO:\n${historyText || "(sem histórico)"}\n\nMENSAGEM ATUAL:\n${message || "(o estudante enviou apenas anexos)"}`,
-  }];
+function buildInput(
+  message: string,
+  history: Array<{ role: string; content: string }>,
+  attachments: ReturnType<typeof attachmentPayload>,
+) {
+  const historyText = history
+    .map((item) => `${item.role === "assistant" ? "ORDYS" : "ESTUDANTE"}: ${item.content}`)
+    .join("\n\n")
+    .slice(0, MAX_HISTORY_CHARS);
+  const content: Array<Record<string, unknown>> = [
+    {
+      type: "input_text",
+      text: `HISTÓRICO:\n${historyText || "(sem histórico)"}\n\nMENSAGEM ATUAL:\n${message || "(o estudante enviou apenas anexos)"}`,
+    },
+  ];
 
   for (const attachment of attachments) {
     if (attachment.kind === "image") {
@@ -160,10 +199,17 @@ function buildInput(message: string, history: Array<{ role: string; content: str
       continue;
     }
     if (attachment.kind === "file") {
-      content.push({ type: "input_file", file_data: attachment.dataUrl, filename: attachment.name });
+      content.push({
+        type: "input_file",
+        file_data: attachment.dataUrl,
+        filename: attachment.name,
+      });
       continue;
     }
-    content.push({ type: "input_text", text: `VÍDEO: ${attachment.name}${attachment.durationSeconds ? ` · ${attachment.durationSeconds}s` : ""}. Foram enviados somente quadros representativos; o áudio e outros momentos não estão disponíveis nesta análise.` });
+    content.push({
+      type: "input_text",
+      text: `VÍDEO: ${attachment.name}${attachment.durationSeconds ? ` · ${attachment.durationSeconds}s` : ""}. Foram enviados somente quadros representativos; o áudio e outros momentos não estão disponíveis nesta análise.`,
+    });
     for (const frame of attachment.frames) content.push({ type: "input_image", image_url: frame });
   }
   return [{ role: "user", content }];
@@ -187,11 +233,14 @@ async function validateUser(request: Request) {
   if (!supabaseUrl || !supabaseKey) {
     throw new Error("Configuração de autenticação indisponível no servidor.");
   }
-  const result = await fetch(`${supabaseUrl}/auth/v1/user`, { headers: { apikey: supabaseKey, Authorization: auth } });
+  const result = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: { apikey: supabaseKey, Authorization: auth },
+  });
   if (result.status === 401 || result.status === 403) return null;
   if (!result.ok) throw new Error("O serviço de autenticação não respondeu corretamente.");
   const user = jsonObject(await result.json().catch(() => ({})));
-  if (typeof user["id"] !== "string") throw new Error("Resposta inválida do serviço de autenticação.");
+  if (typeof user["id"] !== "string")
+    throw new Error("Resposta inválida do serviço de autenticação.");
   return { id: user["id"], auth };
 }
 
@@ -253,30 +302,49 @@ async function cancelOpenAIResponse(responseId: string) {
 
 function collectCitations(node: unknown, result: Array<{ title: string; url: string }> = []) {
   if (!node || typeof node !== "object") return result;
-  if (Array.isArray(node)) { node.forEach((item) => collectCitations(item, result)); return result; }
+  if (Array.isArray(node)) {
+    node.forEach((item) => collectCitations(item, result));
+    return result;
+  }
   const value = node as Record<string, unknown>;
   const nested = jsonObject(value["url_citation"]);
-  const url = typeof value["url"] === "string" ? value["url"] : typeof nested["url"] === "string" ? nested["url"] : null;
-  const title = typeof value["title"] === "string" ? value["title"] : typeof nested["title"] === "string" ? nested["title"] : url;
-  if ((value["type"] === "url_citation" || Object.keys(nested).length > 0) && url) result.push({ title: title || url, url });
+  const url =
+    typeof value["url"] === "string"
+      ? value["url"]
+      : typeof nested["url"] === "string"
+        ? nested["url"]
+        : null;
+  const title =
+    typeof value["title"] === "string"
+      ? value["title"]
+      : typeof nested["title"] === "string"
+        ? nested["title"]
+        : url;
+  if ((value["type"] === "url_citation" || Object.keys(nested).length > 0) && url)
+    result.push({ title: title || url, url });
   Object.values(value).forEach((child) => collectCitations(child, result));
   return result;
 }
 
 function uniqueCitations(payload: Record<string, unknown>) {
   const seen = new Set<string>();
-  return collectCitations(Array.isArray(payload["output"]) ? payload["output"] : []).filter((item) => {
-    if (seen.has(item.url)) return false;
-    seen.add(item.url);
-    return true;
-  });
+  return collectCitations(Array.isArray(payload["output"]) ? payload["output"] : []).filter(
+    (item) => {
+      if (seen.has(item.url)) return false;
+      seen.add(item.url);
+      return true;
+    },
+  );
 }
 
 function parseStructured<T>(payload: Record<string, unknown>): T {
   const text = typeof payload["output_text"] === "string" ? payload["output_text"].trim() : "";
   if (!text) throw new Error("O modelo não retornou uma estrutura utilizável.");
-  try { return JSON.parse(text) as T; }
-  catch { throw new Error("O modelo retornou um formato inválido para esta operação."); }
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error("O modelo retornou um formato inválido para esta operação.");
+  }
 }
 
 const CONFIG_SCHEMA = {
@@ -286,18 +354,43 @@ const CONFIG_SCHEMA = {
     summary: { type: "string" },
     questions: { type: "array", items: { type: "string" }, maxItems: 8 },
     actions: {
-      type: "array", maxItems: MAX_PLAN_ACTIONS,
+      type: "array",
+      maxItems: MAX_PLAN_ACTIONS,
       items: {
-        type: "object", additionalProperties: false,
+        type: "object",
+        additionalProperties: false,
         properties: {
           type: { type: "string", enum: ["subject", "schedule", "task", "exam", "profile"] },
-          title: { type: "string" }, details: { type: "string" },
-          subjectName: { type: ["string", "null"] }, teacher: { type: ["string", "null"] }, room: { type: ["string", "null"] },
-          weekday: { type: ["integer", "null"] }, startTime: { type: ["string", "null"] }, endTime: { type: ["string", "null"] },
-          dueAt: { type: ["string", "null"] }, examAt: { type: ["string", "null"] }, description: { type: ["string", "null"] },
-          stage: { type: ["string", "null"] }, timezone: { type: ["string", "null"] },
+          title: { type: "string" },
+          details: { type: "string" },
+          subjectName: { type: ["string", "null"] },
+          teacher: { type: ["string", "null"] },
+          room: { type: ["string", "null"] },
+          weekday: { type: ["integer", "null"] },
+          startTime: { type: ["string", "null"] },
+          endTime: { type: ["string", "null"] },
+          dueAt: { type: ["string", "null"] },
+          examAt: { type: ["string", "null"] },
+          description: { type: ["string", "null"] },
+          stage: { type: ["string", "null"] },
+          timezone: { type: ["string", "null"] },
         },
-        required: ["type", "title", "details", "subjectName", "teacher", "room", "weekday", "startTime", "endTime", "dueAt", "examAt", "description", "stage", "timezone"],
+        required: [
+          "type",
+          "title",
+          "details",
+          "subjectName",
+          "teacher",
+          "room",
+          "weekday",
+          "startTime",
+          "endTime",
+          "dueAt",
+          "examAt",
+          "description",
+          "stage",
+          "timezone",
+        ],
       },
     },
   },
@@ -305,7 +398,8 @@ const CONFIG_SCHEMA = {
 };
 
 const MINDMAP_SCHEMA = {
-  type: "object", additionalProperties: false,
+  type: "object",
+  additionalProperties: false,
   properties: {
     title: { type: "string" },
     nodes: { type: "array", maxItems: 7, items: { $ref: "#/$defs/node" } },
@@ -313,7 +407,8 @@ const MINDMAP_SCHEMA = {
   required: ["title", "nodes"],
   $defs: {
     node: {
-      type: "object", additionalProperties: false,
+      type: "object",
+      additionalProperties: false,
       properties: {
         title: { type: "string" },
         summary: { type: "string" },
@@ -364,26 +459,46 @@ function buildQuizSchema(questionCount: number) {
   };
 }
 
-function isValidTime(value: unknown) { return typeof value === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(value); }
-function isValidDateTime(value: unknown) { return typeof value === "string" && value.length >= 10 && !Number.isNaN(Date.parse(value)); }
+function isValidTime(value: unknown) {
+  return typeof value === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
+}
+function isValidDateTime(value: unknown) {
+  return typeof value === "string" && value.length >= 10 && !Number.isNaN(Date.parse(value));
+}
 
 function normalizePlan(value: unknown) {
   const plan = jsonObject(value);
   const actions = Array.isArray(plan["actions"]) ? plan["actions"].slice(0, MAX_PLAN_ACTIONS) : [];
-  const questions = Array.isArray(plan["questions"]) ? plan["questions"].filter((item) => typeof item === "string").slice(0, 8) : [];
+  const questions = Array.isArray(plan["questions"])
+    ? plan["questions"].filter((item) => typeof item === "string").slice(0, 8)
+    : [];
   return {
-    summary: stringValue(plan["summary"], 1500), questions,
-    actions: actions.map((item) => {
-      const action = jsonObject(item);
-      return {
-        type: stringValue(action["type"], 30), title: stringValue(action["title"], 180), details: stringValue(action["details"], 400),
-        subjectName: stringValue(action["subjectName"], 180) || null, teacher: stringValue(action["teacher"], 180) || null, room: stringValue(action["room"], 100) || null,
-        weekday: typeof action["weekday"] === "number" && Number.isInteger(action["weekday"]) ? action["weekday"] : null,
-        startTime: isValidTime(action["startTime"]) ? action["startTime"] : null, endTime: isValidTime(action["endTime"]) ? action["endTime"] : null,
-        dueAt: isValidDateTime(action["dueAt"]) ? action["dueAt"] : null, examAt: isValidDateTime(action["examAt"]) ? action["examAt"] : null,
-        description: stringValue(action["description"], 1000) || null, stage: stringValue(action["stage"], 100) || null, timezone: stringValue(action["timezone"], 80) || null,
-      };
-    }).filter((item) => ["subject", "schedule", "task", "exam", "profile"].includes(item.type)),
+    summary: stringValue(plan["summary"], 1500),
+    questions,
+    actions: actions
+      .map((item) => {
+        const action = jsonObject(item);
+        return {
+          type: stringValue(action["type"], 30),
+          title: stringValue(action["title"], 180),
+          details: stringValue(action["details"], 400),
+          subjectName: stringValue(action["subjectName"], 180) || null,
+          teacher: stringValue(action["teacher"], 180) || null,
+          room: stringValue(action["room"], 100) || null,
+          weekday:
+            typeof action["weekday"] === "number" && Number.isInteger(action["weekday"])
+              ? action["weekday"]
+              : null,
+          startTime: isValidTime(action["startTime"]) ? action["startTime"] : null,
+          endTime: isValidTime(action["endTime"]) ? action["endTime"] : null,
+          dueAt: isValidDateTime(action["dueAt"]) ? action["dueAt"] : null,
+          examAt: isValidDateTime(action["examAt"]) ? action["examAt"] : null,
+          description: stringValue(action["description"], 1000) || null,
+          stage: stringValue(action["stage"], 100) || null,
+          timezone: stringValue(action["timezone"], 80) || null,
+        };
+      })
+      .filter((item) => ["subject", "schedule", "task", "exam", "profile"].includes(item.type)),
   };
 }
 
@@ -392,22 +507,32 @@ function resolveSupabasePublishableKey() {
   if (raw) {
     try {
       const keys = JSON.parse(raw) as Record<string, unknown>;
-      if (typeof keys["default"] === "string" && keys["default"].trim()) return keys["default"].trim();
+      if (typeof keys["default"] === "string" && keys["default"].trim())
+        return keys["default"].trim();
     } catch {
       // Fall back to the legacy single-key variables below.
     }
   }
-  return (Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY"))?.trim() || "";
+  return (
+    (Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY"))?.trim() || ""
+  );
 }
 
 async function supabaseRest(request: Request, path: string, init: RequestInit = {}) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")?.trim();
   const supabaseKey = resolveSupabasePublishableKey();
   const authorization = request.headers.get("Authorization") ?? "";
-  if (!supabaseUrl || !supabaseKey || !authorization.startsWith("Bearer ")) throw new Error("Sessão inválida para editar o aplicativo.");
+  if (!supabaseUrl || !supabaseKey || !authorization.startsWith("Bearer "))
+    throw new Error("Sessão inválida para editar o aplicativo.");
   const result = await fetch(`${supabaseUrl}/rest/v1/${path}`, {
     ...init,
-    headers: { apikey: supabaseKey, Authorization: authorization, "Content-Type": "application/json", Prefer: "return=representation", ...(init.headers || {}) },
+    headers: {
+      apikey: supabaseKey,
+      Authorization: authorization,
+      "Content-Type": "application/json",
+      Prefer: "return=representation",
+      ...(init.headers || {}),
+    },
   });
   if (!result.ok) {
     console.error("Supabase REST request failed:", result.status);
@@ -458,16 +583,24 @@ async function assertAiEligible(request: Request, userId: string) {
     `profiles?select=birth_date,timezone&id=eq.${queryValue(userId)}&limit=1`,
     { method: "GET" },
   );
-  const row = Array.isArray(rows) ? rows[0] as Record<string, unknown> | undefined : undefined;
+  const row = Array.isArray(rows) ? (rows[0] as Record<string, unknown> | undefined) : undefined;
   const birthDate = typeof row?.["birth_date"] === "string" ? row["birth_date"] : null;
   const timezone = typeof row?.["timezone"] === "string" ? row["timezone"] : null;
   const age = calculateAgeInTimeZone(birthDate, timezone);
   if (age === null || age < 18) {
-    throw new Error("Os recursos de IA que usam a OpenAI estão disponíveis apenas para contas com 18 anos ou mais.");
+    throw new Error(
+      "Os recursos de IA que usam a OpenAI estão disponíveis apenas para contas com 18 anos ou mais.",
+    );
   }
 }
 
-async function enforceUsageLimit(request: Request, userId: string, kind: string, hourlyLimit: number, dailyLimit: number) {
+async function enforceUsageLimit(
+  request: Request,
+  userId: string,
+  kind: string,
+  hourlyLimit: number,
+  dailyLimit: number,
+) {
   // Keep the existing user-session validation on the incoming request before
   // using service_role for the internal usage ledger.
   const verified = await validateUser(request);
@@ -488,7 +621,8 @@ async function enforceUsageLimit(request: Request, userId: string, kind: string,
       })()
     : Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
 
-  if (!supabaseUrl || !serviceRoleKey) throw new Error("Limite de uso não configurado no servidor.");
+  if (!supabaseUrl || !serviceRoleKey)
+    throw new Error("Limite de uso não configurado no servidor.");
 
   const serviceHeaders: Record<string, string> = serviceRoleKey.startsWith("sb_secret_")
     ? { apikey: serviceRoleKey }
@@ -519,7 +653,11 @@ async function enforceUsageLimit(request: Request, userId: string, kind: string,
   }
 }
 
-async function generateQuizForUser(request: Request, userId: string, body: Record<string, unknown>) {
+async function generateQuizForUser(
+  request: Request,
+  userId: string,
+  body: Record<string, unknown>,
+) {
   const subjectId = stringValue(body["subjectId"], 36);
   if (!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(subjectId)) {
     return response({ status: "failed", error: "Selecione uma disciplina válida." }, 400);
@@ -531,8 +669,16 @@ async function generateQuizForUser(request: Request, userId: string, body: Recor
   }
 
   const questionCount = body["questionCount"];
-  if (typeof questionCount !== "number" || !Number.isInteger(questionCount) || questionCount < 3 || questionCount > 15) {
-    return response({ status: "failed", error: "A quantidade de questões deve ficar entre 3 e 15." }, 400);
+  if (
+    typeof questionCount !== "number" ||
+    !Number.isInteger(questionCount) ||
+    questionCount < 3 ||
+    questionCount > 15
+  ) {
+    return response(
+      { status: "failed", error: "A quantidade de questões deve ficar entre 3 e 15." },
+      400,
+    );
   }
 
   const subjects = await supabaseRest(
@@ -641,16 +787,26 @@ async function removeAssistantJob(_request: Request, userId: string, responseId:
 }
 
 async function findSubject(request: Request, name: string, userId: string) {
-  const rows = await supabaseRest(request, `subjects?select=id,name&user_id=eq.${queryValue(userId)}&name=eq.${queryValue(name)}&archived=eq.false&limit=1`, { method: "GET" });
-  return Array.isArray(rows) && rows[0] && typeof rows[0].id === "string" ? rows[0] as { id: string; name: string } : null;
+  const rows = await supabaseRest(
+    request,
+    `subjects?select=id,name&user_id=eq.${queryValue(userId)}&name=eq.${queryValue(name)}&archived=eq.false&limit=1`,
+    { method: "GET" },
+  );
+  return Array.isArray(rows) && rows[0] && typeof rows[0].id === "string"
+    ? (rows[0] as { id: string; name: string })
+    : null;
 }
 
 async function ensureSubject(request: Request, name: string, userId: string) {
   const existing = await findSubject(request, name, userId);
   if (existing) return existing;
-  const rows = await supabaseRest(request, "subjects", { method: "POST", body: JSON.stringify({ user_id: userId, name }) });
+  const rows = await supabaseRest(request, "subjects", {
+    method: "POST",
+    body: JSON.stringify({ user_id: userId, name }),
+  });
   const row = Array.isArray(rows) ? rows[0] : null;
-  if (!row || typeof row.id !== "string") throw new Error(`Não foi possível criar a matéria ${name}.`);
+  if (!row || typeof row.id !== "string")
+    throw new Error(`Não foi possível criar a matéria ${name}.`);
   return row as { id: string; name: string };
 }
 
@@ -658,19 +814,32 @@ function assertConfigurationPlanSafe(plan: ReturnType<typeof normalizePlan>) {
   const allowedStages = new Set(["fundamental", "medio", "superior", "pos", "outro"]);
   if (plan.summary.length > 1500) throw new Error("O resumo da configuração é grande demais.");
   for (const action of plan.actions) {
-    if (!action.title || action.title.length > 200) throw new Error("Uma ação da configuração possui título inválido.");
-    if (action.details.length > 400) throw new Error(`A ação "${action.title}" possui detalhes grandes demais.`);
-    if (action.subjectName && action.subjectName.length > 120) throw new Error(`A matéria "${action.subjectName}" excede o limite permitido.`);
-    if (action.teacher && action.teacher.length > 120) throw new Error(`O professor de "${action.title}" excede o limite permitido.`);
-    if (action.room && action.room.length > 60) throw new Error(`A sala de "${action.title}" excede o limite permitido.`);
-    if (action.description && action.description.length > 8000) throw new Error(`A descrição de "${action.title}" excede o limite permitido.`);
+    if (!action.title || action.title.length > 200)
+      throw new Error("Uma ação da configuração possui título inválido.");
+    if (action.details.length > 400)
+      throw new Error(`A ação "${action.title}" possui detalhes grandes demais.`);
+    if (action.subjectName && action.subjectName.length > 120)
+      throw new Error(`A matéria "${action.subjectName}" excede o limite permitido.`);
+    if (action.teacher && action.teacher.length > 120)
+      throw new Error(`O professor de "${action.title}" excede o limite permitido.`);
+    if (action.room && action.room.length > 60)
+      throw new Error(`A sala de "${action.title}" excede o limite permitido.`);
+    if (action.description && action.description.length > 8000)
+      throw new Error(`A descrição de "${action.title}" excede o limite permitido.`);
 
     if (action.type === "subject" && action.title.length > 120) {
       throw new Error(`A matéria "${action.title}" excede o limite permitido.`);
     }
 
     if (action.type === "schedule") {
-      if (action.weekday === null || action.weekday < 0 || action.weekday > 6 || !action.startTime || !action.endTime || action.endTime <= action.startTime) {
+      if (
+        action.weekday === null ||
+        action.weekday < 0 ||
+        action.weekday > 6 ||
+        !action.startTime ||
+        !action.endTime ||
+        action.endTime <= action.startTime
+      ) {
         throw new Error(`O horário de "${action.title}" é inválido ou incompleto.`);
       }
     }
@@ -683,13 +852,16 @@ function assertConfigurationPlanSafe(plan: ReturnType<typeof normalizePlan>) {
       if (!action.examAt || !isValidDateTime(action.examAt)) {
         throw new Error(`A prova de "${action.title}" não possui uma data válida.`);
       }
-      if (action.title.length > 200) throw new Error("Uma prova da configuração possui título inválido.");
+      if (action.title.length > 200)
+        throw new Error("Uma prova da configuração possui título inválido.");
     }
 
     if (action.type === "profile") {
-      if (action.stage && !allowedStages.has(action.stage)) throw new Error("A etapa acadêmica informada não é válida.");
+      if (action.stage && !allowedStages.has(action.stage))
+        throw new Error("A etapa acadêmica informada não é válida.");
       if (action.timezone) {
-        if (action.timezone.length > 64) throw new Error("O fuso horário informado excede o limite permitido.");
+        if (action.timezone.length > 64)
+          throw new Error("O fuso horário informado excede o limite permitido.");
         try {
           new Intl.DateTimeFormat("pt-BR", { timeZone: action.timezone }).format();
         } catch {
@@ -704,7 +876,8 @@ async function applyConfiguration(request: Request, planInput: unknown) {
   const plan = normalizePlan(planInput);
   assertConfigurationPlanSafe(plan);
   if (!plan.actions.length) throw new Error("Não há ações válidas para aplicar.");
-  if (plan.questions.length) throw new Error("A configuração ainda depende de informações que não foram respondidas.");
+  if (plan.questions.length)
+    throw new Error("A configuração ainda depende de informações que não foram respondidas.");
 
   const user = await validateUser(request);
   if (!user?.id) throw new Error("Sessão inválida para editar o aplicativo.");
@@ -714,78 +887,125 @@ async function applyConfiguration(request: Request, planInput: unknown) {
   const subjectKey = (name: string) => name.trim().toLocaleLowerCase("pt-BR");
 
   try {
-  for (const action of plan.actions.filter((item) => item.type === "subject")) {
-    if (!action.title) continue;
-    const subject = await ensureSubject(request, action.title, userId);
-    subjects.set(subjectKey(subject.name), subject);
-    if (action.teacher || action.room) {
-      const values: Record<string, unknown> = {};
-      if (action.teacher) values["teacher"] = action.teacher;
-      if (action.room) values["room"] = action.room;
-      await supabaseRest(request, `subjects?id=eq.${queryValue(subject.id)}&user_id=eq.${queryValue(userId)}`, { method: "PATCH", body: JSON.stringify(values) });
-    }
-    applied.push(`Matéria: ${subject.name}`);
-  }
-
-  for (const action of plan.actions) {
-    if (!["schedule", "task", "exam", "profile"].includes(action.type)) continue;
-
-    if (action.type === "profile") {
-      const values: Record<string, unknown> = { id: userId };
-      if (action.stage) values["stage"] = action.stage;
-      if (action.timezone) values["timezone"] = action.timezone;
-      if (Object.keys(values).length > 1) {
-        await supabaseRest(request, "profiles", { method: "POST", body: JSON.stringify(values), headers: { Prefer: "resolution=merge-duplicates,return=representation" } });
-        applied.push(`Perfil: ${action.title}`);
+    for (const action of plan.actions.filter((item) => item.type === "subject")) {
+      if (!action.title) continue;
+      const subject = await ensureSubject(request, action.title, userId);
+      subjects.set(subjectKey(subject.name), subject);
+      if (action.teacher || action.room) {
+        const values: Record<string, unknown> = {};
+        if (action.teacher) values["teacher"] = action.teacher;
+        if (action.room) values["room"] = action.room;
+        await supabaseRest(
+          request,
+          `subjects?id=eq.${queryValue(subject.id)}&user_id=eq.${queryValue(userId)}`,
+          { method: "PATCH", body: JSON.stringify(values) },
+        );
       }
-      continue;
+      applied.push(`Matéria: ${subject.name}`);
     }
 
-    const subjectName = action.subjectName?.trim();
-    if (subjectName) {
-      const key = subjectKey(subjectName);
-      if (!subjects.has(key)) subjects.set(key, await ensureSubject(request, subjectName, userId));
-    }
-    const subject = subjectName ? subjects.get(subjectKey(subjectName)) : null;
+    for (const action of plan.actions) {
+      if (!["schedule", "task", "exam", "profile"].includes(action.type)) continue;
 
-    if (action.type === "schedule") {
-      if (!subject?.id || action.weekday === null || !action.startTime || !action.endTime) throw new Error(`O horário de ${action.title} está incompleto.`);
-      if (action.weekday < 0 || action.weekday > 6) throw new Error(`Dia inválido no horário de ${action.title}.`);
-      const existing = await supabaseRest(request, `subject_schedules?select=id&user_id=eq.${queryValue(userId)}&subject_id=eq.${queryValue(subject.id)}&weekday=eq.${queryValue(action.weekday)}&start_time=eq.${queryValue(action.startTime)}&limit=1`, { method: "GET" });
-      if (Array.isArray(existing) && existing.length) continue;
-      await supabaseRest(request, "subject_schedules", { method: "POST", body: JSON.stringify({ user_id: userId, subject_id: subject.id, weekday: action.weekday, start_time: action.startTime, end_time: action.endTime, room: action.room ?? null }) });
-      applied.push(`Horário: ${action.title}`);
-    }
+      if (action.type === "profile") {
+        const values: Record<string, unknown> = { id: userId };
+        if (action.stage) values["stage"] = action.stage;
+        if (action.timezone) values["timezone"] = action.timezone;
+        if (Object.keys(values).length > 1) {
+          await supabaseRest(request, "profiles", {
+            method: "POST",
+            body: JSON.stringify(values),
+            headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+          });
+          applied.push(`Perfil: ${action.title}`);
+        }
+        continue;
+      }
 
-    if (action.type === "task") {
-      if (!action.title) throw new Error("Uma tarefa do plano não possui título.");
-      const dueFilter = action.dueAt ? `&due_at=eq.${queryValue(action.dueAt)}` : `&due_at=is.null`;
-      const existing = await supabaseRest(
-        request,
-        `tasks?select=id&user_id=eq.${queryValue(userId)}&title=eq.${queryValue(action.title)}&subject_id=${subject?.id ? `eq.${queryValue(subject.id)}` : "is.null"}${dueFilter}&limit=1`,
-        { method: "GET" },
-      );
-      if (Array.isArray(existing) && existing.length) continue;
-      await supabaseRest(request, "tasks", { method: "POST", body: JSON.stringify({ user_id: userId, title: action.title, description: action.description ?? null, due_at: action.dueAt ?? null, subject_id: subject?.id ?? null }) });
-      applied.push(`Tarefa: ${action.title}`);
-    }
+      const subjectName = action.subjectName?.trim();
+      if (subjectName) {
+        const key = subjectKey(subjectName);
+        if (!subjects.has(key))
+          subjects.set(key, await ensureSubject(request, subjectName, userId));
+      }
+      const subject = subjectName ? subjects.get(subjectKey(subjectName)) : null;
 
-    if (action.type === "exam") {
-      if (!action.title || !action.examAt) throw new Error(`A prova de ${action.title} está incompleta.`);
-      const existing = await supabaseRest(
-        request,
-        `exams?select=id&user_id=eq.${queryValue(userId)}&title=eq.${queryValue(action.title)}&exam_at=eq.${queryValue(action.examAt)}&subject_id=${subject?.id ? `eq.${queryValue(subject.id)}` : "is.null"}&limit=1`,
-        { method: "GET" },
-      );
-      if (Array.isArray(existing) && existing.length) continue;
-      await supabaseRest(request, "exams", { method: "POST", body: JSON.stringify({ user_id: userId, title: action.title, exam_at: action.examAt, subject_id: subject?.id ?? null, content: action.description ?? null }) });
-      applied.push(`Prova: ${action.title}`);
+      if (action.type === "schedule") {
+        if (!subject?.id || action.weekday === null || !action.startTime || !action.endTime)
+          throw new Error(`O horário de ${action.title} está incompleto.`);
+        if (action.weekday < 0 || action.weekday > 6)
+          throw new Error(`Dia inválido no horário de ${action.title}.`);
+        const existing = await supabaseRest(
+          request,
+          `subject_schedules?select=id&user_id=eq.${queryValue(userId)}&subject_id=eq.${queryValue(subject.id)}&weekday=eq.${queryValue(action.weekday)}&start_time=eq.${queryValue(action.startTime)}&limit=1`,
+          { method: "GET" },
+        );
+        if (Array.isArray(existing) && existing.length) continue;
+        await supabaseRest(request, "subject_schedules", {
+          method: "POST",
+          body: JSON.stringify({
+            user_id: userId,
+            subject_id: subject.id,
+            weekday: action.weekday,
+            start_time: action.startTime,
+            end_time: action.endTime,
+            room: action.room ?? null,
+          }),
+        });
+        applied.push(`Horário: ${action.title}`);
+      }
+
+      if (action.type === "task") {
+        if (!action.title) throw new Error("Uma tarefa do plano não possui título.");
+        const dueFilter = action.dueAt
+          ? `&due_at=eq.${queryValue(action.dueAt)}`
+          : `&due_at=is.null`;
+        const existing = await supabaseRest(
+          request,
+          `tasks?select=id&user_id=eq.${queryValue(userId)}&title=eq.${queryValue(action.title)}&subject_id=${subject?.id ? `eq.${queryValue(subject.id)}` : "is.null"}${dueFilter}&limit=1`,
+          { method: "GET" },
+        );
+        if (Array.isArray(existing) && existing.length) continue;
+        await supabaseRest(request, "tasks", {
+          method: "POST",
+          body: JSON.stringify({
+            user_id: userId,
+            title: action.title,
+            description: action.description ?? null,
+            due_at: action.dueAt ?? null,
+            subject_id: subject?.id ?? null,
+          }),
+        });
+        applied.push(`Tarefa: ${action.title}`);
+      }
+
+      if (action.type === "exam") {
+        if (!action.title || !action.examAt)
+          throw new Error(`A prova de ${action.title} está incompleta.`);
+        const existing = await supabaseRest(
+          request,
+          `exams?select=id&user_id=eq.${queryValue(userId)}&title=eq.${queryValue(action.title)}&exam_at=eq.${queryValue(action.examAt)}&subject_id=${subject?.id ? `eq.${queryValue(subject.id)}` : "is.null"}&limit=1`,
+          { method: "GET" },
+        );
+        if (Array.isArray(existing) && existing.length) continue;
+        await supabaseRest(request, "exams", {
+          method: "POST",
+          body: JSON.stringify({
+            user_id: userId,
+            title: action.title,
+            exam_at: action.examAt,
+            subject_id: subject?.id ?? null,
+            content: action.description ?? null,
+          }),
+        });
+        applied.push(`Prova: ${action.title}`);
+      }
     }
-  }
 
     return { status: "completed", applied };
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Não foi possível concluir a configuração.";
+    const message =
+      error instanceof Error ? error.message : "Não foi possível concluir a configuração.";
     return {
       status: applied.length ? "partial" : "failed",
       applied,
@@ -798,24 +1018,34 @@ async function applyConfiguration(request: Request, planInput: unknown) {
 
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  if (request.method !== "POST") return response({ status: "failed", error: "Método não permitido." }, 405);
+  if (request.method !== "POST")
+    return response({ status: "failed", error: "Método não permitido." }, 405);
 
   let user: { id: string; auth: string } | null;
   try {
     user = await validateUser(request);
   } catch {
-    return response({ status: "failed", error: "Não foi possível validar sua sessão agora. Tente novamente." }, 503);
+    return response(
+      { status: "failed", error: "Não foi possível validar sua sessão agora. Tente novamente." },
+      503,
+    );
   }
   if (!user) return response({ status: "failed", error: "Sessão inválida." }, 401);
 
   try {
     const contentLength = Number(request.headers.get("Content-Length") ?? 0);
     if (Number.isFinite(contentLength) && contentLength > MAX_REQUEST_BYTES) {
-      return response({ status: "failed", error: "A solicitação do Assistente excede o limite permitido." }, 413);
+      return response(
+        { status: "failed", error: "A solicitação do Assistente excede o limite permitido." },
+        413,
+      );
     }
     const requestText = await readRequestBodyWithLimit(request, MAX_REQUEST_BYTES);
     if (requestText === null) {
-      return response({ status: "failed", error: "A solicitação do Assistente excede o limite permitido." }, 413);
+      return response(
+        { status: "failed", error: "A solicitação do Assistente excede o limite permitido." },
+        413,
+      );
     }
     let body: Record<string, unknown>;
     try {
@@ -830,7 +1060,7 @@ Deno.serve(async (request) => {
     if (action === "cancel") {
       const responseId = stringValue(body["responseId"], 160);
       if (!responseId) return response({ status: "failed", error: "responseId ausente." }, 400);
-      if (!await hasOwnedAssistantJob(request, user.id, responseId)) {
+      if (!(await hasOwnedAssistantJob(request, user.id, responseId))) {
         return response({ status: "failed", error: "Pesquisa não encontrada." }, 404);
       }
 
@@ -845,14 +1075,21 @@ Deno.serve(async (request) => {
           citations: uniqueCitations(payload),
         });
       }
-      if (status === "cancelled" || status === "failed" || status === "incomplete" || status === "expired" || status === "not_found") {
+      if (
+        status === "cancelled" ||
+        status === "failed" ||
+        status === "incomplete" ||
+        status === "expired" ||
+        status === "not_found"
+      ) {
         await removeAssistantJob(request, user.id, responseId);
         return response({
           status: "failed",
           responseId,
-          error: status === "not_found" || status === "expired"
-            ? "A resposta temporária expirou antes de ser recuperada. Inicie uma nova pesquisa."
-            : "A pesquisa foi encerrada por tempo limite. Tente novamente com um escopo menor.",
+          error:
+            status === "not_found" || status === "expired"
+              ? "A resposta temporária expirou antes de ser recuperada. Inicie uma nova pesquisa."
+              : "A pesquisa foi encerrada por tempo limite. Tente novamente com um escopo menor.",
         });
       }
 
@@ -861,7 +1098,8 @@ Deno.serve(async (request) => {
       return response({
         status: "failed",
         responseId,
-        error: "O provedor ainda não confirmou o encerramento da pesquisa. O registro foi mantido para permitir nova verificação.",
+        error:
+          "O provedor ainda não confirmou o encerramento da pesquisa. O registro foi mantido para permitir nova verificação.",
       });
     }
 
@@ -870,21 +1108,28 @@ Deno.serve(async (request) => {
     if (action === "poll") {
       const responseId = stringValue(body["responseId"], 160);
       if (!responseId) return response({ status: "failed", error: "responseId ausente." }, 400);
-      if (!await hasOwnedAssistantJob(request, user.id, responseId)) {
+      if (!(await hasOwnedAssistantJob(request, user.id, responseId))) {
         return response({ status: "failed", error: "Pesquisa não encontrada." }, 404);
       }
 
       const payload = await getOpenAIResponse(responseId);
       const status = typeof payload["status"] === "string" ? payload["status"] : "not_found";
-      if (status === "failed" || status === "cancelled" || status === "incomplete" || status === "expired" || status === "not_found") {
+      if (
+        status === "failed" ||
+        status === "cancelled" ||
+        status === "incomplete" ||
+        status === "expired" ||
+        status === "not_found"
+      ) {
         await removeAssistantJob(request, user.id, responseId);
-        const error = status === "not_found" || status === "expired"
-          ? "A resposta temporária expirou antes de ser recuperada. Inicie uma nova pesquisa."
-          : status === "cancelled"
-            ? "A pesquisa foi cancelada."
-            : status === "incomplete"
-              ? "A pesquisa terminou sem uma resposta completa. Tente novamente com um escopo menor."
-              : "A pesquisa não pôde ser concluída. Tente novamente.";
+        const error =
+          status === "not_found" || status === "expired"
+            ? "A resposta temporária expirou antes de ser recuperada. Inicie uma nova pesquisa."
+            : status === "cancelled"
+              ? "A pesquisa foi cancelada."
+              : status === "incomplete"
+                ? "A pesquisa terminou sem uma resposta completa. Tente novamente com um escopo menor."
+                : "A pesquisa não pôde ser concluída. Tente novamente.";
         return response({ status: "failed", responseId, error });
       }
       if (status === "queued" || status === "in_progress") {
@@ -903,11 +1148,8 @@ Deno.serve(async (request) => {
       });
     }
 
-
     await assertAiEligible(request, user.id);
-    const plusEligible = ORDYS_PLUS_AI_ENABLED
-      ? await isOrdysPlusEligible(user.id)
-      : false;
+    const plusEligible = ORDYS_PLUS_AI_ENABLED ? await isOrdysPlusEligible(user.id) : false;
 
     if (action === "quiz") {
       if (!plusEligible) {
@@ -923,12 +1165,14 @@ Deno.serve(async (request) => {
       return response(await applyConfiguration(request, body["plan"]));
     }
 
-
     const message = stringValue(body["message"], MAX_MESSAGE_CHARS);
     const rawMode = stringValue(body["mode"], 30);
     type AssistantMode = "assist" | "deep" | "research" | "configure" | "mindmap";
     const mode: AssistantMode =
-      rawMode === "deep" || rawMode === "research" || rawMode === "configure" || rawMode === "mindmap"
+      rawMode === "deep" ||
+      rawMode === "research" ||
+      rawMode === "configure" ||
+      rawMode === "mindmap"
         ? rawMode
         : "assist";
     if (mode !== "assist" && !plusEligible) {
@@ -948,16 +1192,44 @@ Deno.serve(async (request) => {
     await enforceUsageLimit(request, user.id, `assistant:${mode}`, hourlyLimit, dailyLimit);
 
     const attachments = attachmentPayload(body["attachments"]);
-    if (!message && !attachments.length) return response({ status: "failed", error: "Envie uma mensagem ou um anexo." }, 400);
+    if (!message && !attachments.length)
+      return response({ status: "failed", error: "Envie uma mensagem ou um anexo." }, 400);
     const input = buildInput(message, normalizeHistory(body["history"]), attachments);
 
     if (mode === "configure") {
-      const result = await callOpenAI({ model: ASSIST_MODEL, instructions: CONFIG_PROMPT, input, text: { format: { type: "json_schema", name: "ordys_configuration_plan", schema: CONFIG_SCHEMA, strict: true } } });
-      return response({ status: "completed", configuration: normalizePlan(parseStructured(result)) });
+      const result = await callOpenAI({
+        model: ASSIST_MODEL,
+        instructions: CONFIG_PROMPT,
+        input,
+        text: {
+          format: {
+            type: "json_schema",
+            name: "ordys_configuration_plan",
+            schema: CONFIG_SCHEMA,
+            strict: true,
+          },
+        },
+      });
+      return response({
+        status: "completed",
+        configuration: normalizePlan(parseStructured(result)),
+      });
     }
 
     if (mode === "mindmap") {
-      const result = await callOpenAI({ model: ASSIST_MODEL, instructions: MINDMAP_PROMPT, input, text: { format: { type: "json_schema", name: "ordys_mind_map", schema: MINDMAP_SCHEMA, strict: true } } });
+      const result = await callOpenAI({
+        model: ASSIST_MODEL,
+        instructions: MINDMAP_PROMPT,
+        input,
+        text: {
+          format: {
+            type: "json_schema",
+            name: "ordys_mind_map",
+            schema: MINDMAP_SCHEMA,
+            strict: true,
+          },
+        },
+      });
       return response({ status: "completed", mindMap: parseStructured(result) });
     }
 
@@ -1003,11 +1275,23 @@ Deno.serve(async (request) => {
       model: mode === "research" ? RESEARCH_MODEL : ASSIST_MODEL,
       instructions,
       input,
-      ...(mode === "research" ? { tools: [{ type: "web_search", search_context_size: "high" }], tool_choice: "required" } : {}),
+      ...(mode === "research"
+        ? { tools: [{ type: "web_search", search_context_size: "high" }], tool_choice: "required" }
+        : {}),
     });
 
-    return response({ status: "completed", answer: typeof result["output_text"] === "string" ? result["output_text"] : "", citations: uniqueCitations(result) });
+    return response({
+      status: "completed",
+      answer: typeof result["output_text"] === "string" ? result["output_text"] : "",
+      citations: uniqueCitations(result),
+    });
   } catch (error) {
-    return response({ status: "failed", error: error instanceof Error ? error.message : "Não foi possível processar a solicitação." }, 502);
+    return response(
+      {
+        status: "failed",
+        error: error instanceof Error ? error.message : "Não foi possível processar a solicitação.",
+      },
+      502,
+    );
   }
 });

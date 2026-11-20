@@ -42,8 +42,7 @@ export function validateRecoveryRedirect(
   const requestOrigin = normalizeOrigin(request.headers.get("Origin"));
   if (!requestOrigin || candidate.origin !== requestOrigin) return false;
 
-  const isLocalHttp =
-    candidate.protocol === "http:" && LOCAL_HTTP_HOSTS.has(candidate.hostname);
+  const isLocalHttp = candidate.protocol === "http:" && LOCAL_HTTP_HOSTS.has(candidate.hostname);
   if (isLocalHttp) return true;
   if (candidate.protocol !== "https:") return false;
 

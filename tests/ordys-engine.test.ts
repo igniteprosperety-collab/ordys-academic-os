@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { buildCandidates, buildNotificationRules, daysUntil, ordysWeekdayToJsDay, parseTimeOfDay } from "@/lib/ordys-engine";
+import {
+  buildCandidates,
+  buildNotificationRules,
+  daysUntil,
+  ordysWeekdayToJsDay,
+  parseTimeOfDay,
+} from "@/lib/ordys-engine";
 
 describe("ordys-engine", () => {
   afterEach(() => {

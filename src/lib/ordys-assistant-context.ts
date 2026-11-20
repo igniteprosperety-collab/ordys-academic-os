@@ -1,5 +1,9 @@
 export const ORDYS_CONTEXT_SCOPE_OPTIONS = [
-  { value: "profile", label: "Perfil e matérias", description: "Etapa de ensino, preferências acadêmicas e dados das disciplinas." },
+  {
+    value: "profile",
+    label: "Perfil e matérias",
+    description: "Etapa de ensino, preferências acadêmicas e dados das disciplinas.",
+  },
   { value: "agenda", label: "Agenda", description: "Horários, tarefas e provas." },
   { value: "performance", label: "Desempenho", description: "Notas, frequência e metas." },
   { value: "study", label: "Estudos", description: "Tópicos, plano, foco, revisões e check-ins." },
@@ -9,9 +13,20 @@ export const ORDYS_CONTEXT_SCOPE_OPTIONS = [
 export type OrdysAcademicContextScope = (typeof ORDYS_CONTEXT_SCOPE_OPTIONS)[number]["value"];
 
 export type OrdysContextSection =
-  | "profile" | "subjects" | "schedules" | "tasks" | "exams" | "grades"
-  | "attendance" | "goals" | "topics" | "plan" | "focus" | "reviews"
-  | "quizAttempts" | "checkins";
+  | "profile"
+  | "subjects"
+  | "schedules"
+  | "tasks"
+  | "exams"
+  | "grades"
+  | "attendance"
+  | "goals"
+  | "topics"
+  | "plan"
+  | "focus"
+  | "reviews"
+  | "quizAttempts"
+  | "checkins";
 
 const SCOPE_SECTIONS: Record<OrdysAcademicContextScope, readonly OrdysContextSection[]> = {
   profile: ["profile", "subjects"],

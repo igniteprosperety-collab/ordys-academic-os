@@ -10,8 +10,9 @@ export function isInconclusiveFunctionRequestError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
   const record = error as { name?: unknown; context?: unknown };
   if (record.name === "FunctionsFetchError" || record.name === "FunctionsRelayError") return true;
-  const status = record.context && typeof record.context === "object"
-    ? (record.context as { status?: unknown }).status
-    : undefined;
+  const status =
+    record.context && typeof record.context === "object"
+      ? (record.context as { status?: unknown }).status
+      : undefined;
   return status === 500 || status === 502 || status === 504;
 }

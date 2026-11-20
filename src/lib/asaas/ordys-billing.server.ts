@@ -26,7 +26,7 @@ export function billingResponse(body: unknown, status = 200) {
 
 export function jsonObject(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
-    ? value as Record<string, unknown>
+    ? (value as Record<string, unknown>)
     : {};
 }
 
@@ -44,7 +44,9 @@ export function getPublishableKey() {
       return "";
     }
   }
-  return (process.env["SUPABASE_PUBLISHABLE_KEY"] || process.env["SUPABASE_ANON_KEY"])?.trim() ?? "";
+  return (
+    (process.env["SUPABASE_PUBLISHABLE_KEY"] || process.env["SUPABASE_ANON_KEY"])?.trim() ?? ""
+  );
 }
 
 export function getServiceRoleKey() {
@@ -117,9 +119,12 @@ export async function authenticateBillingRequest(
   } catch {
     return {
       user: null,
-      response: billingResponse({
-        error: "Não foi possível validar sua sessão agora. Tente novamente.",
-      }, 503),
+      response: billingResponse(
+        {
+          error: "Não foi possível validar sua sessão agora. Tente novamente.",
+        },
+        503,
+      ),
     };
   }
 }
@@ -203,7 +208,8 @@ export function getAsaasApiBase() {
 
 export function assertAsaasConfigured() {
   getAsaasApiBase();
-  if (!process.env["ASAAS_API_KEY"]?.trim()) throw new Error("O provedor de pagamentos ainda não está configurado.");
+  if (!process.env["ASAAS_API_KEY"]?.trim())
+    throw new Error("O provedor de pagamentos ainda não está configurado.");
 }
 
 export class AsaasApiError extends Error {
@@ -214,11 +220,12 @@ export class AsaasApiError extends Error {
 }
 
 export function checkoutAttemptDisposition(status: string, expiresAt: string, now = Date.now()) {
-  if (status === "cancelled" || status === "expired" || status === "failed") return "retry" as const;
+  if (status === "cancelled" || status === "expired" || status === "failed")
+    return "retry" as const;
   if (status !== "pending") return "block" as const;
   const expiration = Date.parse(expiresAt);
   if (!Number.isFinite(expiration)) return "block" as const;
-  return expiration > now ? "reuse" as const : "cancel_remote" as const;
+  return expiration > now ? ("reuse" as const) : ("cancel_remote" as const);
 }
 
 export async function asaasRequest(path: string, init: RequestInit = {}) {
@@ -233,7 +240,8 @@ export async function asaasRequest(path: string, init: RequestInit = {}) {
   if (init.body) headers.set("Content-Type", "application/json");
   if (init.headers) new Headers(init.headers).forEach((value, key) => headers.set(key, value));
 
-  if (!path.startsWith("/") || path.startsWith("//") || path.includes("..") || path.includes("\\")) throw new Error("Caminho Asaas inválido.");
+  if (!path.startsWith("/") || path.startsWith("//") || path.includes("..") || path.includes("\\"))
+    throw new Error("Caminho Asaas inválido.");
   const url = `${getAsaasApiBase()}${path}`;
   // A parent billing/deletion lease owns the deadline when it supplies a signal.
   // Otherwise bound the provider request locally.
@@ -244,15 +252,19 @@ export async function asaasRequest(path: string, init: RequestInit = {}) {
   let payload: Record<string, unknown> = {};
   if (result.body !== null) {
     try {
-      payload = jsonObject(await responseJsonWithOutboundTimeout<unknown>(
-        result,
-        ASAAS_RESPONSE_BODY_TIMEOUT_MS,
-      ));
+      payload = jsonObject(
+        await responseJsonWithOutboundTimeout<unknown>(result, ASAAS_RESPONSE_BODY_TIMEOUT_MS),
+      );
     } catch (error) {
       // For a non-idempotent provider operation, an unreadable response is
       // ambiguous. Never convert it into a definitive provider rejection.
       if (error instanceof OutboundRequestTimeoutError) throw error;
-      if (result.ok || result.status >= 500 || (result.status >= 300 && result.status < 400) || result.status === 408) {
+      if (
+        result.ok ||
+        result.status >= 500 ||
+        (result.status >= 300 && result.status < 400) ||
+        result.status === 408
+      ) {
         throw new Error("Resposta Asaas inconclusiva; aguarde conciliação.");
       }
     }
@@ -265,7 +277,11 @@ export async function asaasRequest(path: string, init: RequestInit = {}) {
   if (!result.ok) {
     const errors = Array.isArray(payload["errors"]) ? payload["errors"] : [];
     const firstError = jsonObject(errors[0]);
-    console.error("Asaas API request failed:", result.status, typeof firstError["code"] === "string" ? firstError["code"] : "provider_error");
+    console.error(
+      "Asaas API request failed:",
+      result.status,
+      typeof firstError["code"] === "string" ? firstError["code"] : "provider_error",
+    );
     throw new AsaasApiError(result.status);
   }
   return payload;
@@ -292,7 +308,9 @@ export async function getBillingSchemaStatus(): Promise<"absent" | "ready" | "pa
 
 /** Local release gate: cannot be opened by a database setting or self-declared age. */
 export async function assertBillingEnabled(): Promise<void> {
-  throw new Error("O serviço de assinaturas ainda não está disponível: age assurance #323 pendente.");
+  throw new Error(
+    "O serviço de assinaturas ainda não está disponível: age assurance #323 pendente.",
+  );
 }
 
 export async function isOrdysPlusEligible(_userId: string): Promise<boolean> {

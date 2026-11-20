@@ -72,9 +72,13 @@ export function AiContentReportButton({
       });
       if (error) throw error;
 
-      const result = data && typeof data === "object" ? data as Record<string, unknown> : {};
+      const result = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
       if (result["status"] !== "received") {
-        throw new Error(typeof result["error"] === "string" ? result["error"] : "Não foi possível registrar o relato.");
+        throw new Error(
+          typeof result["error"] === "string"
+            ? result["error"]
+            : "Não foi possível registrar o relato.",
+        );
       }
 
       toast.success("Relato enviado. Obrigado por ajudar a revisar o conteúdo.");
@@ -112,8 +116,8 @@ export function AiContentReportButton({
           <DialogHeader>
             <DialogTitle>Sinalizar conteúdo gerado por IA</DialogTitle>
             <DialogDescription>
-              Escolha o motivo. O ORDYS enviará somente este conteúdo e a descrição opcional para revisão.
-              O restante da conversa e seus anexos não serão incluídos no relato.
+              Escolha o motivo. O ORDYS enviará somente este conteúdo e a descrição opcional para
+              revisão. O restante da conversa e seus anexos não serão incluídos no relato.
             </DialogDescription>
           </DialogHeader>
 
@@ -129,7 +133,9 @@ export function AiContentReportButton({
               className="min-h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-[12px] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               {reasons.map((item) => (
-                <option key={item.value} value={item.value}>{item.label}</option>
+                <option key={item.value} value={item.value}>
+                  {item.label}
+                </option>
               ))}
             </select>
 
@@ -150,7 +156,12 @@ export function AiContentReportButton({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={submitting}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={submitting}
+            >
               Cancelar
             </Button>
             <Button type="button" onClick={() => void submitReport()} disabled={submitting}>

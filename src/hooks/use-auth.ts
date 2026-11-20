@@ -51,10 +51,7 @@ export function useAuth() {
         setLoading(false);
       } catch (error) {
         if (!mounted) return;
-        console.warn(
-          "ORDYS auth session initialization did not complete:",
-          error,
-        );
+        console.warn("ORDYS auth session initialization did not complete:", error);
         // Do not erase a valid session already delivered by onAuthStateChange.
         if (!authStateChanged) {
           setSession(null);

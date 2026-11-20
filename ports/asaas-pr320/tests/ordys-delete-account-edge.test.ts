@@ -29,43 +29,40 @@ function waitForAbort(signal?: AbortSignal): Promise<never> {
   if (!signal) return new Promise<never>(() => undefined);
   if (signal.aborted) return Promise.reject(new DOMException("Aborted", "AbortError"));
   return new Promise<never>((_resolve, reject) => {
-    signal.addEventListener(
-      "abort",
-      () => reject(new DOMException("Aborted", "AbortError")),
-      { once: true },
-    );
+    signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), {
+      once: true,
+    });
   });
 }
 
 function requestWithSession(body: unknown = {}) {
-  return new Request(
-    "https://project-ref.supabase.co/functions/v1/ordys-delete-account",
-    {
-      method: "POST",
-      headers: {
-        Authorization: "Bearer user-session-token",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
+  return new Request("https://project-ref.supabase.co/functions/v1/ordys-delete-account", {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer user-session-token",
+      "Content-Type": "application/json",
     },
-  );
+    body: JSON.stringify(body),
+  });
 }
 
-async function setup(options: {
-  authStatus?: number;
-  clearDataStatus?: number;
-  deleteAuthStatus?: number;
-  billingSchemaStatus?: string;
-  reservationStatus?: string;
-  processingStatus?: string;
-  authNetworkFailure?: boolean;
-  authNeverSettles?: boolean;
-  billingSchemaNeverSettles?: boolean;
-  clearDataNeverSettles?: boolean;
-  asaasNeverSettles?: boolean;
-  adminDeleteNeverSettles?: boolean;
-  authBody?: Record<string, unknown>;
-} = {}) {
+async function setup(
+  options: {
+    authStatus?: number;
+    clearDataStatus?: number;
+    deleteAuthStatus?: number;
+    billingSchemaStatus?: string;
+    reservationStatus?: string;
+    processingStatus?: string;
+    authNetworkFailure?: boolean;
+    authNeverSettles?: boolean;
+    billingSchemaNeverSettles?: boolean;
+    clearDataNeverSettles?: boolean;
+    asaasNeverSettles?: boolean;
+    adminDeleteNeverSettles?: boolean;
+    authBody?: Record<string, unknown>;
+  } = {},
+) {
   vi.resetModules();
   registeredHandler = undefined;
   const timeline: string[] = [];
@@ -74,15 +71,17 @@ async function setup(options: {
   mocks.serviceRest.mockReset().mockImplementation(async (path: string, init?: RequestInit) => {
     timeline.push(`serviceRest:${path}`);
     if (path === "rpc/ordys_billing_core_schema_status") {
-      if (options.billingSchemaNeverSettles) return waitForAbort(init?.signal as AbortSignal | undefined);
+      if (options.billingSchemaNeverSettles)
+        return waitForAbort(init?.signal as AbortSignal | undefined);
       return options.billingSchemaStatus ?? "absent";
     }
     if (path === "rpc/ordys_reserve_account_deletion") {
       return options.reservationStatus ?? "reserved";
     }
-    if (path === "rpc/ordys_claim_account_deletion_processing") return options.processingStatus ?? "claimed";
+    if (path === "rpc/ordys_claim_account_deletion_processing")
+      return options.processingStatus ?? "claimed";
     if (path === "rpc/ordys_has_unreconciled_billing_events") return false;
-      if (path === "rpc/ordys_release_account_deletion_processing") return "not_reserved";
+    if (path === "rpc/ordys_release_account_deletion_processing") return "not_reserved";
     if (path.startsWith("ordys_billing_checkout_attempts?")) return [];
     if (path.startsWith("ordys_billing_subscriptions?")) return [];
     throw new Error(`Unexpected serviceRest path: ${path}`);
@@ -101,17 +100,18 @@ async function setup(options: {
     if (url.endsWith("/auth/v1/user")) {
       if (options.authNeverSettles) return waitForAbort(init?.signal as AbortSignal | undefined);
       if (options.authNetworkFailure) throw new Error("network unavailable");
-      return Response.json(
-        options.authBody ?? { id: "authenticated-user-123" },
-        { status: options.authStatus ?? 200 },
-      );
+      return Response.json(options.authBody ?? { id: "authenticated-user-123" }, {
+        status: options.authStatus ?? 200,
+      });
     }
     if (url.endsWith("/rest/v1/rpc/delete_own_data")) {
-      if (options.clearDataNeverSettles) return waitForAbort(init?.signal as AbortSignal | undefined);
+      if (options.clearDataNeverSettles)
+        return waitForAbort(init?.signal as AbortSignal | undefined);
       return new Response(null, { status: options.clearDataStatus ?? 204 });
     }
     if (url.endsWith("/auth/v1/admin/users/authenticated-user-123")) {
-      if (options.adminDeleteNeverSettles) return waitForAbort(init?.signal as AbortSignal | undefined);
+      if (options.adminDeleteNeverSettles)
+        return waitForAbort(init?.signal as AbortSignal | undefined);
       return new Response(null, { status: options.deleteAuthStatus ?? 204 });
     }
     return Response.json({ error: "Unexpected outbound request" }, { status: 404 });
@@ -305,7 +305,11 @@ describe("ORDYS account deletion Edge Function", () => {
     expect(result.status).toBe(409);
     expect(await result.json()).toMatchObject({ code: "account_deletion_in_progress" });
     expect(mocks.asaasRequest).not.toHaveBeenCalled();
-    expect(fetchMock.mock.calls.some(([input]) => String(input).endsWith("/rest/v1/rpc/delete_own_data"))).toBe(false);
+    expect(
+      fetchMock.mock.calls.some(([input]) =>
+        String(input).endsWith("/rest/v1/rpc/delete_own_data"),
+      ),
+    ).toBe(false);
     expect(mocks.serviceRest).toHaveBeenCalledTimes(3);
   });
 
@@ -340,26 +344,32 @@ describe("ORDYS account deletion Edge Function", () => {
       if (path === "rpc/ordys_release_account_deletion_processing") return "released";
       if (path.includes("cancellation_requested_at=is.null")) {
         const patch = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
-        return [{
-          id: "checkout-attempt-1",
-          status: "pending",
-          ...patch,
-        }];
+        return [
+          {
+            id: "checkout-attempt-1",
+            status: "pending",
+            ...patch,
+          },
+        ];
       }
       if (path.includes("select=id,status,cancellation_requested_at,cancellation_claim_id")) {
-        return [{
-          id: "checkout-attempt-1",
-          status: "pending",
-          cancellation_requested_at: "2026-11-03T20:00:00.000Z",
-          cancellation_claim_id: "already-owned",
-        }];
+        return [
+          {
+            id: "checkout-attempt-1",
+            status: "pending",
+            cancellation_requested_at: "2026-11-03T20:00:00.000Z",
+            cancellation_claim_id: "already-owned",
+          },
+        ];
       }
       if (path.startsWith("ordys_billing_checkout_attempts?")) {
-        return [{
-          id: "checkout-attempt-1",
-          status: "pending",
-          provider_checkout_id: "asaas-checkout-1",
-        }];
+        return [
+          {
+            id: "checkout-attempt-1",
+            status: "pending",
+            provider_checkout_id: "asaas-checkout-1",
+          },
+        ];
       }
       if (path.startsWith("ordys_billing_subscriptions?")) return [];
       throw new Error(`Unexpected serviceRest path: ${path}`);
@@ -376,7 +386,7 @@ describe("ORDYS account deletion Edge Function", () => {
     expect(fetchMock.mock.calls.map(([input]) => String(input))).toEqual([
       "https://project-ref.supabase.co/auth/v1/user",
     ]);
-    expect(timeline.some(item => item.endsWith("/rest/v1/rpc/delete_own_data"))).toBe(false);
+    expect(timeline.some((item) => item.endsWith("/rest/v1/rpc/delete_own_data"))).toBe(false);
   });
 
   it("returns the reconciliation-specific code when a paid Checkout has no linked subscription", async () => {
@@ -399,9 +409,11 @@ describe("ORDYS account deletion Edge Function", () => {
     expect(result.status).toBe(409);
     expect(await result.json()).toMatchObject({ code: "billing_reconciliation_required" });
     expect(mocks.asaasRequest).not.toHaveBeenCalled();
-    expect(fetchMock.mock.calls.some(([input]) =>
-      String(input).endsWith("/rest/v1/rpc/delete_own_data"),
-    )).toBe(false);
+    expect(
+      fetchMock.mock.calls.some(([input]) =>
+        String(input).endsWith("/rest/v1/rpc/delete_own_data"),
+      ),
+    ).toBe(false);
   });
 
   it("cancels an active subscription before clearing the account and deleting Auth identity", async () => {
@@ -415,20 +427,27 @@ describe("ORDYS account deletion Edge Function", () => {
       if (path === "rpc/ordys_release_account_deletion_processing") return "not_reserved";
       if (path === "rpc/ordys_confirm_subscription_cancellation") return "confirmed";
       if (path.startsWith("ordys_billing_checkout_attempts?")) return [];
-      if (path.startsWith("ordys_billing_subscriptions?") && path.includes("cancellation_requested_at=is.null")) {
-        return [{
-          id: "subscription-1",
-          status: "active",
-          provider_subscription_id: "asaas-subscription-1",
-          ...JSON.parse(String(init?.body ?? "{}")),
-        }];
+      if (
+        path.startsWith("ordys_billing_subscriptions?") &&
+        path.includes("cancellation_requested_at=is.null")
+      ) {
+        return [
+          {
+            id: "subscription-1",
+            status: "active",
+            provider_subscription_id: "asaas-subscription-1",
+            ...JSON.parse(String(init?.body ?? "{}")),
+          },
+        ];
       }
       if (path.startsWith("ordys_billing_subscriptions?")) {
-        return [{
-          id: "subscription-1",
-          status: "active",
-          provider_subscription_id: "asaas-subscription-1",
-        }];
+        return [
+          {
+            id: "subscription-1",
+            status: "active",
+            provider_subscription_id: "asaas-subscription-1",
+          },
+        ];
       }
       throw new Error(`Unexpected serviceRest path: ${path}`);
     });
@@ -443,7 +462,9 @@ describe("ORDYS account deletion Edge Function", () => {
     );
 
     const cancelIndex = timeline.indexOf("asaas:/subscriptions/asaas-subscription-1");
-    const confirmIndex = timeline.indexOf("serviceRest:rpc/ordys_confirm_subscription_cancellation");
+    const confirmIndex = timeline.indexOf(
+      "serviceRest:rpc/ordys_confirm_subscription_cancellation",
+    );
     const clearIndex = timeline.indexOf(
       "fetch:https://project-ref.supabase.co/rest/v1/rpc/delete_own_data",
     );
@@ -467,7 +488,7 @@ describe("ORDYS account deletion Edge Function", () => {
       error: "Não foi possível excluir os dados da conta.",
     });
     const urls = fetchMock.mock.calls.map(([input]) => String(input));
-    expect(urls.some(url => url.includes("/auth/v1/admin/users/"))).toBe(false);
+    expect(urls.some((url) => url.includes("/auth/v1/admin/users/"))).toBe(false);
   });
 
   it("reports a partial failure when application data is gone but Auth identity deletion fails", async () => {
@@ -479,12 +500,16 @@ describe("ORDYS account deletion Edge Function", () => {
     expect(await result.json()).toMatchObject({
       code: "auth_identity_deletion_unconfirmed",
     });
-    expect(fetchMock.mock.calls.some(([input]) =>
-      String(input).endsWith("/rest/v1/rpc/delete_own_data"),
-    )).toBe(true);
-    expect(fetchMock.mock.calls.some(([input]) =>
-      String(input).endsWith("/auth/v1/admin/users/authenticated-user-123"),
-    )).toBe(true);
+    expect(
+      fetchMock.mock.calls.some(([input]) =>
+        String(input).endsWith("/rest/v1/rpc/delete_own_data"),
+      ),
+    ).toBe(true);
+    expect(
+      fetchMock.mock.calls.some(([input]) =>
+        String(input).endsWith("/auth/v1/admin/users/authenticated-user-123"),
+      ),
+    ).toBe(true);
   });
 
   it("bounds Auth session verification before starting billing cancellation", async () => {
@@ -517,10 +542,17 @@ describe("ORDYS account deletion Edge Function", () => {
 
     expect(result.status).toBe(502);
     expect(await result.json()).toMatchObject({
-      error: "Não foi possível confirmar o estado das cobranças agora. Nenhum dado foi apagado. Tente novamente após a conciliação.",
+      error:
+        "Não foi possível confirmar o estado das cobranças agora. Nenhum dado foi apagado. Tente novamente após a conciliação.",
     });
-    expect((mocks.serviceRest.mock.calls[0]?.[1]?.signal as AbortSignal | undefined)?.aborted).toBe(true);
-    expect(fetchMock.mock.calls.some(([input]) => String(input).endsWith("/rest/v1/rpc/delete_own_data"))).toBe(false);
+    expect((mocks.serviceRest.mock.calls[0]?.[1]?.signal as AbortSignal | undefined)?.aborted).toBe(
+      true,
+    );
+    expect(
+      fetchMock.mock.calls.some(([input]) =>
+        String(input).endsWith("/rest/v1/rpc/delete_own_data"),
+      ),
+    ).toBe(false);
   });
 
   it("aborts a stalled Asaas Checkout cancellation without clearing account data", async () => {
@@ -535,16 +567,22 @@ describe("ORDYS account deletion Edge Function", () => {
       if (path === "rpc/ordys_claim_account_deletion_processing") return "claimed";
       if (path === "rpc/ordys_has_unreconciled_billing_events") return false;
       if (path === "rpc/ordys_release_account_deletion_processing") return "released";
-      if (path.startsWith("ordys_billing_checkout_attempts?select=id,status,provider_checkout_id")) {
-        return [{ id: "checkout-attempt-1", status: "pending", provider_checkout_id: "asaas-checkout-1" }];
+      if (
+        path.startsWith("ordys_billing_checkout_attempts?select=id,status,provider_checkout_id")
+      ) {
+        return [
+          { id: "checkout-attempt-1", status: "pending", provider_checkout_id: "asaas-checkout-1" },
+        ];
       }
       if (path.includes("cancellation_requested_at=is.null")) {
         const patch = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
-        return [{
-          id: "checkout-attempt-1",
-          status: "pending",
-          ...patch,
-        }];
+        return [
+          {
+            id: "checkout-attempt-1",
+            status: "pending",
+            ...patch,
+          },
+        ];
       }
       if (path.startsWith("ordys_billing_subscriptions?")) return [];
       throw new Error(`Unexpected serviceRest path: ${path}`);
@@ -561,9 +599,19 @@ describe("ORDYS account deletion Edge Function", () => {
 
     expect(result.status).toBe(409);
     expect(await result.json()).toMatchObject({ code: "checkout_cancellation_processing" });
-    expect((mocks.asaasRequest.mock.calls[0]?.[1]?.signal as AbortSignal | undefined)?.aborted).toBe(true);
-    expect(mocks.serviceRest.mock.calls.some(([path]) => String(path).includes("cancellation_requested_at=is.null"))).toBe(true);
-    expect(fetchMock.mock.calls.some(([input]) => String(input).endsWith("/rest/v1/rpc/delete_own_data"))).toBe(false);
+    expect(
+      (mocks.asaasRequest.mock.calls[0]?.[1]?.signal as AbortSignal | undefined)?.aborted,
+    ).toBe(true);
+    expect(
+      mocks.serviceRest.mock.calls.some(([path]) =>
+        String(path).includes("cancellation_requested_at=is.null"),
+      ),
+    ).toBe(true);
+    expect(
+      fetchMock.mock.calls.some(([input]) =>
+        String(input).endsWith("/rest/v1/rpc/delete_own_data"),
+      ),
+    ).toBe(false);
   });
 
   it("aborts a stalled Asaas recurring cancellation without confirming or clearing account data", async () => {
@@ -580,20 +628,24 @@ describe("ORDYS account deletion Edge Function", () => {
       if (path === "rpc/ordys_release_account_deletion_processing") return "released";
       if (path.startsWith("ordys_billing_checkout_attempts?")) return [];
       if (path.startsWith("ordys_billing_subscriptions?select=id,status,checkout_attempt_id")) {
-        return [{
-          id: "subscription-1",
-          status: "active",
-          provider_subscription_id: "asaas-subscription-1",
-          cancellation_requested_at: null,
-          cancellation_confirmed_at: null,
-        }];
+        return [
+          {
+            id: "subscription-1",
+            status: "active",
+            provider_subscription_id: "asaas-subscription-1",
+            cancellation_requested_at: null,
+            cancellation_confirmed_at: null,
+          },
+        ];
       }
       if (path.includes("cancellation_requested_at=is.null")) {
-        return [{
-          id: "subscription-1",
-          ...JSON.parse(String(init?.body ?? "{}")),
-          cancellation_confirmed_at: null,
-        }];
+        return [
+          {
+            id: "subscription-1",
+            ...JSON.parse(String(init?.body ?? "{}")),
+            cancellation_confirmed_at: null,
+          },
+        ];
       }
       throw new Error(`Unexpected serviceRest path: ${path}`);
     });
@@ -609,27 +661,40 @@ describe("ORDYS account deletion Edge Function", () => {
 
     expect(result.status).toBe(409);
     expect(await result.json()).toMatchObject({ code: "billing_cancellation_processing" });
-    expect((mocks.asaasRequest.mock.calls[0]?.[1]?.signal as AbortSignal | undefined)?.aborted).toBe(true);
+    expect(
+      (mocks.asaasRequest.mock.calls[0]?.[1]?.signal as AbortSignal | undefined)?.aborted,
+    ).toBe(true);
     expect(mocks.asaasRequest).toHaveBeenCalledWith(
       "/subscriptions/asaas-subscription-1",
       expect.objectContaining({ method: "DELETE", signal: expect.any(AbortSignal) }),
     );
-    expect(mocks.serviceRest.mock.calls.some(([path]) =>
-      String(path) === "rpc/ordys_confirm_subscription_cancellation",
-    )).toBe(false);
-    expect(fetchMock.mock.calls.some(([input]) =>
-      String(input).endsWith("/rest/v1/rpc/delete_own_data"),
-    )).toBe(false);
+    expect(
+      mocks.serviceRest.mock.calls.some(
+        ([path]) => String(path) === "rpc/ordys_confirm_subscription_cancellation",
+      ),
+    ).toBe(false);
+    expect(
+      fetchMock.mock.calls.some(([input]) =>
+        String(input).endsWith("/rest/v1/rpc/delete_own_data"),
+      ),
+    ).toBe(false);
   });
 
   it("aborts a stalled Auth identity deletion and reports the partial account state", async () => {
     vi.useFakeTimers();
     const { handler, fetchMock } = await setup({ adminDeleteNeverSettles: true });
     const pending = handler(requestWithSession());
-    for (let index = 0; index < 100 && !fetchMock.mock.calls.some(([input]) => String(input).includes("/auth/v1/admin/users/")); index += 1) {
+    for (
+      let index = 0;
+      index < 100 &&
+      !fetchMock.mock.calls.some(([input]) => String(input).includes("/auth/v1/admin/users/"));
+      index += 1
+    ) {
       await Promise.resolve();
     }
-    expect(fetchMock.mock.calls.some(([input]) => String(input).includes("/auth/v1/admin/users/"))).toBe(true);
+    expect(
+      fetchMock.mock.calls.some(([input]) => String(input).includes("/auth/v1/admin/users/")),
+    ).toBe(true);
 
     await vi.advanceTimersByTimeAsync(15_000);
     const result = await pending;
@@ -642,18 +707,32 @@ describe("ORDYS account deletion Edge Function", () => {
       String(input).endsWith("/auth/v1/admin/users/authenticated-user-123"),
     );
     expect((adminCall?.[1]?.signal as AbortSignal | undefined)?.aborted).toBe(true);
-    expect(fetchMock.mock.calls.some(([input]) => String(input).endsWith("/rest/v1/rpc/delete_own_data"))).toBe(true);
+    expect(
+      fetchMock.mock.calls.some(([input]) =>
+        String(input).endsWith("/rest/v1/rpc/delete_own_data"),
+      ),
+    ).toBe(true);
   });
-
 
   it("does not delete the Auth identity when application-data deletion times out", async () => {
     vi.useFakeTimers();
     const { handler, fetchMock } = await setup({ clearDataNeverSettles: true });
     const pending = handler(requestWithSession());
-    for (let index = 0; index < 100 && !fetchMock.mock.calls.some(([input]) => String(input).endsWith("/rest/v1/rpc/delete_own_data")); index += 1) {
+    for (
+      let index = 0;
+      index < 100 &&
+      !fetchMock.mock.calls.some(([input]) =>
+        String(input).endsWith("/rest/v1/rpc/delete_own_data"),
+      );
+      index += 1
+    ) {
       await Promise.resolve();
     }
-    expect(fetchMock.mock.calls.some(([input]) => String(input).endsWith("/rest/v1/rpc/delete_own_data"))).toBe(true);
+    expect(
+      fetchMock.mock.calls.some(([input]) =>
+        String(input).endsWith("/rest/v1/rpc/delete_own_data"),
+      ),
+    ).toBe(true);
 
     await vi.advanceTimersByTimeAsync(15_000);
     const result = await pending;
@@ -666,9 +745,10 @@ describe("ORDYS account deletion Edge Function", () => {
       String(input).endsWith("/rest/v1/rpc/delete_own_data"),
     );
     expect((clearCall?.[1]?.signal as AbortSignal | undefined)?.aborted).toBe(true);
-    expect(fetchMock.mock.calls.some(([input]) => String(input).includes("/auth/v1/admin/users/"))).toBe(false);
+    expect(
+      fetchMock.mock.calls.some(([input]) => String(input).includes("/auth/v1/admin/users/")),
+    ).toBe(false);
   });
-
 
   it("blocks deletion when a timed-out Checkout claim commits after its read-back", async () => {
     const { handler } = await setup({ billingSchemaStatus: "ready" });
@@ -680,7 +760,8 @@ describe("ORDYS account deletion Edge Function", () => {
       if (path === "rpc/ordys_reserve_account_deletion") return Promise.resolve("reserved");
       if (path === "rpc/ordys_claim_account_deletion_processing") return Promise.resolve("claimed");
       if (path === "rpc/ordys_has_unreconciled_billing_events") return false;
-      if (path === "rpc/ordys_release_account_deletion_processing") return Promise.resolve("released");
+      if (path === "rpc/ordys_release_account_deletion_processing")
+        return Promise.resolve("released");
       if (path === "rpc/ordys_has_unreconciled_billing_events") return Promise.resolve(false);
 
       if (path.startsWith("ordys_billing_checkout_attempts?")) {
@@ -690,32 +771,38 @@ describe("ORDYS account deletion Edge Function", () => {
             setTimeout(() => {
               cancellationRequestedAt = "2026-11-06T10:00:09.000Z";
               cancellationClaimId = patch.cancellation_claim_id;
-              resolve([{
-                id: "checkout-attempt-1",
-                status: "pending",
-                cancellation_requested_at: cancellationRequestedAt,
-                cancellation_claim_id: cancellationClaimId,
-              }]);
+              resolve([
+                {
+                  id: "checkout-attempt-1",
+                  status: "pending",
+                  cancellation_requested_at: cancellationRequestedAt,
+                  cancellation_claim_id: cancellationClaimId,
+                },
+              ]);
             }, 9_000);
           });
         }
 
         if (path.includes("select=id,status,cancellation_requested_at,cancellation_claim_id")) {
-          return Promise.resolve([{
-            id: "checkout-attempt-1",
-            status: "pending",
-            cancellation_requested_at: cancellationRequestedAt,
-            cancellation_claim_id: cancellationClaimId,
-          }]);
+          return Promise.resolve([
+            {
+              id: "checkout-attempt-1",
+              status: "pending",
+              cancellation_requested_at: cancellationRequestedAt,
+              cancellation_claim_id: cancellationClaimId,
+            },
+          ]);
         }
 
-        return Promise.resolve([{
-          id: "checkout-attempt-1",
-          status: "pending",
-          provider_checkout_id: "asaas-checkout-1",
-          cancellation_requested_at: cancellationRequestedAt,
-          cancellation_claim_id: cancellationClaimId,
-        }]);
+        return Promise.resolve([
+          {
+            id: "checkout-attempt-1",
+            status: "pending",
+            provider_checkout_id: "asaas-checkout-1",
+            cancellation_requested_at: cancellationRequestedAt,
+            cancellation_claim_id: cancellationClaimId,
+          },
+        ]);
       }
 
       if (path.startsWith("ordys_billing_subscriptions?")) return Promise.resolve([]);
@@ -764,21 +851,25 @@ describe("ORDYS account deletion Edge Function", () => {
           path.includes("select=id,status,cancellation_requested_at,cancellation_claim_id") &&
           path.includes("id=eq.checkout-attempt-1")
         ) {
-          return [{
-            id: "checkout-attempt-1",
-            status: "pending",
-            cancellation_requested_at: null,
-            cancellation_claim_id: null,
-          }];
+          return [
+            {
+              id: "checkout-attempt-1",
+              status: "pending",
+              cancellation_requested_at: null,
+              cancellation_claim_id: null,
+            },
+          ];
         }
 
         if (init?.method === "PATCH" && path.includes("id=eq.checkout-attempt-2")) {
           const patch = JSON.parse(String(init.body)) as Record<string, unknown>;
-          return [{
-            id: "checkout-attempt-2",
-            status: "pending",
-            ...patch,
-          }];
+          return [
+            {
+              id: "checkout-attempt-2",
+              status: "pending",
+              ...patch,
+            },
+          ];
         }
 
         return [
@@ -812,15 +903,21 @@ describe("ORDYS account deletion Edge Function", () => {
       "/checkouts/asaas-checkout-2/cancel",
       expect.objectContaining({ method: "POST", signal: expect.any(AbortSignal) }),
     );
-    expect(mocks.asaasRequest.mock.calls.some(([path]) =>
-      path === "/checkouts/asaas-checkout-1/cancel",
-    )).toBe(false);
-    expect(timeline.some(item =>
-      item.includes("id=eq.checkout-attempt-1") && item.startsWith("serviceRest:PATCH:"),
-    )).toBe(true);
-    expect(timeline.some(item =>
-      item.includes("id=eq.checkout-attempt-2") && item.startsWith("serviceRest:PATCH:"),
-    )).toBe(true);
+    expect(
+      mocks.asaasRequest.mock.calls.some(([path]) => path === "/checkouts/asaas-checkout-1/cancel"),
+    ).toBe(false);
+    expect(
+      timeline.some(
+        (item) =>
+          item.includes("id=eq.checkout-attempt-1") && item.startsWith("serviceRest:PATCH:"),
+      ),
+    ).toBe(true);
+    expect(
+      timeline.some(
+        (item) =>
+          item.includes("id=eq.checkout-attempt-2") && item.startsWith("serviceRest:PATCH:"),
+      ),
+    ).toBe(true);
   });
 
   it("continues cancelling identified Checkouts when another Checkout has no provider ID yet", async () => {
@@ -836,11 +933,13 @@ describe("ORDYS account deletion Edge Function", () => {
       if (path.startsWith("ordys_billing_checkout_attempts?")) {
         if (init?.method === "PATCH" && path.includes("id=eq.checkout-attempt-2")) {
           const patch = JSON.parse(String(init.body)) as Record<string, unknown>;
-          return [{
-            id: "checkout-attempt-2",
-            status: "pending",
-            ...patch,
-          }];
+          return [
+            {
+              id: "checkout-attempt-2",
+              status: "pending",
+              ...patch,
+            },
+          ];
         }
 
         return [
@@ -874,12 +973,16 @@ describe("ORDYS account deletion Edge Function", () => {
       "/checkouts/asaas-checkout-2/cancel",
       expect.objectContaining({ method: "POST", signal: expect.any(AbortSignal) }),
     );
-    expect(mocks.asaasRequest.mock.calls.some(([path]) =>
-      String(path).includes("checkout-attempt-no-provider-id"),
-    )).toBe(false);
-    expect(fetchMock.mock.calls.some(([input]) =>
-      String(input).endsWith("/rest/v1/rpc/delete_own_data"),
-    )).toBe(false);
+    expect(
+      mocks.asaasRequest.mock.calls.some(([path]) =>
+        String(path).includes("checkout-attempt-no-provider-id"),
+      ),
+    ).toBe(false);
+    expect(
+      fetchMock.mock.calls.some(([input]) =>
+        String(input).endsWith("/rest/v1/rpc/delete_own_data"),
+      ),
+    ).toBe(false);
   });
 
   it("attempts every known subscription cancellation when one provider response is uncertain", async () => {
@@ -918,12 +1021,16 @@ describe("ORDYS account deletion Edge Function", () => {
         if (init?.method === "PATCH") {
           const patch = JSON.parse(String(init.body)) as Record<string, unknown>;
           const id = path.includes("id=eq.subscription-1") ? "subscription-1" : "subscription-2";
-          return [{ ...subscriptions.find(row => row.id === id), ...patch }];
+          return [{ ...subscriptions.find((row) => row.id === id), ...patch }];
         }
 
-        if (path.includes("select=id,status,provider_status,cancellation_requested_at,cancellation_confirmed_at,cancellation_claim_id")) {
+        if (
+          path.includes(
+            "select=id,status,provider_status,cancellation_requested_at,cancellation_confirmed_at,cancellation_claim_id",
+          )
+        ) {
           const id = path.includes("id=eq.subscription-1") ? "subscription-1" : "subscription-2";
-          return [subscriptions.find(row => row.id === id)];
+          return [subscriptions.find((row) => row.id === id)];
         }
 
         return subscriptions;
@@ -949,12 +1056,14 @@ describe("ORDYS account deletion Edge Function", () => {
       "/subscriptions/asaas-subscription-2",
       expect.objectContaining({ method: "DELETE", signal: expect.any(AbortSignal) }),
     );
-    expect(fetchMock.mock.calls.some(([input]) =>
-      String(input).endsWith("/rest/v1/rpc/delete_own_data"),
-    )).toBe(false);
-    expect(fetchMock.mock.calls.some(([input]) =>
-      String(input).includes("/auth/v1/admin/users/"),
-    )).toBe(false);
+    expect(
+      fetchMock.mock.calls.some(([input]) =>
+        String(input).endsWith("/rest/v1/rpc/delete_own_data"),
+      ),
+    ).toBe(false);
+    expect(
+      fetchMock.mock.calls.some(([input]) => String(input).includes("/auth/v1/admin/users/")),
+    ).toBe(false);
   });
 
   it("continues known subscription cancellations when Checkout records need reconciliation", async () => {
@@ -998,7 +1107,11 @@ describe("ORDYS account deletion Edge Function", () => {
           const patch = JSON.parse(String(init.body)) as Record<string, unknown>;
           return [{ ...subscription, ...patch }];
         }
-        if (path.includes("select=id,status,provider_status,cancellation_requested_at,cancellation_confirmed_at,cancellation_claim_id")) {
+        if (
+          path.includes(
+            "select=id,status,provider_status,cancellation_requested_at,cancellation_confirmed_at,cancellation_claim_id",
+          )
+        ) {
           return [subscription];
         }
         return [subscription];
@@ -1016,15 +1129,16 @@ describe("ORDYS account deletion Edge Function", () => {
       "/subscriptions/asaas-subscription-known",
       expect.objectContaining({ method: "DELETE", signal: expect.any(AbortSignal) }),
     );
-    expect(mocks.asaasRequest.mock.calls.some(([path]) =>
-      String(path).startsWith("/checkouts/"),
-    )).toBe(false);
-    expect(fetchMock.mock.calls.some(([input]) =>
-      String(input).endsWith("/rest/v1/rpc/delete_own_data"),
-    )).toBe(false);
-    expect(fetchMock.mock.calls.some(([input]) =>
-      String(input).includes("/auth/v1/admin/users/"),
-    )).toBe(false);
+    expect(
+      mocks.asaasRequest.mock.calls.some(([path]) => String(path).startsWith("/checkouts/")),
+    ).toBe(false);
+    expect(
+      fetchMock.mock.calls.some(([input]) =>
+        String(input).endsWith("/rest/v1/rpc/delete_own_data"),
+      ),
+    ).toBe(false);
+    expect(
+      fetchMock.mock.calls.some(([input]) => String(input).includes("/auth/v1/admin/users/")),
+    ).toBe(false);
   });
-
 });

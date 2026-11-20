@@ -1,6 +1,5 @@
 export type AssistantApiSessionCheck =
-  | { ok: true; authorization: string }
-  | { ok: false; status: 401 | 503; error: string };
+  { ok: true; authorization: string } | { ok: false; status: 401 | 503; error: string };
 
 export async function verifyAssistantApiSession(
   request: Request,
@@ -46,7 +45,7 @@ export async function verifyAssistantApiSession(
     };
   }
 
-  const payload = await response.json().catch(() => null) as { id?: string } | null;
+  const payload = (await response.json().catch(() => null)) as { id?: string } | null;
   if (!payload || typeof payload.id !== "string" || !payload.id.trim()) {
     return {
       ok: false,

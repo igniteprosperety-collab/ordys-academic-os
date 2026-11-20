@@ -4,15 +4,18 @@ import { useState } from "react";
 import { Check, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
 import { Shell } from "@/components/ordys/shell";
-import { Bar, Chip, Panel, PanelHeader, PageTitle, Ring, Stat } from "@/components/ordys/primitives";
+import {
+  Bar,
+  Chip,
+  Panel,
+  PanelHeader,
+  PageTitle,
+  Ring,
+  Stat,
+} from "@/components/ordys/primitives";
 import { Button, Field, Select } from "@/components/ordys/form";
 import { generateOrdysQuiz, type OrdysQuizQuestion } from "@/lib/ordys-assistant-client";
-import {
-  useOrdysMutations,
-  useQuizAttempts,
-  useSubjects,
-  useTopics,
-} from "@/lib/ordys-db";
+import { useOrdysMutations, useQuizAttempts, useSubjects, useTopics } from "@/lib/ordys-db";
 import { supabase } from "@/integrations/supabase/client";
 import { ORDYS_PLUS_AI_ENABLED, ORDYS_PLUS_LOCK_SHORT_MESSAGE } from "@/lib/ordys-ai-access";
 import { useAuth } from "@/hooks/use-auth";
@@ -147,11 +150,7 @@ function Simulado() {
       toast.success(`Simulado salvo · ${correct}/${questions.length}`);
     } catch (err) {
       if (attemptId) {
-        await supabase
-          .from("quiz_attempts")
-          .delete()
-          .eq("id", attemptId)
-          .eq("user_id", userId);
+        await supabase.from("quiz_attempts").delete().eq("id", attemptId).eq("user_id", userId);
       }
       toast.error(err instanceof Error ? err.message : "Erro ao salvar simulado");
     } finally {
@@ -167,10 +166,18 @@ function Simulado() {
       onSelect={setActive}
       breadcrumb={["Estudos", "Simulado", active]}
     >
-      <PageTitle title="Modo prova" subtitle="Questões geradas a partir das suas disciplinas e conteúdos" />
+      <PageTitle
+        title="Modo prova"
+        subtitle="Questões geradas a partir das suas disciplinas e conteúdos"
+      />
 
       <div className="mt-5 grid gap-3 sm:grid-cols-3">
-        <Stat label="Simulados feitos" value={String(attempts.length)} sub="histórico completo" accent="primary" />
+        <Stat
+          label="Simulados feitos"
+          value={String(attempts.length)}
+          sub="histórico completo"
+          accent="primary"
+        />
         <Stat
           label="Melhor desempenho"
           value={
@@ -190,7 +197,10 @@ function Simulado() {
           value={
             attempts.length
               ? `${Math.round(
-                  (attempts.reduce((acc, a) => acc + (a.correct_count ?? 0) / Math.max(1, a.question_count), 0) /
+                  (attempts.reduce(
+                    (acc, a) => acc + (a.correct_count ?? 0) / Math.max(1, a.question_count),
+                    0,
+                  ) /
                     attempts.length) *
                     100,
                 )}%`
@@ -205,7 +215,11 @@ function Simulado() {
           <Panel className="mt-4 px-5 py-5">
             <div className="grid gap-3 sm:grid-cols-4">
               <Field label="Disciplina">
-                <Select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} disabled={loading || quizInProgress}>
+                <Select
+                  value={subjectId}
+                  onChange={(e) => setSubjectId(e.target.value)}
+                  disabled={loading || quizInProgress}
+                >
                   <option value="">Selecione</option>
                   {subjects.map((s) => (
                     <option key={s.id} value={s.id}>
@@ -226,7 +240,11 @@ function Simulado() {
                 </Select>
               </Field>
               <Field label="Questões">
-                <Select value={count} onChange={(e) => setCount(e.target.value)} disabled={loading || quizInProgress}>
+                <Select
+                  value={count}
+                  onChange={(e) => setCount(e.target.value)}
+                  disabled={loading || quizInProgress}
+                >
                   {[5, 8, 10].map((n) => (
                     <option key={n} value={n}>
                       {n}
@@ -235,14 +253,21 @@ function Simulado() {
                 </Select>
               </Field>
               <div className="flex items-end">
-                <Button onClick={start} disabled={isDemo || !ORDYS_PLUS_AI_ENABLED || !subjectId || loading || quizInProgress}>
+                <Button
+                  onClick={start}
+                  disabled={
+                    isDemo || !ORDYS_PLUS_AI_ENABLED || !subjectId || loading || quizInProgress
+                  }
+                >
                   <Sparkles className="size-[13px]" strokeWidth={1.8} />
                   {loading ? "Gerando…" : "Gerar simulado"}
                 </Button>
               </div>
             </div>
             {!ORDYS_PLUS_AI_ENABLED ? (
-              <p className="mt-3 text-[11.5px] text-muted-foreground">{ORDYS_PLUS_LOCK_SHORT_MESSAGE}</p>
+              <p className="mt-3 text-[11.5px] text-muted-foreground">
+                {ORDYS_PLUS_LOCK_SHORT_MESSAGE}
+              </p>
             ) : subjectId && !topics.length ? (
               <p className="mt-3 text-[11.5px] text-muted-foreground">
                 Cadastre conteúdos nessa disciplina para questões mais alinhadas ao seu programa.
@@ -261,7 +286,10 @@ function Simulado() {
                       {correct}/{questions.length}
                     </Chip>
                   ) : (
-                    <Button onClick={finish} disabled={saving || Object.keys(answers).length !== questions.length}>
+                    <Button
+                      onClick={finish}
+                      disabled={saving || Object.keys(answers).length !== questions.length}
+                    >
                       Finalizar
                     </Button>
                   )
@@ -279,7 +307,8 @@ function Simulado() {
                         const isCorrect = finished && opt === q.correct_answer;
                         const isWrong = finished && chosen && opt !== q.correct_answer;
                         return (
-                          <button type="button"
+                          <button
+                            type="button"
                             key={opt}
                             disabled={finished}
                             onClick={() => setAnswers({ ...answers, [i]: opt })}
@@ -307,7 +336,17 @@ function Simulado() {
                       <AiContentReportButton
                         source="quiz"
                         label="Sinalizar questão"
-                        content={[`Questão: ${q.question}`, ...q.options.map((option, optionIndex) => `${String.fromCharCode(65 + optionIndex)}. ${option}`), `Resposta correta: ${q.correct_answer}`, q.explanation ? `Explicação: ${q.explanation}` : ""].filter(Boolean).join("\n")}
+                        content={[
+                          `Questão: ${q.question}`,
+                          ...q.options.map(
+                            (option, optionIndex) =>
+                              `${String.fromCharCode(65 + optionIndex)}. ${option}`,
+                          ),
+                          `Resposta correta: ${q.correct_answer}`,
+                          q.explanation ? `Explicação: ${q.explanation}` : "",
+                        ]
+                          .filter(Boolean)
+                          .join("\n")}
                       />
                     </div>
                   </div>
@@ -321,7 +360,10 @@ function Simulado() {
                       {correct} acertos de {questions.length}
                     </p>
                     <div className="mt-2">
-                      <Bar value={(correct / questions.length) * 100} tone={correct / questions.length >= 0.6 ? "success" : "warning"} />
+                      <Bar
+                        value={(correct / questions.length) * 100}
+                        tone={correct / questions.length >= 0.6 ? "success" : "warning"}
+                      />
                     </div>
                   </div>
                 </div>
@@ -335,7 +377,10 @@ function Simulado() {
           <div className="border-t border-border">
             {attempts.length ? (
               attempts.map((a) => (
-                <div key={a.id} className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-5 py-2.5 text-[12.5px]">
+                <div
+                  key={a.id}
+                  className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-5 py-2.5 text-[12.5px]"
+                >
                   <span className="min-w-0 flex-1 truncate">
                     {subjects.find((s) => s.id === a.subject_id)?.name ?? "Disciplina"}
                   </span>
@@ -343,11 +388,15 @@ function Simulado() {
                   <span className="num shrink-0 text-muted-foreground">
                     {a.correct_count ?? 0}/{a.question_count}
                   </span>
-                  <span className="num shrink-0 text-[11px] text-muted-foreground">{a.created_at.slice(0, 10)}</span>
+                  <span className="num shrink-0 text-[11px] text-muted-foreground">
+                    {a.created_at.slice(0, 10)}
+                  </span>
                 </div>
               ))
             ) : (
-              <p className="px-5 py-6 text-[12px] text-muted-foreground">Nenhum simulado realizado ainda.</p>
+              <p className="px-5 py-6 text-[12px] text-muted-foreground">
+                Nenhum simulado realizado ainda.
+              </p>
             )}
           </div>
         </Panel>

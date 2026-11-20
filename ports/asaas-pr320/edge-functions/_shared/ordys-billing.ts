@@ -29,7 +29,7 @@ export function billingResponse(body: unknown, status = 200) {
 
 export function jsonObject(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
-    ? value as Record<string, unknown>
+    ? (value as Record<string, unknown>)
     : {};
 }
 
@@ -47,7 +47,9 @@ export function getPublishableKey() {
       return "";
     }
   }
-  return (Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY"))?.trim() ?? "";
+  return (
+    (Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY"))?.trim() ?? ""
+  );
 }
 
 export function getServiceRoleKey() {
@@ -120,9 +122,12 @@ export async function authenticateBillingRequest(
   } catch {
     return {
       user: null,
-      response: billingResponse({
-        error: "Não foi possível validar sua sessão agora. Tente novamente.",
-      }, 503),
+      response: billingResponse(
+        {
+          error: "Não foi possível validar sua sessão agora. Tente novamente.",
+        },
+        503,
+      ),
     };
   }
 }
@@ -202,7 +207,10 @@ export type BillingAgeProfile = {
   timezone: string | null;
 };
 
-export async function getUserAgeProfile(userId: string, authorization: string): Promise<BillingAgeProfile> {
+export async function getUserAgeProfile(
+  userId: string,
+  authorization: string,
+): Promise<BillingAgeProfile> {
   const supabaseUrl = getSupabaseUrl();
   const publishableKey = getPublishableKey();
   if (!supabaseUrl || !publishableKey) throw new Error("Não foi possível validar o perfil.");
@@ -256,7 +264,8 @@ function calculateAgeOnCalendarDate(
     currentMonth > 12 ||
     currentDay < 1 ||
     currentDay > 31
-  ) return null;
+  )
+    return null;
 
   const year = Number(birthDate.slice(0, 4));
   const month = Number(birthDate.slice(5, 7));
@@ -269,7 +278,8 @@ function calculateAgeOnCalendarDate(
     birth.getUTCFullYear() !== year ||
     birth.getUTCMonth() !== month - 1 ||
     birth.getUTCDate() !== day
-  ) return null;
+  )
+    return null;
 
   let age = currentYear - year;
   if (currentMonth < month || (currentMonth === month && currentDay < day)) age -= 1;
@@ -300,7 +310,8 @@ export function calculateAgeInTimeZone(
     !timezone.trim() ||
     !(now instanceof Date) ||
     !Number.isFinite(now.getTime())
-  ) return null;
+  )
+    return null;
 
   let parts: Intl.DateTimeFormatPart[];
   try {
@@ -327,7 +338,9 @@ export function getAsaasApiBase() {
   const environment = Deno.env.get("ASAAS_ENVIRONMENT")?.trim().toLowerCase() ?? "";
   if (environment === "production") return "https://api.asaas.com/v3";
   if (environment === "sandbox") return "https://api-sandbox.asaas.com/v3";
-  throw new Error("ASAAS_ENVIRONMENT deve ser configurado explicitamente como sandbox ou production.");
+  throw new Error(
+    "ASAAS_ENVIRONMENT deve ser configurado explicitamente como sandbox ou production.",
+  );
 }
 
 /**
@@ -341,7 +354,9 @@ export function assertAsaasConfigured() {
   }
   const environment = Deno.env.get("ASAAS_ENVIRONMENT")?.trim().toLowerCase();
   if (environment !== "sandbox" && environment !== "production") {
-    throw new Error("ASAAS_ENVIRONMENT deve ser configurado explicitamente como sandbox ou production.");
+    throw new Error(
+      "ASAAS_ENVIRONMENT deve ser configurado explicitamente como sandbox ou production.",
+    );
   }
   getAsaasApiBase();
 }
@@ -354,11 +369,12 @@ export class AsaasApiError extends Error {
 }
 
 export function checkoutAttemptDisposition(status: string, expiresAt: string, now = Date.now()) {
-  if (status === "cancelled" || status === "expired" || status === "failed") return "retry" as const;
+  if (status === "cancelled" || status === "expired" || status === "failed")
+    return "retry" as const;
   if (status !== "pending") return "block" as const;
   const expiration = Date.parse(expiresAt);
   if (!Number.isFinite(expiration)) return "block" as const;
-  return expiration > now ? "reuse" as const : "cancel_remote" as const;
+  return expiration > now ? ("reuse" as const) : ("cancel_remote" as const);
 }
 
 export async function asaasRequest(path: string, init: RequestInit = {}) {
@@ -383,10 +399,9 @@ export async function asaasRequest(path: string, init: RequestInit = {}) {
   let payload: Record<string, unknown> = {};
   if (result.body !== null) {
     try {
-      payload = jsonObject(await responseJsonWithOutboundTimeout<unknown>(
-        result,
-        ASAAS_RESPONSE_BODY_TIMEOUT_MS,
-      ));
+      payload = jsonObject(
+        await responseJsonWithOutboundTimeout<unknown>(result, ASAAS_RESPONSE_BODY_TIMEOUT_MS),
+      );
     } catch (error) {
       // For a non-idempotent provider operation, an unreadable response is
       // ambiguous. Never convert it into a definitive provider rejection.
@@ -401,7 +416,11 @@ export async function asaasRequest(path: string, init: RequestInit = {}) {
   if (!result.ok) {
     const errors = Array.isArray(payload["errors"]) ? payload["errors"] : [];
     const firstError = jsonObject(errors[0]);
-    console.error("Asaas API request failed:", result.status, typeof firstError["code"] === "string" ? firstError["code"] : "provider_error");
+    console.error(
+      "Asaas API request failed:",
+      result.status,
+      typeof firstError["code"] === "string" ? firstError["code"] : "provider_error",
+    );
     throw new AsaasApiError(result.status);
   }
   return payload;
@@ -432,12 +451,13 @@ export async function assertBillingEnabled() {
     throw new Error("O serviço de assinaturas ainda não está disponível para novas contratações.");
   }
 
-  const rows = await serviceRest("ordys_billing_settings?select=billing_enabled&id=eq.1&limit=1") as Array<Record<string, unknown>> | null;
+  const rows = (await serviceRest(
+    "ordys_billing_settings?select=billing_enabled&id=eq.1&limit=1",
+  )) as Array<Record<string, unknown>> | null;
   if (rows?.[0]?.["billing_enabled"] !== true) {
     throw new Error("As assinaturas do Ordys ainda não foram liberadas.");
   }
 }
-
 
 const SUBSCRIPTION_ELIGIBILITY_REQUEST_TIMEOUT_MS = 8_000;
 const SUBSCRIPTION_ELIGIBILITY_BODY_TIMEOUT_MS = 3_000;
@@ -445,7 +465,7 @@ const SUBSCRIPTION_ELIGIBILITY_BODY_TIMEOUT_MS = 3_000;
 export async function isOrdysPlusEligible(userId: string) {
   // A paid entitlement is not safe while durable webhook processing is offline:
   // refunds/chargebacks could otherwise remain queued while Plus access persists.
-  if (await getBillingSchemaStatus() !== "ready") return false;
+  if ((await getBillingSchemaStatus()) !== "ready") return false;
 
   const supabaseUrl = getSupabaseUrl();
   if (!supabaseUrl) throw new Error("Billing database access is not configured.");
@@ -470,10 +490,12 @@ export async function isOrdysPlusEligible(userId: string) {
   }
 
   try {
-    return await responseJsonWithOutboundTimeout<unknown>(
-      result,
-      SUBSCRIPTION_ELIGIBILITY_BODY_TIMEOUT_MS,
-    ) === true;
+    return (
+      (await responseJsonWithOutboundTimeout<unknown>(
+        result,
+        SUBSCRIPTION_ELIGIBILITY_BODY_TIMEOUT_MS,
+      )) === true
+    );
   } catch {
     throw new Error("A validação da assinatura não foi concluída. Tente novamente.");
   }

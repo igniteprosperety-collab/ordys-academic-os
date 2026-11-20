@@ -73,7 +73,12 @@ describe.runIf(enabled)("isolamento de dados sem autenticação", () => {
   it("bloqueia escrita anônima com user_id arbitrário", async () => {
     const res = await api("tasks", {
       method: "POST",
-      body: JSON.stringify({ user_id: FAKE_ID, title: "invasão", priority: "media", status: "pendente" }),
+      body: JSON.stringify({
+        user_id: FAKE_ID,
+        title: "invasão",
+        priority: "media",
+        status: "pendente",
+      }),
     });
     expect(res.ok).toBe(false);
   });

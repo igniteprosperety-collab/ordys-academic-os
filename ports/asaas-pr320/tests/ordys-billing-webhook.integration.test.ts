@@ -2,9 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 const URL = process.env["VITE_SUPABASE_URL"] ?? process.env["SUPABASE_URL"] ?? "";
 const ANON_KEY =
-  process.env["VITE_SUPABASE_PUBLISHABLE_KEY"] ??
-  process.env["SUPABASE_PUBLISHABLE_KEY"] ??
-  "";
+  process.env["VITE_SUPABASE_PUBLISHABLE_KEY"] ?? process.env["SUPABASE_PUBLISHABLE_KEY"] ?? "";
 const SERVICE_ROLE_KEY = process.env["SUPABASE_SERVICE_ROLE_KEY"] ?? "";
 
 type AuthResponse = {
@@ -161,11 +159,12 @@ async function processEvent(event: Record<string, unknown>) {
     const row = await serviceApi(
       `ordys_billing_webhook_inbox?select=error_code&provider_event_id=eq.${encodeURIComponent(String(event.id ?? ""))}&limit=1`,
     );
-    const values = await row.json().catch(() => []) as Array<{ error_code?: string | null }>;
+    const values = (await row.json().catch(() => [])) as Array<{ error_code?: string | null }>;
     const error = values[0]?.error_code;
-    result = typeof error === "string"
-      ? { processed: false, error }
-      : { processed: false, duplicate: true };
+    result =
+      typeof error === "string"
+        ? { processed: false, error }
+        : { processed: false, duplicate: true };
   } else {
     result = { processed: false, duplicate: true };
   }
@@ -181,7 +180,7 @@ async function receiveEvent(event: Record<string, unknown>) {
     method: "POST",
     body: JSON.stringify({ p_event: event }),
   });
-  const body = await result.json().catch(() => ({})) as Record<string, unknown>;
+  const body = (await result.json().catch(() => ({}))) as Record<string, unknown>;
   expect(result.ok, JSON.stringify(body)).toBe(true);
   return body;
 }
@@ -191,7 +190,7 @@ async function processReceivedEvent(eventId: string) {
     method: "POST",
     body: JSON.stringify({ p_event_id: eventId }),
   });
-  const body = await result.json().catch(() => ({})) as Record<string, unknown>;
+  const body = (await result.json().catch(() => ({}))) as Record<string, unknown>;
   expect(result.ok, JSON.stringify(body)).toBe(true);
   return body;
 }
@@ -201,7 +200,7 @@ async function requeueRetryableWebhookEvents(): Promise<string[]> {
     method: "POST",
     body: JSON.stringify({ p_limit: 5 }),
   });
-  const body = await response.json().catch(() => ({})) as {
+  const body = (await response.json().catch(() => ({}))) as {
     requeued?: number;
     event_ids?: unknown;
   };
@@ -235,7 +234,7 @@ async function readSubscription(): Promise<BillingSubscription> {
   const result = await serviceApi(
     `ordys_billing_subscriptions?select=status,current_period_end,provider_status,checkout_attempt_id&provider_subscription_id=eq.${encodeURIComponent(subscriptionId)}&limit=1`,
   );
-  const rows = await result.json().catch(() => []) as BillingSubscription[];
+  const rows = (await result.json().catch(() => [])) as BillingSubscription[];
   expect(result.ok).toBe(true);
   expect(rows).toHaveLength(1);
   return rows[0]!;
@@ -247,7 +246,7 @@ async function isEligible(): Promise<boolean> {
     body: JSON.stringify({ p_user_id: user!.id }),
   });
   expect(result.ok).toBe(true);
-  return await result.json() === true;
+  return (await result.json()) === true;
 }
 
 describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () => {
@@ -298,10 +297,9 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       ).catch(() => undefined);
     }
     for (const attemptId of cleanupBillingAttemptIds) {
-      await serviceApi(
-        `ordys_billing_checkout_attempts?id=eq.${encodeURIComponent(attemptId)}`,
-        { method: "DELETE" },
-      ).catch(() => undefined);
+      await serviceApi(`ordys_billing_checkout_attempts?id=eq.${encodeURIComponent(attemptId)}`, {
+        method: "DELETE",
+      }).catch(() => undefined);
     }
 
     for (const testUser of [user, ...extraUsers]) {
@@ -311,10 +309,9 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
         "ordys_billing_subscriptions",
         "ordys_billing_checkout_attempts",
       ]) {
-        await serviceApi(
-          `${table}?user_id=eq.${encodeURIComponent(testUser.id)}`,
-          { method: "DELETE" },
-        ).catch(() => undefined);
+        await serviceApi(`${table}?user_id=eq.${encodeURIComponent(testUser.id)}`, {
+          method: "DELETE",
+        }).catch(() => undefined);
       }
       await fetch(`${URL}/auth/v1/admin/users/${encodeURIComponent(testUser.id)}`, {
         method: "DELETE",
@@ -412,7 +409,7 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
           method: "POST",
           body: JSON.stringify({ p_limit: 5 }),
         });
-        const body = await result.json().catch(() => ({})) as {
+        const body = (await result.json().catch(() => ({}))) as {
           requeued?: number;
           event_ids?: unknown;
         };
@@ -429,7 +426,9 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
     expect(replayCalls.map((batch) => batch.length).sort()).toEqual([2, 5, 5]);
     expect(allRequeuedIds).toHaveLength(12);
     expect(new Set(allRequeuedIds).size).toBe(12);
-    expect(new Set(allRequeuedIds)).toEqual(new Set(fixtures.map((fixture) => fixture.subscriptionEventId)));
+    expect(new Set(allRequeuedIds)).toEqual(
+      new Set(fixtures.map((fixture) => fixture.subscriptionEventId)),
+    );
 
     for (const eventId of allRequeuedIds) {
       const processed = await processReceivedEvent(eventId);
@@ -438,21 +437,23 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
 
     for (const fixture of fixtures) {
       const subscription = await serviceApi(
-        "ordys_billing_subscriptions?select=user_id,status,checkout_attempt_id&provider_subscription_id=eq."
-          + encodeURIComponent(fixture.subscriptionId)
-          + "&limit=1",
+        "ordys_billing_subscriptions?select=user_id,status,checkout_attempt_id&provider_subscription_id=eq." +
+          encodeURIComponent(fixture.subscriptionId) +
+          "&limit=1",
       );
       expect(subscription.ok, await subscription.clone().text()).toBe(true);
-      expect(await subscription.json()).toEqual([{
-        user_id: fixture.userId,
-        status: "pending",
-        checkout_attempt_id: fixture.attemptId,
-      }]);
+      expect(await subscription.json()).toEqual([
+        {
+          user_id: fixture.userId,
+          status: "pending",
+          checkout_attempt_id: fixture.attemptId,
+        },
+      ]);
 
       const event = await serviceApi(
-        "ordys_billing_webhook_events?select=processing_status,error_code&provider_event_id=eq."
-          + encodeURIComponent(fixture.subscriptionEventId)
-          + "&limit=1",
+        "ordys_billing_webhook_events?select=processing_status,error_code&provider_event_id=eq." +
+          encodeURIComponent(fixture.subscriptionEventId) +
+          "&limit=1",
       );
       expect(event.ok, await event.clone().text()).toBe(true);
       expect(await event.json()).toEqual([{ processing_status: "processed", error_code: null }]);
@@ -470,7 +471,8 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
     extraUsers.push(recoveryUser);
 
     const attemptId = crypto.randomUUID();
-    const recoveryExternalReference = "ordys_ci_checkout_created_" + crypto.randomUUID().replaceAll("-", "");
+    const recoveryExternalReference =
+      "ordys_ci_checkout_created_" + crypto.randomUUID().replaceAll("-", "");
     const providerCheckoutId = "chk_ordys_ci_created_" + unique;
     const providerCustomerId = "cus_ordys_ci_created_" + unique;
 
@@ -504,22 +506,24 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
     expect(created).toMatchObject({ processed: true, event: "CHECKOUT_CREATED" });
 
     const recovered = await serviceApi(
-      "ordys_billing_checkout_attempts?select=status,provider_checkout_id,checkout_url,provider_customer_id&id=eq."
-        + encodeURIComponent(attemptId)
-        + "&limit=1",
+      "ordys_billing_checkout_attempts?select=status,provider_checkout_id,checkout_url,provider_customer_id&id=eq." +
+        encodeURIComponent(attemptId) +
+        "&limit=1",
     );
     expect(recovered.ok, await recovered.clone().text()).toBe(true);
-    expect(await recovered.json()).toEqual([{
-      status: "pending",
-      provider_checkout_id: providerCheckoutId,
-      checkout_url: "https://asaas.com/checkoutSession/show?id=" + providerCheckoutId,
-      provider_customer_id: providerCustomerId,
-    }]);
+    expect(await recovered.json()).toEqual([
+      {
+        status: "pending",
+        provider_checkout_id: providerCheckoutId,
+        checkout_url: "https://asaas.com/checkoutSession/show?id=" + providerCheckoutId,
+        provider_customer_id: providerCustomerId,
+      },
+    ]);
 
     const event = await serviceApi(
-      "ordys_billing_webhook_events?select=processing_status,error_code&provider_event_id=eq."
-        + encodeURIComponent(checkoutCreatedEventId)
-        + "&limit=1",
+      "ordys_billing_webhook_events?select=processing_status,error_code&provider_event_id=eq." +
+        encodeURIComponent(checkoutCreatedEventId) +
+        "&limit=1",
     );
     expect(event.ok, await event.clone().text()).toBe(true);
     expect(await event.json()).toEqual([{ processing_status: "processed", error_code: null }]);
@@ -562,21 +566,23 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
     expect(created).toMatchObject({ event: "CHECKOUT_CREATED" });
 
     const unchanged = await serviceApi(
-      "ordys_billing_checkout_attempts?select=status,provider_checkout_id,checkout_url&id=eq."
-        + encodeURIComponent(attemptId)
-        + "&limit=1",
+      "ordys_billing_checkout_attempts?select=status,provider_checkout_id,checkout_url&id=eq." +
+        encodeURIComponent(attemptId) +
+        "&limit=1",
     );
     expect(unchanged.ok, await unchanged.clone().text()).toBe(true);
-    expect(await unchanged.json()).toEqual([{
-      status: "creating",
-      provider_checkout_id: null,
-      checkout_url: null,
-    }]);
+    expect(await unchanged.json()).toEqual([
+      {
+        status: "creating",
+        provider_checkout_id: null,
+        checkout_url: null,
+      },
+    ]);
 
     const event = await serviceApi(
-      "ordys_billing_webhook_events?select=processing_status,error_code&provider_event_id=eq."
-        + encodeURIComponent(checkoutCreatedNoReferenceEventId)
-        + "&limit=1",
+      "ordys_billing_webhook_events?select=processing_status,error_code&provider_event_id=eq." +
+        encodeURIComponent(checkoutCreatedNoReferenceEventId) +
+        "&limit=1",
     );
     expect(event.ok, await event.clone().text()).toBe(true);
     expect(await event.json()).toEqual([{ processing_status: "ignored", error_code: null }]);
@@ -607,16 +613,12 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
     });
     expect(malformedAttempt.ok, await malformedAttempt.clone().text()).toBe(true);
 
-    const invalidSubscriptionEventId =
-      "evt_ordys_ci_invalid_subscription_value_" + unique;
-    const subscriptionOverflowEventId =
-      "evt_ordys_ci_subscription_value_overflow_" + unique;
-    const subscriptionSpecialValueEventId =
-      "evt_ordys_ci_subscription_special_value_" + unique;
+    const invalidSubscriptionEventId = "evt_ordys_ci_invalid_subscription_value_" + unique;
+    const subscriptionOverflowEventId = "evt_ordys_ci_subscription_value_overflow_" + unique;
+    const subscriptionSpecialValueEventId = "evt_ordys_ci_subscription_special_value_" + unique;
     const subscriptionFractionalCentsEventId =
       "evt_ordys_ci_subscription_fractional_cents_" + unique;
-    const validSubscriptionEventId =
-      "evt_ordys_ci_valid_subscription_after_invalid_" + unique;
+    const validSubscriptionEventId = "evt_ordys_ci_valid_subscription_after_invalid_" + unique;
     const invalidPaymentEventId = "evt_ordys_ci_invalid_payment_value_" + unique;
     const overflowPaymentEventId = "evt_ordys_ci_payment_value_overflow_" + unique;
     const specialPaymentEventId = "evt_ordys_ci_payment_special_value_" + unique;
@@ -627,15 +629,11 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
     const specialPaymentId = "pay_ordys_ci_special_value_" + unique;
     const fractionalPaymentId = "pay_ordys_ci_fractional_cents_" + unique;
     const dueDatePaymentId = "pay_ordys_ci_invalid_due_date_" + unique;
-    const earlyMalformedPaymentEventId =
-      "evt_ordys_ci_early_malformed_payment_" + unique;
-    const earlyMalformedSubscriptionEventId =
-      "evt_ordys_ci_early_malformed_subscription_" + unique;
+    const earlyMalformedPaymentEventId = "evt_ordys_ci_early_malformed_payment_" + unique;
+    const earlyMalformedSubscriptionEventId = "evt_ordys_ci_early_malformed_subscription_" + unique;
     const earlyMalformedPaymentId = "pay_ordys_ci_early_malformed_" + unique;
-    const earlyMalformedSubscriptionId =
-      "sub_ordys_ci_early_malformed_" + unique;
-    const earlyMalformedExternalReference =
-      "ordys_ci_early_malformed_" + unique;
+    const earlyMalformedSubscriptionId = "sub_ordys_ci_early_malformed_" + unique;
+    const earlyMalformedExternalReference = "ordys_ci_early_malformed_" + unique;
     eventIds.push(
       invalidSubscriptionEventId,
       subscriptionOverflowEventId,
@@ -824,23 +822,20 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
 
     const earlyMalformedUser = await createTestUser("malformed-early-payment");
     extraUsers.push(earlyMalformedUser);
-    const earlyMalformedAttempt = await serviceApi(
-      "ordys_billing_checkout_attempts",
-      {
-        method: "POST",
-        headers: { Prefer: "return=minimal" },
-        body: JSON.stringify({
-          id: crypto.randomUUID(),
-          user_id: earlyMalformedUser.id,
-          plan_code: "plus_monthly",
-          external_reference: earlyMalformedExternalReference,
-          provider_customer_id: null,
-          amount_cents: 5_990,
-          status: "pending",
-          expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-        }),
-      },
-    );
+    const earlyMalformedAttempt = await serviceApi("ordys_billing_checkout_attempts", {
+      method: "POST",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({
+        id: crypto.randomUUID(),
+        user_id: earlyMalformedUser.id,
+        plan_code: "plus_monthly",
+        external_reference: earlyMalformedExternalReference,
+        provider_customer_id: null,
+        amount_cents: 5_990,
+        status: "pending",
+        expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      }),
+    });
     expect(earlyMalformedAttempt.ok, await earlyMalformedAttempt.clone().text()).toBe(true);
 
     const heldMalformedPayment = await processEvent({
@@ -878,22 +873,24 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
     });
 
     const replayedMalformedEvent = await serviceApi(
-      "ordys_billing_webhook_events?select=processing_status,error_code,retry_payload"
-        + "&provider_event_id=eq."
-        + encodeURIComponent(earlyMalformedPaymentEventId)
-        + "&limit=1",
+      "ordys_billing_webhook_events?select=processing_status,error_code,retry_payload" +
+        "&provider_event_id=eq." +
+        encodeURIComponent(earlyMalformedPaymentEventId) +
+        "&limit=1",
     );
     expect(replayedMalformedEvent.ok).toBe(true);
-    expect(await replayedMalformedEvent.json()).toEqual([{
-      processing_status: "failed",
-      error_code: "amount_mismatch",
-      retry_payload: null,
-    }]);
+    expect(await replayedMalformedEvent.json()).toEqual([
+      {
+        processing_status: "failed",
+        error_code: "amount_mismatch",
+        retry_payload: null,
+      },
+    ]);
 
     const earlyMalformedLedger = await serviceApi(
-      "ordys_billing_payments?select=provider_payment_id&provider_payment_id=eq."
-        + encodeURIComponent(earlyMalformedPaymentId)
-        + "&limit=1",
+      "ordys_billing_payments?select=provider_payment_id&provider_payment_id=eq." +
+        encodeURIComponent(earlyMalformedPaymentId) +
+        "&limit=1",
     );
     expect(earlyMalformedLedger.ok).toBe(true);
     expect(await earlyMalformedLedger.json()).toEqual([]);
@@ -906,38 +903,35 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
     expect(await earlyMalformedEligibility.json()).toBe(false);
 
     const invalidSubscriptionRows = await serviceApi(
-      "ordys_billing_subscriptions?select=id&provider_subscription_id=eq."
-        + encodeURIComponent(malformedSubscriptionId)
-        + "&limit=1",
+      "ordys_billing_subscriptions?select=id&provider_subscription_id=eq." +
+        encodeURIComponent(malformedSubscriptionId) +
+        "&limit=1",
     );
     expect(invalidSubscriptionRows.ok).toBe(true);
     expect(await invalidSubscriptionRows.json()).toHaveLength(1);
 
     const invalidAmountRows = await serviceApi(
-      "ordys_billing_payments?select=provider_payment_id&provider_payment_id=in.("
-        + [
-          invalidPaymentId,
-          overflowPaymentId,
-          specialPaymentId,
-          fractionalPaymentId,
-        ]
+      "ordys_billing_payments?select=provider_payment_id&provider_payment_id=in.(" +
+        [invalidPaymentId, overflowPaymentId, specialPaymentId, fractionalPaymentId]
           .map(encodeURIComponent)
-          .join(",")
-        + ")",
+          .join(",") +
+        ")",
     );
     expect(invalidAmountRows.ok).toBe(true);
     expect(await invalidAmountRows.json()).toEqual([]);
 
     const validPaymentRows = await serviceApi(
-      "ordys_billing_payments?select=provider_payment_id,due_date&provider_payment_id=eq."
-        + encodeURIComponent(dueDatePaymentId)
-        + "&limit=1",
+      "ordys_billing_payments?select=provider_payment_id,due_date&provider_payment_id=eq." +
+        encodeURIComponent(dueDatePaymentId) +
+        "&limit=1",
     );
     expect(validPaymentRows.ok).toBe(true);
-    expect(await validPaymentRows.json()).toEqual([{
-      provider_payment_id: dueDatePaymentId,
-      due_date: null,
-    }]);
+    expect(await validPaymentRows.json()).toEqual([
+      {
+        provider_payment_id: dueDatePaymentId,
+        due_date: null,
+      },
+    ]);
 
     const quarantinedEventIds = [
       invalidSubscriptionEventId,
@@ -948,25 +942,29 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       overflowPaymentEventId,
       specialPaymentEventId,
       fractionalPaymentEventId,
-    ].map(encodeURIComponent).join(",");
+    ]
+      .map(encodeURIComponent)
+      .join(",");
     const quarantinedEventsPath =
-      "ordys_billing_webhook_events?select=provider_event_id,processing_status,error_code"
-        + "&provider_event_id=in.("
-        + quarantinedEventIds
-        + ")";
+      "ordys_billing_webhook_events?select=provider_event_id,processing_status,error_code" +
+      "&provider_event_id=in.(" +
+      quarantinedEventIds +
+      ")";
     const quarantinedEvents = await serviceApi(quarantinedEventsPath);
     expect(quarantinedEvents.ok).toBe(true);
-    const rows = await quarantinedEvents.json() as Array<{
+    const rows = (await quarantinedEvents.json()) as Array<{
       provider_event_id: string;
       processing_status: string;
       error_code: string | null;
     }>;
     expect(rows).toHaveLength(8);
     expect(rows.every((row) => row.processing_status === "failed")).toBe(true);
-    expect(rows.find((row) => row.provider_event_id === invalidSubscriptionEventId)?.error_code)
-      .toBe("subscription_amount_mismatch");
-    expect(rows.find((row) => row.provider_event_id === subscriptionOverflowEventId)?.error_code)
-      .toBe("subscription_amount_mismatch");
+    expect(
+      rows.find((row) => row.provider_event_id === invalidSubscriptionEventId)?.error_code,
+    ).toBe("subscription_amount_mismatch");
+    expect(
+      rows.find((row) => row.provider_event_id === subscriptionOverflowEventId)?.error_code,
+    ).toBe("subscription_amount_mismatch");
     const specialSubscriptionRow = rows.find(
       (row) => row.provider_event_id === subscriptionSpecialValueEventId,
     );
@@ -974,17 +972,19 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
     const fractionalSubscriptionRow = rows.find(
       (row) => row.provider_event_id === subscriptionFractionalCentsEventId,
     );
-    expect(fractionalSubscriptionRow?.error_code).toBe(
-      "subscription_amount_mismatch",
+    expect(fractionalSubscriptionRow?.error_code).toBe("subscription_amount_mismatch");
+    expect(rows.find((row) => row.provider_event_id === invalidPaymentEventId)?.error_code).toBe(
+      "amount_mismatch",
     );
-    expect(rows.find((row) => row.provider_event_id === invalidPaymentEventId)?.error_code)
-      .toBe("amount_mismatch");
-    expect(rows.find((row) => row.provider_event_id === overflowPaymentEventId)?.error_code)
-      .toBe("amount_mismatch");
-    expect(rows.find((row) => row.provider_event_id === specialPaymentEventId)?.error_code)
-      .toBe("amount_mismatch");
-    expect(rows.find((row) => row.provider_event_id === fractionalPaymentEventId)?.error_code)
-      .toBe("amount_mismatch");
+    expect(rows.find((row) => row.provider_event_id === overflowPaymentEventId)?.error_code).toBe(
+      "amount_mismatch",
+    );
+    expect(rows.find((row) => row.provider_event_id === specialPaymentEventId)?.error_code).toBe(
+      "amount_mismatch",
+    );
+    expect(rows.find((row) => row.provider_event_id === fractionalPaymentEventId)?.error_code).toBe(
+      "amount_mismatch",
+    );
   }, 30_000);
 
   it("usa o próximo timestamp válido e limita datas de pagamento futuras", async () => {
@@ -1112,30 +1112,28 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
     });
 
     const fallbackRows = await serviceApi(
-      "ordys_billing_subscriptions?select=current_period_end&provider_subscription_id=eq."
-        + encodeURIComponent(fallbackSubscriptionId)
-        + "&limit=1",
+      "ordys_billing_subscriptions?select=current_period_end&provider_subscription_id=eq." +
+        encodeURIComponent(fallbackSubscriptionId) +
+        "&limit=1",
     );
     expect(fallbackRows.ok).toBe(true);
-    const fallbackSubscriptions = await fallbackRows.json() as Array<{
+    const fallbackSubscriptions = (await fallbackRows.json()) as Array<{
       current_period_end: string | null;
     }>;
     expect(fallbackSubscriptions).toHaveLength(1);
-    const expectedFallbackEnd = new Date(
-      fallbackConfirmedDate + "T00:00:00.000Z",
-    );
+    const expectedFallbackEnd = new Date(fallbackConfirmedDate + "T00:00:00.000Z");
     expectedFallbackEnd.setUTCMonth(expectedFallbackEnd.getUTCMonth() + 1);
     expect(Date.parse(fallbackSubscriptions[0]!.current_period_end ?? "")).toBe(
       expectedFallbackEnd.getTime(),
     );
 
     const futureRows = await serviceApi(
-      "ordys_billing_subscriptions?select=current_period_end&provider_subscription_id=eq."
-        + encodeURIComponent(futureSubscriptionId)
-        + "&limit=1",
+      "ordys_billing_subscriptions?select=current_period_end&provider_subscription_id=eq." +
+        encodeURIComponent(futureSubscriptionId) +
+        "&limit=1",
     );
     expect(futureRows.ok).toBe(true);
-    const futureSubscriptions = await futureRows.json() as Array<{
+    const futureSubscriptions = (await futureRows.json()) as Array<{
       current_period_end: string | null;
     }>;
     expect(futureSubscriptions).toHaveLength(1);
@@ -1166,12 +1164,16 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
     const linkedAttempt = await serviceApi(
       `ordys_billing_checkout_attempts?select=status,provider_customer_id,provider_checkout_id&id=eq.${checkoutAttemptId}&limit=1`,
     );
-    const linkedRows = await linkedAttempt.json() as Array<{
+    const linkedRows = (await linkedAttempt.json()) as Array<{
       status: string;
       provider_customer_id: string | null;
       provider_checkout_id: string | null;
     }>;
-    expect(linkedRows[0]).toMatchObject({ status: "linked", provider_customer_id: customerId, provider_checkout_id: null });
+    expect(linkedRows[0]).toMatchObject({
+      status: "linked",
+      provider_customer_id: customerId,
+      provider_checkout_id: null,
+    });
 
     // The checkout's payment event arrives before the API response has stored
     // checkout.id locally. externalReference must recover the same attempt.
@@ -1188,7 +1190,10 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
     const recoveredAttempt = await serviceApi(
       `ordys_billing_checkout_attempts?select=status,provider_checkout_id&id=eq.${checkoutAttemptId}&limit=1`,
     );
-    const recoveredRows = await recoveredAttempt.json() as Array<{ status: string; provider_checkout_id: string | null }>;
+    const recoveredRows = (await recoveredAttempt.json()) as Array<{
+      status: string;
+      provider_checkout_id: string | null;
+    }>;
     expect(recoveredRows[0]).toMatchObject({ status: "linked", provider_checkout_id: checkoutId });
 
     const pending = await readSubscription();
@@ -1292,7 +1297,7 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
     const attempt = await serviceApi(
       `ordys_billing_checkout_attempts?select=status&id=eq.${checkoutAttemptId}&limit=1`,
     );
-    const attemptRows = await attempt.json() as Array<{ status: string }>;
+    const attemptRows = (await attempt.json()) as Array<{ status: string }>;
     expect(attemptRows[0]?.status).toBe("cancelled");
 
     // A later confirmed payment may extend the already-paid access period,
@@ -1319,7 +1324,9 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
     const attemptAfterLatePayment = await serviceApi(
       `ordys_billing_checkout_attempts?select=status&id=eq.${checkoutAttemptId}&limit=1`,
     );
-    const attemptAfterLatePaymentRows = await attemptAfterLatePayment.json() as Array<{ status: string }>;
+    const attemptAfterLatePaymentRows = (await attemptAfterLatePayment.json()) as Array<{
+      status: string;
+    }>;
     expect(attemptAfterLatePaymentRows[0]?.status).toBe("cancelled");
 
     const refunded = await processEvent({
@@ -1369,7 +1376,7 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_subscriptions?select=status,cancellation_confirmed_at&provider_subscription_id=eq.${encodeURIComponent(subscriptionId)}&limit=1`,
     );
     expect(confirmedSuspended.ok, await confirmedSuspended.clone().text()).toBe(true);
-    const confirmedRows = await confirmedSuspended.json() as Array<{
+    const confirmedRows = (await confirmedSuspended.json()) as Array<{
       status: string;
       cancellation_confirmed_at: string | null;
     }>;
@@ -1415,7 +1422,7 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_subscriptions?select=id&provider_subscription_id=eq.${encodeURIComponent(subscriptionId)}&limit=1`,
     );
     expect(localSubscriptionResult.ok, await localSubscriptionResult.clone().text()).toBe(true);
-    const localSubscriptionRows = await localSubscriptionResult.json() as Array<{ id: string }>;
+    const localSubscriptionRows = (await localSubscriptionResult.json()) as Array<{ id: string }>;
     expect(localSubscriptionRows).toHaveLength(1);
 
     const manualConfirmation = await serviceApi("rpc/ordys_confirm_subscription_cancellation", {
@@ -1434,15 +1441,22 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
     const checkoutAfterManualConfirmation = await serviceApi(
       `ordys_billing_checkout_attempts?select=status&id=eq.${encodeURIComponent(checkoutAttemptId)}&limit=1`,
     );
-    expect(checkoutAfterManualConfirmation.ok, await checkoutAfterManualConfirmation.clone().text()).toBe(true);
-    const checkoutAfterManualRows = await checkoutAfterManualConfirmation.json() as Array<{ status: string }>;
+    expect(
+      checkoutAfterManualConfirmation.ok,
+      await checkoutAfterManualConfirmation.clone().text(),
+    ).toBe(true);
+    const checkoutAfterManualRows = (await checkoutAfterManualConfirmation.json()) as Array<{
+      status: string;
+    }>;
     expect(checkoutAfterManualRows[0]?.status).toBe("cancelled");
 
     const manualMarker = await serviceApi(
       `ordys_billing_subscriptions?select=cancellation_confirmed_at&provider_subscription_id=eq.${encodeURIComponent(subscriptionId)}&limit=1`,
     );
     expect(manualMarker.ok, await manualMarker.clone().text()).toBe(true);
-    const manualMarkerRows = await manualMarker.json() as Array<{ cancellation_confirmed_at: string | null }>;
+    const manualMarkerRows = (await manualMarker.json()) as Array<{
+      cancellation_confirmed_at: string | null;
+    }>;
     expect(manualMarkerRows[0]?.cancellation_confirmed_at).toBeTruthy();
 
     // Legacy profile cancellation could persist provider_status=DELETED but
@@ -1490,7 +1504,7 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_checkout_attempts?select=status&id=eq.${encodeURIComponent(checkoutAttemptId)}&limit=1`,
     );
     expect(legacyCheckout.ok, await legacyCheckout.clone().text()).toBe(true);
-    const legacyCheckoutRows = await legacyCheckout.json() as Array<{ status: string }>;
+    const legacyCheckoutRows = (await legacyCheckout.json()) as Array<{ status: string }>;
     expect(legacyCheckoutRows[0]?.status).toBe("cancelled");
   }, 30_000);
 
@@ -1533,7 +1547,10 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
     const linked = await serviceApi(
       `ordys_billing_checkout_attempts?select=status,provider_customer_id&id=eq.${sequentialAttemptId}&limit=1`,
     );
-    const linkedRows = await linked.json() as Array<{ status: string; provider_customer_id: string | null }>;
+    const linkedRows = (await linked.json()) as Array<{
+      status: string;
+      provider_customer_id: string | null;
+    }>;
     expect(linkedRows[0]).toMatchObject({
       status: "paid",
       provider_customer_id: sequentialCustomerId,
@@ -1559,7 +1576,10 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
     const subscription = await serviceApi(
       `ordys_billing_subscriptions?select=status,checkout_attempt_id&provider_subscription_id=eq.${sequentialSubscriptionId}&limit=1`,
     );
-    const subscriptionRows = await subscription.json() as Array<{ status: string; checkout_attempt_id: string }>;
+    const subscriptionRows = (await subscription.json()) as Array<{
+      status: string;
+      checkout_attempt_id: string;
+    }>;
     expect(subscriptionRows[0]).toMatchObject({
       status: "pending",
       checkout_attempt_id: sequentialAttemptId,
@@ -1642,7 +1662,7 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_webhook_events?select=processing_status,error_code,provider_customer_id,retry_payload&provider_event_id=eq.${encodeURIComponent(eventIds[11]!)}&limit=1`,
     );
     expect(heldEvent.ok, await heldEvent.clone().text()).toBe(true);
-    const heldRows = await heldEvent.json() as Array<{
+    const heldRows = (await heldEvent.json()) as Array<{
       processing_status: string;
       error_code: string | null;
       provider_customer_id: string | null;
@@ -1672,32 +1692,37 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_checkout_attempts?select=status,provider_customer_id&id=eq.${encodeURIComponent(retryAttemptId)}&limit=1`,
     );
     expect(linkedAttempt.ok, await linkedAttempt.clone().text()).toBe(true);
-    expect(await linkedAttempt.json()).toEqual([{
-      status: "linked",
-      provider_customer_id: retryCustomerId,
-    }]);
+    expect(await linkedAttempt.json()).toEqual([
+      {
+        status: "linked",
+        provider_customer_id: retryCustomerId,
+      },
+    ]);
 
     const linkedSubscription = await serviceApi(
       `ordys_billing_subscriptions?select=user_id,status,checkout_attempt_id&provider_subscription_id=eq.${encodeURIComponent(retrySubscriptionId)}&limit=1`,
     );
     expect(linkedSubscription.ok, await linkedSubscription.clone().text()).toBe(true);
-    expect(await linkedSubscription.json()).toEqual([{
-      user_id: retryUser.id,
-      status: "pending",
-      checkout_attempt_id: retryAttemptId,
-    }]);
+    expect(await linkedSubscription.json()).toEqual([
+      {
+        user_id: retryUser.id,
+        status: "pending",
+        checkout_attempt_id: retryAttemptId,
+      },
+    ]);
 
     const reconciledEvent = await serviceApi(
       `ordys_billing_webhook_events?select=processing_status,error_code,retry_payload&provider_event_id=eq.${encodeURIComponent(eventIds[11]!)}&limit=1`,
     );
     expect(reconciledEvent.ok, await reconciledEvent.clone().text()).toBe(true);
-    expect(await reconciledEvent.json()).toEqual([{
-      processing_status: "processed",
-      error_code: null,
-      retry_payload: null,
-    }]);
+    expect(await reconciledEvent.json()).toEqual([
+      {
+        processing_status: "processed",
+        error_code: null,
+        retry_payload: null,
+      },
+    ]);
   }, 30_000);
-
 
   it("reconcilia SUBSCRIPTION_DELETED antes do pagamento do Checkout e da criação local", async () => {
     const deletionFirstUser = await createTestUser("delete-before-subscription");
@@ -1745,15 +1770,17 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_webhook_events?select=processing_status,error_code,retry_payload&provider_event_id=eq.${encodeURIComponent(eventIds[25]!)}&limit=1`,
     );
     expect(heldDeletion.ok, await heldDeletion.clone().text()).toBe(true);
-    expect(await heldDeletion.json()).toEqual([{
-      processing_status: "failed",
-      error_code: "subscription_delete_unmatched",
-      retry_payload: {
-        id: eventIds[25],
-        event: "SUBSCRIPTION_DELETED",
-        subscription: { id: providerSubscriptionId, customer: providerCustomerId },
+    expect(await heldDeletion.json()).toEqual([
+      {
+        processing_status: "failed",
+        error_code: "subscription_delete_unmatched",
+        retry_payload: {
+          id: eventIds[25],
+          event: "SUBSCRIPTION_DELETED",
+          subscription: { id: providerSubscriptionId, customer: providerCustomerId },
+        },
       },
-    }]);
+    ]);
 
     // The subscription-created event also arrives before CHECKOUT_PAID and
     // is held. No Plus access is granted until the payment event is accepted.
@@ -1778,23 +1805,25 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_webhook_events?select=processing_status,error_code,retry_payload&provider_event_id=eq.${encodeURIComponent(eventIds[26]!)}&limit=1`,
     );
     expect(heldCreation.ok, await heldCreation.clone().text()).toBe(true);
-    expect(await heldCreation.json()).toEqual([{
-      processing_status: "failed",
-      error_code: "subscription_checkout_unmatched",
-      retry_payload: {
-        id: eventIds[26],
-        event: "SUBSCRIPTION_CREATED",
-        subscription: {
-          id: providerSubscriptionId,
-          customer: providerCustomerId,
-          externalReference: null,
-          value: "59.9",
-          billingType: "CREDIT_CARD",
-          cycle: "MONTHLY",
-          status: "ACTIVE",
+    expect(await heldCreation.json()).toEqual([
+      {
+        processing_status: "failed",
+        error_code: "subscription_checkout_unmatched",
+        retry_payload: {
+          id: eventIds[26],
+          event: "SUBSCRIPTION_CREATED",
+          subscription: {
+            id: providerSubscriptionId,
+            customer: providerCustomerId,
+            externalReference: null,
+            value: "59.9",
+            billingType: "CREDIT_CARD",
+            cycle: "MONTHLY",
+            status: "ACTIVE",
+          },
         },
       },
-    }]);
+    ]);
 
     // CHECKOUT_PAID establishes the customer/attempt association and replays
     // SUBSCRIPTION_CREATED, which then replays the exact held deletion by ID.
@@ -1816,7 +1845,7 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_subscriptions?select=status,provider_status,cancellation_confirmed_at&provider_subscription_id=eq.${encodeURIComponent(providerSubscriptionId)}&limit=1`,
     );
     expect(reconciled.ok, await reconciled.clone().text()).toBe(true);
-    const rows = await reconciled.json() as Array<{
+    const rows = (await reconciled.json()) as Array<{
       status: string;
       provider_status: string;
       cancellation_confirmed_at: string | null;
@@ -1837,15 +1866,17 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
         `ordys_billing_webhook_events?select=processing_status,error_code,retry_payload&provider_event_id=eq.${encodeURIComponent(eventId)}&limit=1`,
       );
       expect(event.ok, await event.clone().text()).toBe(true);
-      expect(await event.json()).toEqual([{
-        processing_status: "processed",
-        error_code: null,
-        retry_payload: null,
-      }]);
+      expect(await event.json()).toEqual([
+        {
+          processing_status: "processed",
+          error_code: null,
+          retry_payload: null,
+        },
+      ]);
     }
   }, 30_000);
 
-    it("reconcilia pagamento confirmado recebido antes de SUBSCRIPTION_CREATED", async () => {
+  it("reconcilia pagamento confirmado recebido antes de SUBSCRIPTION_CREATED", async () => {
     const paymentFirstUser = await createTestUser("payment-before-subscription");
     extraUsers.push(paymentFirstUser);
 
@@ -1901,16 +1932,22 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_webhook_events?select=processing_status,error_code,provider_customer_id,retry_payload&provider_event_id=eq.${encodeURIComponent(paymentCreatedBeforeSubscriptionEventId)}&limit=1`,
     );
     expect(heldCreatedPayment.ok, await heldCreatedPayment.clone().text()).toBe(true);
-    expect(await heldCreatedPayment.json()).toMatchObject([{
-      processing_status: "failed",
-      error_code: "payment_subscription_unmatched",
-      provider_customer_id: providerCustomerId,
-      retry_payload: {
-        id: paymentCreatedBeforeSubscriptionEventId,
-        event: "PAYMENT_CREATED",
-        payment: { id: providerPaymentId, subscription: providerSubscriptionId, customer: providerCustomerId },
+    expect(await heldCreatedPayment.json()).toMatchObject([
+      {
+        processing_status: "failed",
+        error_code: "payment_subscription_unmatched",
+        provider_customer_id: providerCustomerId,
+        retry_payload: {
+          id: paymentCreatedBeforeSubscriptionEventId,
+          event: "PAYMENT_CREATED",
+          payment: {
+            id: providerPaymentId,
+            subscription: providerSubscriptionId,
+            customer: providerCustomerId,
+          },
+        },
       },
-    }]);
+    ]);
     const paymentFirst = await processEvent({
       id: eventIds[15],
       event: "PAYMENT_RECEIVED",
@@ -1934,26 +1971,28 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_webhook_events?select=processing_status,error_code,provider_customer_id,retry_payload&provider_event_id=eq.${encodeURIComponent(eventIds[15]!)}&limit=1`,
     );
     expect(heldPayment.ok, await heldPayment.clone().text()).toBe(true);
-    expect(await heldPayment.json()).toEqual([{
-      processing_status: "failed",
-      error_code: "confirmed_payment_unmatched",
-      provider_customer_id: providerCustomerId,
-      retry_payload: {
-        id: eventIds[15],
-        event: "PAYMENT_RECEIVED",
-        dateCreated: paidAt.toISOString(),
-        payment: {
-          id: providerPaymentId,
-          subscription: providerSubscriptionId,
-          customer: providerCustomerId,
-          value: "59.9",
-          billingType: "CREDIT_CARD",
-          dueDate: paidAt.toISOString().slice(0, 10),
-          paymentDate: paidAt.toISOString(),
-          confirmedDate: null,
+    expect(await heldPayment.json()).toEqual([
+      {
+        processing_status: "failed",
+        error_code: "confirmed_payment_unmatched",
+        provider_customer_id: providerCustomerId,
+        retry_payload: {
+          id: eventIds[15],
+          event: "PAYMENT_RECEIVED",
+          dateCreated: paidAt.toISOString(),
+          payment: {
+            id: providerPaymentId,
+            subscription: providerSubscriptionId,
+            customer: providerCustomerId,
+            value: "59.9",
+            billingType: "CREDIT_CARD",
+            dueDate: paidAt.toISOString().slice(0, 10),
+            paymentDate: paidAt.toISOString(),
+            confirmedDate: null,
+          },
         },
       },
-    }]);
+    ]);
 
     // The subscription has no externalReference, so CHECKOUT_PAID's customer ID
     // is the only safe association. Creation replays the held payment atomically.
@@ -1978,17 +2017,19 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_webhook_events?select=processing_status,error_code,retry_payload&provider_event_id=eq.${encodeURIComponent(paymentCreatedBeforeSubscriptionEventId)}&limit=1`,
     );
     expect(replayedCreatedPayment.ok, await replayedCreatedPayment.clone().text()).toBe(true);
-    expect(await replayedCreatedPayment.json()).toEqual([{
-      processing_status: "processed",
-      error_code: null,
-      retry_payload: null,
-    }]);
+    expect(await replayedCreatedPayment.json()).toEqual([
+      {
+        processing_status: "processed",
+        error_code: null,
+        retry_payload: null,
+      },
+    ]);
 
     const subscription = await serviceApi(
       `ordys_billing_subscriptions?select=user_id,status,provider_customer_id,current_period_end,checkout_attempt_id&provider_subscription_id=eq.${encodeURIComponent(providerSubscriptionId)}&limit=1`,
     );
     expect(subscription.ok, await subscription.clone().text()).toBe(true);
-    const subscriptionRows = await subscription.json() as Array<{
+    const subscriptionRows = (await subscription.json()) as Array<{
       user_id: string;
       status: string;
       provider_customer_id: string | null;
@@ -2008,21 +2049,25 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_payments?select=user_id,provider_subscription_id,status&provider_payment_id=eq.${encodeURIComponent(providerPaymentId)}&limit=1`,
     );
     expect(payment.ok, await payment.clone().text()).toBe(true);
-    expect(await payment.json()).toEqual([{
-      user_id: paymentFirstUser.id,
-      provider_subscription_id: providerSubscriptionId,
-      status: "PAYMENT_RECEIVED",
-    }]);
+    expect(await payment.json()).toEqual([
+      {
+        user_id: paymentFirstUser.id,
+        provider_subscription_id: providerSubscriptionId,
+        status: "PAYMENT_RECEIVED",
+      },
+    ]);
 
     const reconciledEvent = await serviceApi(
       `ordys_billing_webhook_events?select=processing_status,error_code,retry_payload&provider_event_id=eq.${encodeURIComponent(eventIds[15]!)}&limit=1`,
     );
     expect(reconciledEvent.ok, await reconciledEvent.clone().text()).toBe(true);
-    expect(await reconciledEvent.json()).toEqual([{
-      processing_status: "processed",
-      error_code: null,
-      retry_payload: null,
-    }]);
+    expect(await reconciledEvent.json()).toEqual([
+      {
+        processing_status: "processed",
+        error_code: null,
+        retry_payload: null,
+      },
+    ]);
 
     const eligible = await serviceApi("rpc/is_ordys_plus_eligible", {
       method: "POST",
@@ -2114,20 +2159,22 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_webhook_events?select=processing_status,error_code,provider_customer_id,retry_payload&provider_event_id=eq.${encodeURIComponent(negativePaymentRefundedEventId)}&limit=1`,
     );
     expect(heldRefund.ok, await heldRefund.clone().text()).toBe(true);
-    expect(await heldRefund.json()).toMatchObject([{
-      processing_status: "failed",
-      error_code: "negative_payment_unmatched",
-      provider_customer_id: providerCustomerId,
-      retry_payload: {
-        id: negativePaymentRefundedEventId,
-        event: "PAYMENT_REFUNDED",
-        payment: {
-          id: providerPaymentId,
-          subscription: providerSubscriptionId,
-          customer: providerCustomerId,
+    expect(await heldRefund.json()).toMatchObject([
+      {
+        processing_status: "failed",
+        error_code: "negative_payment_unmatched",
+        provider_customer_id: providerCustomerId,
+        retry_payload: {
+          id: negativePaymentRefundedEventId,
+          event: "PAYMENT_REFUNDED",
+          payment: {
+            id: providerPaymentId,
+            subscription: providerSubscriptionId,
+            customer: providerCustomerId,
+          },
         },
       },
-    }]);
+    ]);
 
     // Link the exact subscription without the integration helper's automatic
     // queue drain so we can prove the refund is NOT retryable until its exact
@@ -2146,7 +2193,9 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       },
     });
     expect(subscriptionReceipt.processing_status).toBe("received");
-    const subscriptionCreated = await processReceivedEvent(negativePaymentSubscriptionCreatedEventId);
+    const subscriptionCreated = await processReceivedEvent(
+      negativePaymentSubscriptionCreatedEventId,
+    );
     expect(subscriptionCreated).toMatchObject({
       processed: true,
       event: "SUBSCRIPTION_CREATED",
@@ -2176,36 +2225,39 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_subscriptions?select=user_id,status,provider_customer_id,checkout_attempt_id&provider_subscription_id=eq.${encodeURIComponent(providerSubscriptionId)}&limit=1`,
     );
     expect(subscription.ok, await subscription.clone().text()).toBe(true);
-    expect(await subscription.json()).toEqual([{
-      user_id: refundUser.id,
-      status: "suspended",
-      provider_customer_id: providerCustomerId,
-      checkout_attempt_id: attemptId,
-    }]);
+    expect(await subscription.json()).toEqual([
+      {
+        user_id: refundUser.id,
+        status: "suspended",
+        provider_customer_id: providerCustomerId,
+        checkout_attempt_id: attemptId,
+      },
+    ]);
 
     const payment = await serviceApi(
       `ordys_billing_payments?select=user_id,provider_subscription_id,status&provider_payment_id=eq.${encodeURIComponent(providerPaymentId)}&limit=1`,
     );
     expect(payment.ok, await payment.clone().text()).toBe(true);
-    expect(await payment.json()).toEqual([{
-      user_id: refundUser.id,
-      provider_subscription_id: providerSubscriptionId,
-      status: "PAYMENT_REFUNDED",
-    }]);
+    expect(await payment.json()).toEqual([
+      {
+        user_id: refundUser.id,
+        provider_subscription_id: providerSubscriptionId,
+        status: "PAYMENT_REFUNDED",
+      },
+    ]);
 
-    for (const eventId of [
-      negativePaymentConfirmedEventId,
-      negativePaymentRefundedEventId,
-    ]) {
+    for (const eventId of [negativePaymentConfirmedEventId, negativePaymentRefundedEventId]) {
       const event = await serviceApi(
         `ordys_billing_webhook_events?select=processing_status,error_code,retry_payload&provider_event_id=eq.${encodeURIComponent(eventId)}&limit=1`,
       );
       expect(event.ok, await event.clone().text()).toBe(true);
-      expect(await event.json()).toEqual([{
-        processing_status: "processed",
-        error_code: null,
-        retry_payload: null,
-      }]);
+      expect(await event.json()).toEqual([
+        {
+          processing_status: "processed",
+          error_code: null,
+          retry_payload: null,
+        },
+      ]);
     }
 
     const eligible = await serviceApi("rpc/is_ordys_plus_eligible", {
@@ -2215,7 +2267,6 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
     expect(eligible.ok).toBe(true);
     expect(await eligible.json()).toBe(false);
   }, 30_000);
-
 
   it("reconcilia estorno recebido após vínculo da assinatura, mas antes do pagamento confirmado", async () => {
     const refundUser = await createTestUser("refund-after-subscription-before-payment");
@@ -2232,7 +2283,13 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
     const refundEventId = `evt_ordys_ci_refund_after_subscription_refund_${unique}`;
     const paymentEventId = `evt_ordys_ci_refund_after_subscription_payment_${unique}`;
     const latePositiveEventId = `evt_ordys_ci_refund_after_subscription_late_received_${unique}`;
-    eventIds.push(subscriptionCreatedEventId, initialPaymentEventId, refundEventId, paymentEventId, latePositiveEventId);
+    eventIds.push(
+      subscriptionCreatedEventId,
+      initialPaymentEventId,
+      refundEventId,
+      paymentEventId,
+      latePositiveEventId,
+    );
     const paidAt = new Date();
 
     const attempt = await serviceApi("ordys_billing_checkout_attempts", {
@@ -2332,19 +2389,21 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_webhook_events?select=processing_status,error_code,retry_payload&provider_event_id=eq.${encodeURIComponent(refundEventId)}&limit=1`,
     );
     expect(heldRefund.ok, await heldRefund.clone().text()).toBe(true);
-    expect(await heldRefund.json()).toMatchObject([{
-      processing_status: "failed",
-      error_code: "negative_payment_unmatched",
-      retry_payload: {
-        id: refundEventId,
-        event: "PAYMENT_REFUNDED",
-        payment: {
-          id: providerPaymentId,
-          subscription: providerSubscriptionId,
-          customer: providerCustomerId,
+    expect(await heldRefund.json()).toMatchObject([
+      {
+        processing_status: "failed",
+        error_code: "negative_payment_unmatched",
+        retry_payload: {
+          id: refundEventId,
+          event: "PAYMENT_REFUNDED",
+          payment: {
+            id: providerPaymentId,
+            subscription: providerSubscriptionId,
+            customer: providerCustomerId,
+          },
         },
       },
-    }]);
+    ]);
 
     const confirmedPayment = await processEvent({
       id: paymentEventId,
@@ -2369,22 +2428,26 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_subscriptions?select=user_id,status,provider_customer_id,checkout_attempt_id&provider_subscription_id=eq.${encodeURIComponent(providerSubscriptionId)}&limit=1`,
     );
     expect(subscription.ok, await subscription.clone().text()).toBe(true);
-    expect(await subscription.json()).toEqual([{
-      user_id: refundUser.id,
-      status: "suspended",
-      provider_customer_id: providerCustomerId,
-      checkout_attempt_id: attemptId,
-    }]);
+    expect(await subscription.json()).toEqual([
+      {
+        user_id: refundUser.id,
+        status: "suspended",
+        provider_customer_id: providerCustomerId,
+        checkout_attempt_id: attemptId,
+      },
+    ]);
 
     const payment = await serviceApi(
       `ordys_billing_payments?select=user_id,provider_subscription_id,status&provider_payment_id=eq.${encodeURIComponent(providerPaymentId)}&limit=1`,
     );
     expect(payment.ok, await payment.clone().text()).toBe(true);
-    expect(await payment.json()).toEqual([{
-      user_id: refundUser.id,
-      provider_subscription_id: providerSubscriptionId,
-      status: "PAYMENT_REFUNDED",
-    }]);
+    expect(await payment.json()).toEqual([
+      {
+        user_id: refundUser.id,
+        provider_subscription_id: providerSubscriptionId,
+        status: "PAYMENT_REFUNDED",
+      },
+    ]);
 
     // A delayed duplicate positive event must not overwrite the refund ledger.
     const latePositive = await processEvent({
@@ -2410,21 +2473,25 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_payments?select=user_id,provider_subscription_id,status&provider_payment_id=eq.${encodeURIComponent(providerPaymentId)}&limit=1`,
     );
     expect(paymentAfterLatePositive.ok, await paymentAfterLatePositive.clone().text()).toBe(true);
-    expect(await paymentAfterLatePositive.json()).toEqual([{
-      user_id: refundUser.id,
-      provider_subscription_id: providerSubscriptionId,
-      status: "PAYMENT_REFUNDED",
-    }]);
+    expect(await paymentAfterLatePositive.json()).toEqual([
+      {
+        user_id: refundUser.id,
+        provider_subscription_id: providerSubscriptionId,
+        status: "PAYMENT_REFUNDED",
+      },
+    ]);
 
     const reconciledRefund = await serviceApi(
       `ordys_billing_webhook_events?select=processing_status,error_code,retry_payload&provider_event_id=eq.${encodeURIComponent(refundEventId)}&limit=1`,
     );
     expect(reconciledRefund.ok, await reconciledRefund.clone().text()).toBe(true);
-    expect(await reconciledRefund.json()).toEqual([{
-      processing_status: "processed",
-      error_code: null,
-      retry_payload: null,
-    }]);
+    expect(await reconciledRefund.json()).toEqual([
+      {
+        processing_status: "processed",
+        error_code: null,
+        retry_payload: null,
+      },
+    ]);
 
     const eligible = await serviceApi("rpc/is_ordys_plus_eligible", {
       method: "POST",
@@ -2482,7 +2549,11 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
     const checkoutPaid = await processEvent({
       id: checkoutEventId,
       event: "CHECKOUT_PAID",
-      checkout: { id: providerCheckoutId, customer: providerCustomerId, externalReference: externalRef },
+      checkout: {
+        id: providerCheckoutId,
+        customer: providerCustomerId,
+        externalReference: externalRef,
+      },
     });
     expect(checkoutPaid).toMatchObject({ processed: true, event: "CHECKOUT_PAID" });
 
@@ -2526,7 +2597,10 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
         customer: providerCustomerId,
       },
     });
-    expect(chargebackRequested).toMatchObject({ processed: true, event: "PAYMENT_CHARGEBACK_REQUESTED" });
+    expect(chargebackRequested).toMatchObject({
+      processed: true,
+      event: "PAYMENT_CHARGEBACK_REQUESTED",
+    });
 
     const chargebackDispute = await processEvent({
       id: chargebackDisputeEventId,
@@ -2537,7 +2611,10 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
         customer: providerCustomerId,
       },
     });
-    expect(chargebackDispute).toMatchObject({ processed: true, event: "PAYMENT_CHARGEBACK_DISPUTE" });
+    expect(chargebackDispute).toMatchObject({
+      processed: true,
+      event: "PAYMENT_CHARGEBACK_DISPUTE",
+    });
 
     const awaitingReversal = await processEvent({
       id: awaitingReversalEventId,
@@ -2557,10 +2634,12 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_payments?select=status,refunded_at&provider_payment_id=eq.${encodeURIComponent(providerPaymentId)}&limit=1`,
     );
     expect(paymentAwaitingReversal.ok, await paymentAwaitingReversal.clone().text()).toBe(true);
-    expect(await paymentAwaitingReversal.json()).toEqual([{
-      status: "PAYMENT_AWAITING_CHARGEBACK_REVERSAL",
-      refunded_at: null,
-    }]);
+    expect(await paymentAwaitingReversal.json()).toEqual([
+      {
+        status: "PAYMENT_AWAITING_CHARGEBACK_REVERSAL",
+        refunded_at: null,
+      },
+    ]);
 
     const subscriptionSuspended = await serviceApi(
       `ordys_billing_subscriptions?select=status&provider_subscription_id=eq.${encodeURIComponent(providerSubscriptionId)}&limit=1`,
@@ -2588,10 +2667,12 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_payments?select=status,refunded_at&provider_payment_id=eq.${encodeURIComponent(providerPaymentId)}&limit=1`,
     );
     expect(paymentAfterReversal.ok, await paymentAfterReversal.clone().text()).toBe(true);
-    expect(await paymentAfterReversal.json()).toEqual([{
-      status: "PAYMENT_RECEIVED",
-      refunded_at: null,
-    }]);
+    expect(await paymentAfterReversal.json()).toEqual([
+      {
+        status: "PAYMENT_RECEIVED",
+        refunded_at: null,
+      },
+    ]);
 
     const subscriptionAfterReversal = await serviceApi(
       `ordys_billing_subscriptions?select=status&provider_subscription_id=eq.${encodeURIComponent(providerSubscriptionId)}&limit=1`,
@@ -2638,32 +2719,33 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       conflictingPaymentEventId,
     );
 
-    const createAttempt = async (
-      attemptId: string,
-      userId: string,
-      externalReference: string,
-    ) => serviceApi("ordys_billing_checkout_attempts", {
-      method: "POST",
-      headers: { Prefer: "return=minimal" },
-      body: JSON.stringify({
-        id: attemptId,
-        user_id: userId,
-        plan_code: "plus_monthly",
-        external_reference: externalReference,
-        provider_checkout_id: null,
-        provider_customer_id: null,
-        amount_cents: 5_990,
-        status: "pending",
-        expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-      }),
-    });
+    const createAttempt = async (attemptId: string, userId: string, externalReference: string) =>
+      serviceApi("ordys_billing_checkout_attempts", {
+        method: "POST",
+        headers: { Prefer: "return=minimal" },
+        body: JSON.stringify({
+          id: attemptId,
+          user_id: userId,
+          plan_code: "plus_monthly",
+          external_reference: externalReference,
+          provider_checkout_id: null,
+          provider_customer_id: null,
+          amount_cents: 5_990,
+          status: "pending",
+          expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        }),
+      });
 
     const firstAttempt = await createAttempt(firstAttemptId, firstUser.id, firstReference);
     expect(firstAttempt.ok, await firstAttempt.clone().text()).toBe(true);
     const firstCheckout = await processEvent({
       id: checkoutFirstEventId,
       event: "CHECKOUT_PAID",
-      checkout: { id: firstCheckoutId, customer: firstCustomerId, externalReference: firstReference },
+      checkout: {
+        id: firstCheckoutId,
+        customer: firstCustomerId,
+        externalReference: firstReference,
+      },
     });
     expect(firstCheckout).toMatchObject({ processed: true, event: "CHECKOUT_PAID" });
     const firstSubscription = await processEvent({
@@ -2703,7 +2785,11 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
     const secondCheckout = await processEvent({
       id: checkoutSecondEventId,
       event: "CHECKOUT_PAID",
-      checkout: { id: secondCheckoutId, customer: secondCustomerId, externalReference: secondReference },
+      checkout: {
+        id: secondCheckoutId,
+        customer: secondCustomerId,
+        externalReference: secondReference,
+      },
     });
     expect(secondCheckout).toMatchObject({ processed: true, event: "CHECKOUT_PAID" });
     const secondSubscription = await processEvent({
@@ -2744,29 +2830,35 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_payments?select=user_id,provider_subscription_id,status&provider_payment_id=eq.${encodeURIComponent(sharedPaymentId)}&limit=1`,
     );
     expect(originalPayment.ok, await originalPayment.clone().text()).toBe(true);
-    expect(await originalPayment.json()).toEqual([{
-      user_id: firstUser.id,
-      provider_subscription_id: firstSubscriptionId,
-      status: "PAYMENT_RECEIVED",
-    }]);
+    expect(await originalPayment.json()).toEqual([
+      {
+        user_id: firstUser.id,
+        provider_subscription_id: firstSubscriptionId,
+        status: "PAYMENT_RECEIVED",
+      },
+    ]);
 
     const secondSubscriptionRow = await serviceApi(
       `ordys_billing_subscriptions?select=user_id,status&provider_subscription_id=eq.${encodeURIComponent(secondSubscriptionId)}&limit=1`,
     );
     expect(secondSubscriptionRow.ok, await secondSubscriptionRow.clone().text()).toBe(true);
-    expect(await secondSubscriptionRow.json()).toEqual([{
-      user_id: secondUser.id,
-      status: "pending",
-    }]);
+    expect(await secondSubscriptionRow.json()).toEqual([
+      {
+        user_id: secondUser.id,
+        status: "pending",
+      },
+    ]);
 
     const event = await serviceApi(
       `ordys_billing_webhook_events?select=processing_status,error_code&provider_event_id=eq.${encodeURIComponent(conflictingPaymentEventId)}&limit=1`,
     );
     expect(event.ok, await event.clone().text()).toBe(true);
-    expect(await event.json()).toEqual([{
-      processing_status: "failed",
-      error_code: "payment_identity_mismatch",
-    }]);
+    expect(await event.json()).toEqual([
+      {
+        processing_status: "failed",
+        error_code: "payment_identity_mismatch",
+      },
+    ]);
 
     const secondEligibility = await serviceApi("rpc/is_ordys_plus_eligible", {
       method: "POST",
@@ -2867,28 +2959,34 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
     const unrelatedSubscriptionAfter = await serviceApi(
       `ordys_billing_subscriptions?select=status&provider_subscription_id=eq.${encodeURIComponent(unrelatedSubscription)}&limit=1`,
     );
-    expect(unrelatedSubscriptionAfter.ok, await unrelatedSubscriptionAfter.clone().text()).toBe(true);
+    expect(unrelatedSubscriptionAfter.ok, await unrelatedSubscriptionAfter.clone().text()).toBe(
+      true,
+    );
     expect(await unrelatedSubscriptionAfter.json()).toEqual([{ status: "active" }]);
 
     const originalPaymentAfter = await serviceApi(
       `ordys_billing_payments?select=user_id,provider_subscription_id,status&provider_payment_id=eq.${encodeURIComponent(sharedPaymentId)}&limit=1`,
     );
     expect(originalPaymentAfter.ok, await originalPaymentAfter.clone().text()).toBe(true);
-    expect(await originalPaymentAfter.json()).toEqual([{
-      user_id: paymentOwner.id,
-      provider_subscription_id: paymentOwnerSubscription,
-      status: "PAYMENT_RECEIVED",
-    }]);
+    expect(await originalPaymentAfter.json()).toEqual([
+      {
+        user_id: paymentOwner.id,
+        provider_subscription_id: paymentOwnerSubscription,
+        status: "PAYMENT_RECEIVED",
+      },
+    ]);
 
     const event = await serviceApi(
       `ordys_billing_webhook_events?select=processing_status,error_code,retry_payload&provider_event_id=eq.${encodeURIComponent(refundEventId)}&limit=1`,
     );
     expect(event.ok, await event.clone().text()).toBe(true);
-    expect(await event.json()).toEqual([{
-      processing_status: "failed",
-      error_code: "payment_identity_mismatch",
-      retry_payload: null,
-    }]);
+    expect(await event.json()).toEqual([
+      {
+        processing_status: "failed",
+        error_code: "payment_identity_mismatch",
+        retry_payload: null,
+      },
+    ]);
 
     const unrelatedEligibility = await serviceApi("rpc/is_ordys_plus_eligible", {
       method: "POST",
@@ -2968,20 +3066,24 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_checkout_attempts?select=status,provider_customer_id,provider_checkout_id&id=eq.${encodeURIComponent(attemptId)}&limit=1`,
     );
     expect(attemptAfterMismatch.ok, await attemptAfterMismatch.clone().text()).toBe(true);
-    expect(await attemptAfterMismatch.json()).toEqual([{
-      status: "linked",
-      provider_customer_id: originalCustomerId,
-      provider_checkout_id: checkoutProviderId,
-    }]);
+    expect(await attemptAfterMismatch.json()).toEqual([
+      {
+        status: "linked",
+        provider_customer_id: originalCustomerId,
+        provider_checkout_id: checkoutProviderId,
+      },
+    ]);
 
     const subscriptionAfterMismatch = await serviceApi(
       `ordys_billing_subscriptions?select=status,provider_customer_id&provider_subscription_id=eq.${encodeURIComponent(providerSubscriptionId)}&limit=1`,
     );
     expect(subscriptionAfterMismatch.ok, await subscriptionAfterMismatch.clone().text()).toBe(true);
-    expect(await subscriptionAfterMismatch.json()).toEqual([{
-      status: "suspended",
-      provider_customer_id: originalCustomerId,
-    }]);
+    expect(await subscriptionAfterMismatch.json()).toEqual([
+      {
+        status: "suspended",
+        provider_customer_id: originalCustomerId,
+      },
+    ]);
 
     // Even a later genuine-looking payment from the original ID cannot
     // reactivate an identity-conflicted subscription.
@@ -3005,10 +3107,12 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_subscriptions?select=status,provider_customer_id&provider_subscription_id=eq.${encodeURIComponent(providerSubscriptionId)}&limit=1`,
     );
     expect(stillSuspended.ok, await stillSuspended.clone().text()).toBe(true);
-    expect(await stillSuspended.json()).toEqual([{
-      status: "suspended",
-      provider_customer_id: originalCustomerId,
-    }]);
+    expect(await stillSuspended.json()).toEqual([
+      {
+        status: "suspended",
+        provider_customer_id: originalCustomerId,
+      },
+    ]);
 
     const eligible = await serviceApi("rpc/is_ordys_plus_eligible", {
       method: "POST",
@@ -3021,15 +3125,17 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_webhook_events?select=processing_status,error_code,provider_customer_id,retry_payload&provider_event_id=eq.${encodeURIComponent(eventIds[18]!)}&limit=1`,
     );
     expect(mismatchEvent.ok, await mismatchEvent.clone().text()).toBe(true);
-    expect(await mismatchEvent.json()).toMatchObject([{
-      processing_status: "failed",
-      error_code: "checkout_customer_mismatch",
-      provider_customer_id: conflictingCustomerId,
-      retry_payload: {
-        checkoutAttemptId: attemptId,
-        checkout: { id: checkoutProviderId, customer: conflictingCustomerId },
+    expect(await mismatchEvent.json()).toMatchObject([
+      {
+        processing_status: "failed",
+        error_code: "checkout_customer_mismatch",
+        provider_customer_id: conflictingCustomerId,
+        retry_payload: {
+          checkoutAttemptId: attemptId,
+          checkout: { id: checkoutProviderId, customer: conflictingCustomerId },
+        },
       },
-    }]);
+    ]);
   }, 30_000);
 
   it("quarentena CHECKOUT_PAID conflitante antes de SUBSCRIPTION_CREATED", async () => {
@@ -3102,21 +3208,27 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_checkout_attempts?select=status,provider_customer_id,provider_checkout_id&id=eq.${encodeURIComponent(attemptId)}&limit=1`,
     );
     expect(attemptAfterMismatch.ok, await attemptAfterMismatch.clone().text()).toBe(true);
-    expect(await attemptAfterMismatch.json()).toEqual([{
-      status: "pending",
-      provider_customer_id: originalCustomerId,
-      provider_checkout_id: checkoutProviderId,
-    }]);
+    expect(await attemptAfterMismatch.json()).toEqual([
+      {
+        status: "pending",
+        provider_customer_id: originalCustomerId,
+        provider_checkout_id: checkoutProviderId,
+      },
+    ]);
 
     const quarantinedSubscriptionEvent = await serviceApi(
       `ordys_billing_webhook_events?select=processing_status,error_code,retry_payload&provider_event_id=eq.${encodeURIComponent(eventIds[21]!)}&limit=1`,
     );
-    expect(quarantinedSubscriptionEvent.ok, await quarantinedSubscriptionEvent.clone().text()).toBe(true);
-    expect(await quarantinedSubscriptionEvent.json()).toEqual([{
-      processing_status: "failed",
-      error_code: "checkout_customer_mismatch",
-      retry_payload: null,
-    }]);
+    expect(quarantinedSubscriptionEvent.ok, await quarantinedSubscriptionEvent.clone().text()).toBe(
+      true,
+    );
+    expect(await quarantinedSubscriptionEvent.json()).toEqual([
+      {
+        processing_status: "failed",
+        error_code: "checkout_customer_mismatch",
+        retry_payload: null,
+      },
+    ]);
 
     const eligible = await serviceApi("rpc/is_ordys_plus_eligible", {
       method: "POST",
@@ -3189,21 +3301,25 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_checkout_attempts?select=status,provider_customer_id,provider_checkout_id,external_reference&id=eq.${encodeURIComponent(attemptId)}&limit=1`,
     );
     expect(stillLinkedAttempt.ok, await stillLinkedAttempt.clone().text()).toBe(true);
-    expect(await stillLinkedAttempt.json()).toEqual([{
-      status: "linked",
-      provider_customer_id: providerCustomerId,
-      provider_checkout_id: checkoutProviderId,
-      external_reference: externalRef,
-    }]);
+    expect(await stillLinkedAttempt.json()).toEqual([
+      {
+        status: "linked",
+        provider_customer_id: providerCustomerId,
+        provider_checkout_id: checkoutProviderId,
+        external_reference: externalRef,
+      },
+    ]);
 
     const suspendedSubscription = await serviceApi(
       `ordys_billing_subscriptions?select=status,provider_customer_id&provider_subscription_id=eq.${encodeURIComponent(providerSubscriptionId)}&limit=1`,
     );
     expect(suspendedSubscription.ok, await suspendedSubscription.clone().text()).toBe(true);
-    expect(await suspendedSubscription.json()).toEqual([{
-      status: "suspended",
-      provider_customer_id: providerCustomerId,
-    }]);
+    expect(await suspendedSubscription.json()).toEqual([
+      {
+        status: "suspended",
+        provider_customer_id: providerCustomerId,
+      },
+    ]);
 
     const payment = await processEvent({
       id: checkoutReferenceMismatchEventIds.subscriptionFirstPayment,
@@ -3225,10 +3341,12 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_subscriptions?select=status,provider_customer_id&provider_subscription_id=eq.${encodeURIComponent(providerSubscriptionId)}&limit=1`,
     );
     expect(remainsSuspended.ok, await remainsSuspended.clone().text()).toBe(true);
-    expect(await remainsSuspended.json()).toEqual([{
-      status: "suspended",
-      provider_customer_id: providerCustomerId,
-    }]);
+    expect(await remainsSuspended.json()).toEqual([
+      {
+        status: "suspended",
+        provider_customer_id: providerCustomerId,
+      },
+    ]);
 
     const eligible = await serviceApi("rpc/is_ordys_plus_eligible", {
       method: "POST",
@@ -3241,18 +3359,20 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_webhook_events?select=processing_status,error_code,retry_payload&provider_event_id=eq.${encodeURIComponent(checkoutReferenceMismatchEventIds.subscriptionFirstPaid)}&limit=1`,
     );
     expect(mismatchEvent.ok, await mismatchEvent.clone().text()).toBe(true);
-    expect(await mismatchEvent.json()).toEqual([{
-      processing_status: "failed",
-      error_code: "checkout_reference_mismatch",
-      retry_payload: {
-        checkoutAttemptId: attemptId,
-        checkout: {
-          id: checkoutProviderId,
-          customer: providerCustomerId,
-          externalReference: conflictingExternalRef,
+    expect(await mismatchEvent.json()).toEqual([
+      {
+        processing_status: "failed",
+        error_code: "checkout_reference_mismatch",
+        retry_payload: {
+          checkoutAttemptId: attemptId,
+          checkout: {
+            id: checkoutProviderId,
+            customer: providerCustomerId,
+            externalReference: conflictingExternalRef,
+          },
         },
       },
-    }]);
+    ]);
   }, 30_000);
 
   it("bloqueia SUBSCRIPTION_CREATED após CHECKOUT_PAID com externalReference conflitante", async () => {
@@ -3325,29 +3445,33 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_checkout_attempts?select=status,provider_customer_id,provider_checkout_id,external_reference&id=eq.${encodeURIComponent(attemptId)}&limit=1`,
     );
     expect(unchangedAttempt.ok, await unchangedAttempt.clone().text()).toBe(true);
-    expect(await unchangedAttempt.json()).toEqual([{
-      status: "pending",
-      provider_customer_id: providerCustomerId,
-      provider_checkout_id: checkoutProviderId,
-      external_reference: externalRef,
-    }]);
+    expect(await unchangedAttempt.json()).toEqual([
+      {
+        status: "pending",
+        provider_customer_id: providerCustomerId,
+        provider_checkout_id: checkoutProviderId,
+        external_reference: externalRef,
+      },
+    ]);
 
     const mismatchEvent = await serviceApi(
       `ordys_billing_webhook_events?select=processing_status,error_code,retry_payload&provider_event_id=eq.${encodeURIComponent(checkoutReferenceMismatchEventIds.paidFirstPaid)}&limit=1`,
     );
     expect(mismatchEvent.ok, await mismatchEvent.clone().text()).toBe(true);
-    expect(await mismatchEvent.json()).toEqual([{
-      processing_status: "failed",
-      error_code: "checkout_reference_mismatch",
-      retry_payload: {
-        checkoutAttemptId: attemptId,
-        checkout: {
-          id: checkoutProviderId,
-          customer: providerCustomerId,
-          externalReference: conflictingExternalRef,
+    expect(await mismatchEvent.json()).toEqual([
+      {
+        processing_status: "failed",
+        error_code: "checkout_reference_mismatch",
+        retry_payload: {
+          checkoutAttemptId: attemptId,
+          checkout: {
+            id: checkoutProviderId,
+            customer: providerCustomerId,
+            externalReference: conflictingExternalRef,
+          },
         },
       },
-    }]);
+    ]);
 
     const eligible = await serviceApi("rpc/is_ordys_plus_eligible", {
       method: "POST",
@@ -3413,7 +3537,9 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
     const subscription = await serviceApi(
       `ordys_billing_subscriptions?select=provider_subscription_id&provider_subscription_id=eq.${encodeURIComponent(ambiguousSubscriptionId)}&limit=1`,
     );
-    const subscriptions = await subscription.json() as Array<{ provider_subscription_id: string }>;
+    const subscriptions = (await subscription.json()) as Array<{
+      provider_subscription_id: string;
+    }>;
     expect(subscriptions).toHaveLength(0);
 
     const failedEventId = eventIds[9];
@@ -3421,7 +3547,10 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
     const event = await serviceApi(
       `ordys_billing_webhook_events?select=processing_status,error_code&provider_event_id=eq.${encodeURIComponent(failedEventId)}&limit=1`,
     );
-    const eventRows = await event.json() as Array<{ processing_status: string; error_code: string }>;
+    const eventRows = (await event.json()) as Array<{
+      processing_status: string;
+      error_code: string;
+    }>;
     expect(eventRows[0]).toMatchObject({
       processing_status: "failed",
       error_code: "ambiguous_customer_association",
@@ -3525,11 +3654,13 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_webhook_events?select=processing_status,error_code,retry_payload&provider_event_id=eq.${encodeURIComponent(subscriptionEventId)}&limit=1`,
     );
     expect(event.ok, await event.clone().text()).toBe(true);
-    expect(await event.json()).toEqual([{
-      processing_status: "failed",
-      error_code: "ambiguous_customer_association",
-      retry_payload: null,
-    }]);
+    expect(await event.json()).toEqual([
+      {
+        processing_status: "failed",
+        error_code: "ambiguous_customer_association",
+        retry_payload: null,
+      },
+    ]);
   }, 30_000);
 
   it("preserva a assinatura existente quando SUBSCRIPTION_CREATED reutiliza o ID em outro Checkout", async () => {
@@ -3614,31 +3745,37 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_subscriptions?select=user_id,checkout_attempt_id,provider_customer_id,status&provider_subscription_id=eq.${encodeURIComponent(providerSubscriptionId)}&limit=1`,
     );
     expect(preservedSubscription.ok, await preservedSubscription.clone().text()).toBe(true);
-    expect(await preservedSubscription.json()).toEqual([{
-      user_id: originalOwner.id,
-      checkout_attempt_id: originalAttemptId,
-      provider_customer_id: originalCustomerId,
-      status: "pending",
-    }]);
+    expect(await preservedSubscription.json()).toEqual([
+      {
+        user_id: originalOwner.id,
+        checkout_attempt_id: originalAttemptId,
+        provider_customer_id: originalCustomerId,
+        status: "pending",
+      },
+    ]);
 
     const conflictingAttempt = await serviceApi(
       `ordys_billing_checkout_attempts?select=status,provider_customer_id&id=eq.${encodeURIComponent(conflictingAttemptId)}&limit=1`,
     );
     expect(conflictingAttempt.ok, await conflictingAttempt.clone().text()).toBe(true);
-    expect(await conflictingAttempt.json()).toEqual([{
-      status: "paid",
-      provider_customer_id: conflictingCustomerId,
-    }]);
+    expect(await conflictingAttempt.json()).toEqual([
+      {
+        status: "paid",
+        provider_customer_id: conflictingCustomerId,
+      },
+    ]);
 
     const failedEvent = await serviceApi(
       `ordys_billing_webhook_events?select=processing_status,error_code,retry_payload&provider_event_id=eq.${encodeURIComponent(eventIds[32]!)}&limit=1`,
     );
     expect(failedEvent.ok, await failedEvent.clone().text()).toBe(true);
-    expect(await failedEvent.json()).toEqual([{
-      processing_status: "failed",
-      error_code: "subscription_identity_mismatch",
-      retry_payload: null,
-    }]);
+    expect(await failedEvent.json()).toEqual([
+      {
+        processing_status: "failed",
+        error_code: "subscription_identity_mismatch",
+        retry_payload: null,
+      },
+    ]);
   }, 30_000);
 
   it("recusa novo vínculo por cliente compartilhado e reconcilia SUBSCRIPTION_DELETED pelo ID exato", async () => {
@@ -3729,11 +3866,13 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_webhook_events?select=processing_status,error_code,retry_payload&provider_event_id=eq.${encodeURIComponent(eventIds[13]!)}&limit=1`,
     );
     expect(failedEvent.ok, await failedEvent.clone().text()).toBe(true);
-    expect(await failedEvent.json()).toEqual([{
-      processing_status: "failed",
-      error_code: "ambiguous_customer_association",
-      retry_payload: null,
-    }]);
+    expect(await failedEvent.json()).toEqual([
+      {
+        processing_status: "failed",
+        error_code: "ambiguous_customer_association",
+        retry_payload: null,
+      },
+    ]);
 
     // A shared customer still blocks creating a new subscription by fallback,
     // but it must not block a terminal event for a subscription already linked
@@ -3754,8 +3893,10 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
     const unchangedKnownSubscription = await serviceApi(
       `ordys_billing_subscriptions?select=status,provider_status,cancellation_confirmed_at&provider_subscription_id=eq.${encodeURIComponent(linkedSubscriptionId)}&limit=1`,
     );
-    expect(unchangedKnownSubscription.ok, await unchangedKnownSubscription.clone().text()).toBe(true);
-    const unchangedRows = await unchangedKnownSubscription.json() as Array<{
+    expect(unchangedKnownSubscription.ok, await unchangedKnownSubscription.clone().text()).toBe(
+      true,
+    );
+    const unchangedRows = (await unchangedKnownSubscription.json()) as Array<{
       status: string;
       provider_status: string;
       cancellation_confirmed_at: string | null;
@@ -3784,8 +3925,10 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
     const afterCrossAccountReference = await serviceApi(
       `ordys_billing_subscriptions?select=status,provider_status,cancellation_confirmed_at&provider_subscription_id=eq.${encodeURIComponent(linkedSubscriptionId)}&limit=1`,
     );
-    expect(afterCrossAccountReference.ok, await afterCrossAccountReference.clone().text()).toBe(true);
-    const afterCrossAccountRows = await afterCrossAccountReference.json() as Array<{
+    expect(afterCrossAccountReference.ok, await afterCrossAccountReference.clone().text()).toBe(
+      true,
+    );
+    const afterCrossAccountRows = (await afterCrossAccountReference.json()) as Array<{
       status: string;
       provider_status: string;
       cancellation_confirmed_at: string | null;
@@ -3812,7 +3955,7 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_subscriptions?select=status,provider_status,cancellation_confirmed_at&provider_subscription_id=eq.${encodeURIComponent(linkedSubscriptionId)}&limit=1`,
     );
     expect(deletedKnownSubscription.ok, await deletedKnownSubscription.clone().text()).toBe(true);
-    const deletedRows = await deletedKnownSubscription.json() as Array<{
+    const deletedRows = (await deletedKnownSubscription.json()) as Array<{
       status: string;
       provider_status: string;
       cancellation_confirmed_at: string | null;
@@ -3832,11 +3975,13 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_webhook_events?select=processing_status,error_code,retry_payload&provider_event_id=eq.${encodeURIComponent(eventIds[29]!)}&limit=1`,
     );
     expect(reconciledDeletionEvent.ok, await reconciledDeletionEvent.clone().text()).toBe(true);
-    expect(await reconciledDeletionEvent.json()).toEqual([{
-      processing_status: "processed",
-      error_code: null,
-      retry_payload: null,
-    }]);
+    expect(await reconciledDeletionEvent.json()).toEqual([
+      {
+        processing_status: "processed",
+        error_code: null,
+        retry_payload: null,
+      },
+    ]);
   }, 30_000);
 
   it("allows direct deletion when cron is offline but the core billing schema is ready and the account has no billing history", async () => {
@@ -3936,15 +4081,16 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
     expect(profileBefore.ok, await profileBefore.clone().text()).toBe(true);
     expect(await profileBefore.json()).toHaveLength(1);
 
-    const directDelete = async () => fetch(`${URL}/rest/v1/rpc/delete_own_data`, {
-      method: "POST",
-      headers: {
-        apikey: ANON_KEY,
-        Authorization: `Bearer ${guardedUser.accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: "{}",
-    });
+    const directDelete = async () =>
+      fetch(`${URL}/rest/v1/rpc/delete_own_data`, {
+        method: "POST",
+        headers: {
+          apikey: ANON_KEY,
+          Authorization: `Bearer ${guardedUser.accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: "{}",
+      });
 
     // The RPC is granted to authenticated for the Edge Function's owner-scoped
     // call, so the database itself must enforce billing safety.
@@ -3953,7 +4099,10 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
     const profileAfterUnreservedAttempt = await serviceApi(
       `profiles?select=id&id=eq.${encodeURIComponent(guardedUser.id)}&limit=1`,
     );
-    expect(profileAfterUnreservedAttempt.ok, await profileAfterUnreservedAttempt.clone().text()).toBe(true);
+    expect(
+      profileAfterUnreservedAttempt.ok,
+      await profileAfterUnreservedAttempt.clone().text(),
+    ).toBe(true);
     expect(await profileAfterUnreservedAttempt.json()).toHaveLength(1);
 
     const reservation = await serviceApi("rpc/ordys_reserve_account_deletion", {
@@ -4016,7 +4165,10 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
     const profileAfterStaleCancellation = await serviceApi(
       `profiles?select=id&id=eq.${encodeURIComponent(guardedUser.id)}&limit=1`,
     );
-    expect(profileAfterStaleCancellation.ok, await profileAfterStaleCancellation.clone().text()).toBe(true);
+    expect(
+      profileAfterStaleCancellation.ok,
+      await profileAfterStaleCancellation.clone().text(),
+    ).toBe(true);
     expect(await profileAfterStaleCancellation.json()).toHaveLength(1);
 
     const subscriptionClosed = await serviceApi(
@@ -4112,9 +4264,21 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
     const providerCustomerId = `cus_ordys_ci_unpaid_status_delete_${unique}`;
     const requestedAt = new Date().toISOString();
     const eventCases = [
-      { event: "PAYMENT_OVERDUE", id: `evt_ordys_ci_unpaid_overdue_${unique}`, paymentId: `pay_ordys_ci_unpaid_overdue_${unique}` },
-      { event: "PAYMENT_CREDIT_CARD_CAPTURE_REFUSED", id: `evt_ordys_ci_unpaid_refused_${unique}`, paymentId: `pay_ordys_ci_unpaid_refused_${unique}` },
-      { event: "PAYMENT_REPROVED_BY_RISK_ANALYSIS", id: `evt_ordys_ci_unpaid_risk_rejected_${unique}`, paymentId: `pay_ordys_ci_unpaid_risk_rejected_${unique}` },
+      {
+        event: "PAYMENT_OVERDUE",
+        id: `evt_ordys_ci_unpaid_overdue_${unique}`,
+        paymentId: `pay_ordys_ci_unpaid_overdue_${unique}`,
+      },
+      {
+        event: "PAYMENT_CREDIT_CARD_CAPTURE_REFUSED",
+        id: `evt_ordys_ci_unpaid_refused_${unique}`,
+        paymentId: `pay_ordys_ci_unpaid_refused_${unique}`,
+      },
+      {
+        event: "PAYMENT_REPROVED_BY_RISK_ANALYSIS",
+        id: `evt_ordys_ci_unpaid_risk_rejected_${unique}`,
+        paymentId: `pay_ordys_ci_unpaid_risk_rejected_${unique}`,
+      },
     ];
     const lateOverdueEventId = `evt_ordys_ci_unpaid_late_overdue_${unique}`;
     const deletedEventId = `evt_ordys_ci_unpaid_subscription_deleted_${unique}`;
@@ -4165,11 +4329,13 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
         `ordys_billing_webhook_events?select=processing_status,error_code,retry_payload&provider_event_id=eq.${encodeURIComponent(item.id)}&limit=1`,
       );
       expect(webhook.ok, await webhook.clone().text()).toBe(true);
-      expect(await webhook.json()).toEqual([{
-        processing_status: "processed",
-        error_code: null,
-        retry_payload: null,
-      }]);
+      expect(await webhook.json()).toEqual([
+        {
+          processing_status: "processed",
+          error_code: null,
+          retry_payload: null,
+        },
+      ]);
     }
 
     const providerDeleted = await processEvent({
@@ -4201,7 +4367,7 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_subscriptions?select=status,provider_status,cancellation_confirmed_at&provider_subscription_id=eq.${encodeURIComponent(providerSubscriptionId)}&limit=1`,
     );
     expect(terminalState.ok, await terminalState.clone().text()).toBe(true);
-    const terminalRows = await terminalState.json() as Array<{
+    const terminalRows = (await terminalState.json()) as Array<{
       status: string;
       provider_status: string;
       cancellation_confirmed_at: string | null;
@@ -4328,7 +4494,9 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       body: "{}",
     });
     expect(directDelete.ok).toBe(false);
-    expect(await directDelete.text()).toContain("billing negative payment event is awaiting reconciliation");
+    expect(await directDelete.text()).toContain(
+      "billing negative payment event is awaiting reconciliation",
+    );
 
     const profile = await serviceApi(
       `profiles?select=id&id=eq.${encodeURIComponent(guardedUser.id)}&limit=1`,
@@ -4336,7 +4504,6 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
     expect(profile.ok, await profile.clone().text()).toBe(true);
     expect(await profile.json()).toHaveLength(1);
   }, 30_000);
-
 
   it("preserves a confirmed subscription deletion when late lifecycle events arrive", async () => {
     const guardedUser = await createTestUser("late-subscription-state-after-delete");
@@ -4423,7 +4590,7 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_subscriptions?select=status,provider_status,cancellation_confirmed_at&provider_subscription_id=eq.${encodeURIComponent(providerSubscriptionId)}&limit=1`,
     );
     expect(state.ok, await state.clone().text()).toBe(true);
-    const rows = await state.json() as Array<{
+    const rows = (await state.json()) as Array<{
       status: string;
       provider_status: string;
       cancellation_confirmed_at: string | null;
@@ -4491,15 +4658,17 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_webhook_events?select=processing_status,error_code,retry_payload&provider_event_id=eq.${encodeURIComponent(deletedEventId)}&limit=1`,
     );
     expect(held.ok, await held.clone().text()).toBe(true);
-    expect(await held.json()).toMatchObject([{
-      processing_status: "failed",
-      error_code: "subscription_delete_unmatched",
-      retry_payload: {
-        id: deletedEventId,
-        event: "SUBSCRIPTION_DELETED",
-        subscription: { id: providerSubscriptionId, customer: providerCustomerId },
+    expect(await held.json()).toMatchObject([
+      {
+        processing_status: "failed",
+        error_code: "subscription_delete_unmatched",
+        retry_payload: {
+          id: deletedEventId,
+          event: "SUBSCRIPTION_DELETED",
+          subscription: { id: providerSubscriptionId, customer: providerCustomerId },
+        },
       },
-    }]);
+    ]);
 
     const created = await processEvent({
       id: createdEventId,
@@ -4520,13 +4689,15 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_subscriptions?select=user_id,status,provider_status,cancellation_confirmed_at,checkout_attempt_id&provider_subscription_id=eq.${encodeURIComponent(providerSubscriptionId)}&limit=1`,
     );
     expect(state.ok, await state.clone().text()).toBe(true);
-    expect(await state.json()).toMatchObject([{
-      user_id: guardedUser.id,
-      status: "cancelled",
-      provider_status: "DELETED",
-      cancellation_confirmed_at: expect.any(String),
-      checkout_attempt_id: attemptId,
-    }]);
+    expect(await state.json()).toMatchObject([
+      {
+        user_id: guardedUser.id,
+        status: "cancelled",
+        provider_status: "DELETED",
+        cancellation_confirmed_at: expect.any(String),
+        checkout_attempt_id: attemptId,
+      },
+    ]);
 
     const closedAttempt = await serviceApi(
       `ordys_billing_checkout_attempts?select=status&id=eq.${encodeURIComponent(attemptId)}&limit=1`,
@@ -4538,11 +4709,13 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_webhook_events?select=processing_status,error_code,retry_payload&provider_event_id=eq.${encodeURIComponent(deletedEventId)}&limit=1`,
     );
     expect(reconciledEvent.ok, await reconciledEvent.clone().text()).toBe(true);
-    expect(await reconciledEvent.json()).toEqual([{
-      processing_status: "processed",
-      error_code: null,
-      retry_payload: null,
-    }]);
+    expect(await reconciledEvent.json()).toEqual([
+      {
+        processing_status: "processed",
+        error_code: null,
+        retry_payload: null,
+      },
+    ]);
 
     const unreconciled = await serviceApi("rpc/ordys_has_unreconciled_billing_events", {
       method: "POST",
@@ -4624,7 +4797,7 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_webhook_inbox?select=processing_status,error_code,event_payload&provider_event_id=eq.${encodeURIComponent(eventId)}&limit=1`,
     );
     expect(inbox.ok, await inbox.clone().text()).toBe(true);
-    const rows = await inbox.json() as Array<{
+    const rows = (await inbox.json()) as Array<{
       processing_status: string;
       error_code: string;
       event_payload: Record<string, unknown>;
@@ -4703,10 +4876,12 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_webhook_inbox?select=user_id,processing_status&provider_event_id=eq.${encodeURIComponent(eventId)}&limit=1`,
     );
     expect(receivedInbox.ok, await receivedInbox.clone().text()).toBe(true);
-    expect(await receivedInbox.json()).toEqual([{
-      user_id: null,
-      processing_status: "received",
-    }]);
+    expect(await receivedInbox.json()).toEqual([
+      {
+        user_id: null,
+        processing_status: "received",
+      },
+    ]);
 
     const processed = await processReceivedEvent(eventId);
     expect(processed).toMatchObject({
@@ -4718,11 +4893,13 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_webhook_inbox?select=user_id,processing_status,error_code&provider_event_id=eq.${encodeURIComponent(eventId)}&limit=1`,
     );
     expect(quarantinedInbox.ok, await quarantinedInbox.clone().text()).toBe(true);
-    expect(await quarantinedInbox.json()).toEqual([{
-      user_id: null,
-      processing_status: "quarantined",
-      error_code: "payment_subscription_unmatched",
-    }]);
+    expect(await quarantinedInbox.json()).toEqual([
+      {
+        user_id: null,
+        processing_status: "quarantined",
+        error_code: "payment_subscription_unmatched",
+      },
+    ]);
 
     const [currentOwnerBlocked, unrelatedOwnerBlocked] = await Promise.all([
       serviceApi("rpc/ordys_has_unreconciled_billing_events", {
@@ -4805,22 +4982,24 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_webhook_inbox?select=processing_status,error_code,user_id,event_payload&provider_event_id=eq.${encodeURIComponent(eventId)}&limit=1`,
     );
     expect(storedInbox.ok, await storedInbox.clone().text()).toBe(true);
-    expect(await storedInbox.json()).toEqual([{
-      processing_status: "quarantined",
-      error_code: "event_id_payload_mismatch",
-      user_id: null,
-      event_payload: {
-        id: eventId,
-        event: "PAYMENT_CREATED",
-        payment: {
-          id: `pay_ordys_ci_event_id_conflict_${unique}`,
-          subscription: `sub_ordys_ci_event_id_conflict_${unique}`,
-          customer: customerId,
-          value: 59.9,
-          billingType: "CREDIT_CARD",
+    expect(await storedInbox.json()).toEqual([
+      {
+        processing_status: "quarantined",
+        error_code: "event_id_payload_mismatch",
+        user_id: null,
+        event_payload: {
+          id: eventId,
+          event: "PAYMENT_CREATED",
+          payment: {
+            id: `pay_ordys_ci_event_id_conflict_${unique}`,
+            subscription: `sub_ordys_ci_event_id_conflict_${unique}`,
+            customer: customerId,
+            value: 59.9,
+            billingType: "CREDIT_CARD",
+          },
         },
       },
-    }]);
+    ]);
 
     // The conflicting payload has no trustworthy owner. Its NULL owner must
     // block billing admission globally, not only for the account seen first.
@@ -4854,7 +5033,6 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
     });
     expect(blockedCheckout.ok, await blockedCheckout.clone().text()).toBe(true);
     expect(await blockedCheckout.json()).toBe("billing_reconciliation_required");
-
   }, 30_000);
 
   it("keeps a Checkout in creating state when an unresolved webhook arrives before finalization", async () => {
@@ -4917,11 +5095,13 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_checkout_attempts?select=status,provider_checkout_id,checkout_url&id=eq.${encodeURIComponent(attemptId)}&limit=1`,
     );
     expect(storedAttempt.ok, await storedAttempt.clone().text()).toBe(true);
-    expect(await storedAttempt.json()).toEqual([{
-      status: "creating",
-      provider_checkout_id: providerCheckoutId,
-      checkout_url: null,
-    }]);
+    expect(await storedAttempt.json()).toEqual([
+      {
+        status: "creating",
+        provider_checkout_id: providerCheckoutId,
+        checkout_url: null,
+      },
+    ]);
   }, 30_000);
 
   it("allows finalization only for the exact CHECKOUT_CREATED event belonging to that Checkout", async () => {
@@ -4984,14 +5164,15 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_checkout_attempts?select=status,provider_checkout_id,checkout_url,provider_customer_id&id=eq.${encodeURIComponent(attemptId)}&limit=1`,
     );
     expect(storedAttempt.ok, await storedAttempt.clone().text()).toBe(true);
-    expect(await storedAttempt.json()).toEqual([{
-      status: "pending",
-      provider_checkout_id: providerCheckoutId,
-      checkout_url: `https://asaas.com/checkoutSession/show?id=${providerCheckoutId}`,
-      provider_customer_id: providerCustomerId,
-    }]);
+    expect(await storedAttempt.json()).toEqual([
+      {
+        status: "pending",
+        provider_checkout_id: providerCheckoutId,
+        checkout_url: `https://asaas.com/checkoutSession/show?id=${providerCheckoutId}`,
+        provider_customer_id: providerCustomerId,
+      },
+    ]);
   }, 30_000);
-
 
   it("allows finalization by exact provider Checkout ID when CHECKOUT_CREATED omits externalReference", async () => {
     const guardedUser = await createTestUser("matching-checkout-created-no-reference");
@@ -5040,10 +5221,12 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_webhook_inbox?select=user_id,processing_status&provider_event_id=eq.${encodeURIComponent(eventId)}&limit=1`,
     );
     expect(inbox.ok, await inbox.clone().text()).toBe(true);
-    expect(await inbox.json()).toEqual([{
-      user_id: null,
-      processing_status: "received",
-    }]);
+    expect(await inbox.json()).toEqual([
+      {
+        user_id: null,
+        processing_status: "received",
+      },
+    ]);
 
     const finalized = await serviceApi("rpc/ordys_finalize_billing_checkout_attempt", {
       method: "POST",
@@ -5064,11 +5247,13 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_checkout_attempts?select=status,provider_checkout_id,checkout_url&id=eq.${encodeURIComponent(attemptId)}&limit=1`,
     );
     expect(storedAttempt.ok, await storedAttempt.clone().text()).toBe(true);
-    expect(await storedAttempt.json()).toEqual([{
-      status: "pending",
-      provider_checkout_id: providerCheckoutId,
-      checkout_url: `https://asaas.com/checkoutSession/show?id=${providerCheckoutId}`,
-    }]);
+    expect(await storedAttempt.json()).toEqual([
+      {
+        status: "pending",
+        provider_checkout_id: providerCheckoutId,
+        checkout_url: `https://asaas.com/checkoutSession/show?id=${providerCheckoutId}`,
+      },
+    ]);
   }, 30_000);
 
   it("keeps finalization blocked when the exact CHECKOUT_CREATED ID carries another externalReference", async () => {
@@ -5123,10 +5308,12 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_webhook_inbox?select=user_id,processing_status&provider_event_id=eq.${encodeURIComponent(eventId)}&limit=1`,
     );
     expect(inbox.ok, await inbox.clone().text()).toBe(true);
-    expect(await inbox.json()).toEqual([{
-      user_id: referenceOwner.id,
-      processing_status: "received",
-    }]);
+    expect(await inbox.json()).toEqual([
+      {
+        user_id: referenceOwner.id,
+        processing_status: "received",
+      },
+    ]);
 
     const finalized = await serviceApi("rpc/ordys_finalize_billing_checkout_attempt", {
       method: "POST",
@@ -5144,11 +5331,13 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_checkout_attempts?select=status,provider_checkout_id,checkout_url&id=eq.${encodeURIComponent(attemptId)}&limit=1`,
     );
     expect(storedAttempt.ok, await storedAttempt.clone().text()).toBe(true);
-    expect(await storedAttempt.json()).toEqual([{
-      status: "creating",
-      provider_checkout_id: providerCheckoutId,
-      checkout_url: null,
-    }]);
+    expect(await storedAttempt.json()).toEqual([
+      {
+        status: "creating",
+        provider_checkout_id: providerCheckoutId,
+        checkout_url: null,
+      },
+    ]);
   }, 30_000);
 
   it("processes a new event in the legacy one-RPC call and acknowledges only the terminal result", async () => {
@@ -5218,13 +5407,14 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_checkout_attempts?select=status,provider_checkout_id,checkout_url&id=eq.${encodeURIComponent(attemptId)}&limit=1`,
     );
     expect(linked.ok, await linked.clone().text()).toBe(true);
-    expect(await linked.json()).toEqual([{
-      status: "pending",
-      provider_checkout_id: providerCheckoutId,
-      checkout_url: `https://asaas.com/checkoutSession/show?id=${providerCheckoutId}`,
-    }]);
+    expect(await linked.json()).toEqual([
+      {
+        status: "pending",
+        provider_checkout_id: providerCheckoutId,
+        checkout_url: `https://asaas.com/checkoutSession/show?id=${providerCheckoutId}`,
+      },
+    ]);
   }, 30_000);
-
 
   it("recalcula o período pago pela data financeira independentemente da ordem dos webhooks", async () => {
     const periodUser = await createTestUser("out-of-order-payment-period");
@@ -5263,11 +5453,7 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
     });
     expect(seededSubscription.ok, await seededSubscription.clone().text()).toBe(true);
 
-    const paymentEvent = (
-      eventId: string,
-      paymentId: string,
-      paidAt: Date,
-    ) => ({
+    const paymentEvent = (eventId: string, paymentId: string, paidAt: Date) => ({
       id: eventId,
       event: "PAYMENT_CONFIRMED",
       dateCreated: paidAt.toISOString(),
@@ -5283,21 +5469,17 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
     });
 
     // The newer settlement is delivered first; the older one is delayed.
-    const newerFirst = await processEvent(
-      paymentEvent(newerEventId, newerPaymentId, newerPaidAt),
-    );
+    const newerFirst = await processEvent(paymentEvent(newerEventId, newerPaymentId, newerPaidAt));
     expect(newerFirst).toMatchObject({ processed: true, event: "PAYMENT_CONFIRMED" });
 
-    const olderSecond = await processEvent(
-      paymentEvent(olderEventId, olderPaymentId, olderPaidAt),
-    );
+    const olderSecond = await processEvent(paymentEvent(olderEventId, olderPaymentId, olderPaidAt));
     expect(olderSecond).toMatchObject({ processed: true, event: "PAYMENT_CONFIRMED" });
 
     const subscriptionResult = await serviceApi(
       `ordys_billing_subscriptions?select=status,current_period_end&provider_subscription_id=eq.${encodeURIComponent(providerSubscriptionId)}&limit=1`,
     );
     expect(subscriptionResult.ok, await subscriptionResult.clone().text()).toBe(true);
-    const subscriptionRows = await subscriptionResult.json() as Array<{
+    const subscriptionRows = (await subscriptionResult.json()) as Array<{
       status: string;
       current_period_end: string | null;
     }>;
@@ -5317,7 +5499,7 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_payments?select=provider_payment_id,paid_at&provider_subscription_id=eq.${encodeURIComponent(providerSubscriptionId)}&order=paid_at.asc`,
     );
     expect(paymentRowsResponse.ok, await paymentRowsResponse.clone().text()).toBe(true);
-    const paymentRows = await paymentRowsResponse.json() as Array<{
+    const paymentRows = (await paymentRowsResponse.json()) as Array<{
       provider_payment_id: string;
       paid_at: string;
     }>;
@@ -5418,31 +5600,39 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
     const unrelatedSubscriptionResult = await serviceApi(
       `ordys_billing_subscriptions?select=status&provider_subscription_id=eq.${encodeURIComponent(unrelatedSubscriptionId)}&limit=1`,
     );
-    expect(unrelatedSubscriptionResult.ok, await unrelatedSubscriptionResult.clone().text()).toBe(true);
+    expect(unrelatedSubscriptionResult.ok, await unrelatedSubscriptionResult.clone().text()).toBe(
+      true,
+    );
     expect(await unrelatedSubscriptionResult.json()).toEqual([{ status: "pending" }]);
 
     const inboxResult = await serviceApi(
       `ordys_billing_webhook_inbox?select=user_id,processing_status&provider_event_id=eq.${encodeURIComponent(refundedEventId)}&limit=1`,
     );
     expect(inboxResult.ok, await inboxResult.clone().text()).toBe(true);
-    expect(await inboxResult.json()).toEqual([{
-      user_id: null,
-      processing_status: "processed",
-    }]);
+    expect(await inboxResult.json()).toEqual([
+      {
+        user_id: null,
+        processing_status: "processed",
+      },
+    ]);
 
     const paymentResult = await serviceApi(
       `ordys_billing_payments?select=status,provider_subscription_id&provider_payment_id=eq.${encodeURIComponent(providerPaymentId)}&limit=1`,
     );
     expect(paymentResult.ok, await paymentResult.clone().text()).toBe(true);
-    expect(await paymentResult.json()).toEqual([{
-      status: "PAYMENT_REFUNDED",
-      provider_subscription_id: providerSubscriptionId,
-    }]);
+    expect(await paymentResult.json()).toEqual([
+      {
+        status: "PAYMENT_REFUNDED",
+        provider_subscription_id: providerSubscriptionId,
+      },
+    ]);
   }, 30_000);
 
-
   it("preserva o ledger e concilia estorno tardio após exclusão da conta", async () => {
-    const schemaStatus = await serviceApi("rpc/ordys_billing_schema_status", { method: "POST", body: "{}" });
+    const schemaStatus = await serviceApi("rpc/ordys_billing_schema_status", {
+      method: "POST",
+      body: "{}",
+    });
     expect(schemaStatus.ok, await schemaStatus.clone().text()).toBe(true);
     // Integration migrations never schedule a production Job. Readiness must
     // remain partial until an operator creates the pg_cron worker explicitly.
@@ -5577,10 +5767,12 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_webhook_inbox?select=user_id,processing_status&provider_event_id=eq.${encodeURIComponent(receiptEventId)}&limit=1`,
     );
     expect(anonymizedInbox.ok, await anonymizedInbox.clone().text()).toBe(true);
-    expect(await anonymizedInbox.json()).toEqual([{
-      user_id: null,
-      processing_status: "processed",
-    }]);
+    expect(await anonymizedInbox.json()).toEqual([
+      {
+        user_id: null,
+        processing_status: "processed",
+      },
+    ]);
 
     const authDeletion = await fetch(
       `${URL}/auth/v1/admin/users/${encodeURIComponent(deletedUser.id)}`,
@@ -5602,17 +5794,21 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
     expect(retainedAttempt.ok, await retainedAttempt.clone().text()).toBe(true);
     expect(await retainedAttempt.json()).toEqual([{ user_id: null, status: "cancelled" }]);
     expect(retainedSubscription.ok, await retainedSubscription.clone().text()).toBe(true);
-    expect(await retainedSubscription.json()).toEqual([{
-      user_id: null,
-      status: "cancelled",
-      provider_subscription_id: providerSubscriptionId,
-    }]);
+    expect(await retainedSubscription.json()).toEqual([
+      {
+        user_id: null,
+        status: "cancelled",
+        provider_subscription_id: providerSubscriptionId,
+      },
+    ]);
     expect(retainedPayment.ok, await retainedPayment.clone().text()).toBe(true);
-    expect(await retainedPayment.json()).toEqual([{
-      user_id: null,
-      status: "PAYMENT_CONFIRMED",
-      provider_subscription_id: providerSubscriptionId,
-    }]);
+    expect(await retainedPayment.json()).toEqual([
+      {
+        user_id: null,
+        status: "PAYMENT_CONFIRMED",
+        provider_subscription_id: providerSubscriptionId,
+      },
+    ]);
 
     const lateRefund = await processEvent({
       id: refundEventId,
@@ -5642,10 +5838,12 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
     expect(finalPayment.ok, await finalPayment.clone().text()).toBe(true);
     expect(await finalPayment.json()).toEqual([{ user_id: null, status: "PAYMENT_REFUNDED" }]);
     expect(finalInbox.ok, await finalInbox.clone().text()).toBe(true);
-    expect(await finalInbox.json()).toEqual([{
-      user_id: null,
-      processing_status: "processed",
-    }]);
+    expect(await finalInbox.json()).toEqual([
+      {
+        user_id: null,
+        processing_status: "processed",
+      },
+    ]);
   }, 30_000);
 
   it.each([
@@ -5654,47 +5852,55 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
     "PAYMENT_RECEIVED",
     "PAYMENT_OVERDUE",
     "PAYMENT_REFUNDED",
-  ])("ignora %s avulso sem vínculo com contas ou Checkouts do Ordys", async (eventType) => {
-    const eventId = `evt_ordys_ci_unrelated_${eventType.toLowerCase()}_${unique}`;
-    eventIds.push(eventId);
-    const result = await processEvent({
-      id: eventId,
-      event: eventType,
-      dateCreated: new Date().toISOString(),
-      payment: {
-        id: `pay_ordys_ci_unrelated_${eventType.toLowerCase()}_${unique}`,
-        customer: `cus_ordys_ci_unrelated_${unique}`,
-        value: 59.9,
-        billingType: "CREDIT_CARD",
-      },
-    });
+  ])(
+    "ignora %s avulso sem vínculo com contas ou Checkouts do Ordys",
+    async (eventType) => {
+      const eventId = `evt_ordys_ci_unrelated_${eventType.toLowerCase()}_${unique}`;
+      eventIds.push(eventId);
+      const result = await processEvent({
+        id: eventId,
+        event: eventType,
+        dateCreated: new Date().toISOString(),
+        payment: {
+          id: `pay_ordys_ci_unrelated_${eventType.toLowerCase()}_${unique}`,
+          customer: `cus_ordys_ci_unrelated_${unique}`,
+          value: 59.9,
+          billingType: "CREDIT_CARD",
+        },
+      });
 
-    expect(result).toMatchObject({
-      processed: true,
-      ignored_unlinked_payment: true,
-      event: eventType,
-    });
+      expect(result).toMatchObject({
+        processed: true,
+        ignored_unlinked_payment: true,
+        event: eventType,
+      });
 
-    const [inbox, ledger] = await Promise.all([
-      serviceApi(
-        `ordys_billing_webhook_inbox?select=user_id,processing_status,error_code&provider_event_id=eq.${encodeURIComponent(eventId)}&limit=1`,
-      ),
-      serviceApi(
-        `ordys_billing_webhook_events?select=processing_status,error_code&provider_event_id=eq.${encodeURIComponent(eventId)}&limit=1`,
-      ),
-    ]);
-    expect(inbox.ok, await inbox.clone().text()).toBe(true);
-    expect(await inbox.json()).toEqual([{
-      user_id: null,
-      processing_status: "ignored",
-      error_code: null,
-    }]);
-    expect(ledger.ok, await ledger.clone().text()).toBe(true);
-    expect(await ledger.json()).toEqual([{
-      processing_status: "ignored",
-      error_code: null,
-    }]);
-  }, 30_000);
+      const [inbox, ledger] = await Promise.all([
+        serviceApi(
+          `ordys_billing_webhook_inbox?select=user_id,processing_status,error_code&provider_event_id=eq.${encodeURIComponent(eventId)}&limit=1`,
+        ),
+        serviceApi(
+          `ordys_billing_webhook_events?select=processing_status,error_code&provider_event_id=eq.${encodeURIComponent(eventId)}&limit=1`,
+        ),
+      ]);
+      expect(inbox.ok, await inbox.clone().text()).toBe(true);
+      expect(await inbox.json()).toEqual([
+        {
+          user_id: null,
+          processing_status: "ignored",
+          error_code: null,
+        },
+      ]);
+      expect(ledger.ok, await ledger.clone().text()).toBe(true);
+      expect(await ledger.json()).toEqual([
+        {
+          processing_status: "ignored",
+          error_code: null,
+        },
+      ]);
+    },
+    30_000,
+  );
 
   it("quarentena pagamento sem subscription quando externalReference aponta para um Checkout Ordys", async () => {
     const eventId = `evt_ordys_ci_payment_missing_subscription_known_reference_${unique}`;
@@ -5720,11 +5926,12 @@ describe.runIf(enabled)("máquina de estados dos webhooks Asaas do Ordys", () =>
       `ordys_billing_webhook_inbox?select=user_id,processing_status,error_code&provider_event_id=eq.${encodeURIComponent(eventId)}&limit=1`,
     );
     expect(inbox.ok, await inbox.clone().text()).toBe(true);
-    expect(await inbox.json()).toEqual([{
-      user_id: user!.id,
-      processing_status: "quarantined",
-      error_code: "payment_subscription_unmatched",
-    }]);
+    expect(await inbox.json()).toEqual([
+      {
+        user_id: user!.id,
+        processing_status: "quarantined",
+        error_code: "payment_subscription_unmatched",
+      },
+    ]);
   }, 30_000);
-
 });

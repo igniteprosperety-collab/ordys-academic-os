@@ -96,9 +96,7 @@ export async function generateOrdysQuiz(input: {
     body: { action: "quiz", ...input },
   });
 
-  const result = data && typeof data === "object"
-    ? data as Record<string, unknown>
-    : null;
+  const result = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
 
   if (result?.["status"] === "completed" && Array.isArray(result["questions"])) {
     const questions = result["questions"].map((value): OrdysQuizQuestion => {
@@ -108,7 +106,9 @@ export async function generateOrdysQuiz(input: {
       const row = value as Record<string, unknown>;
       const question = typeof row["question"] === "string" ? row["question"].trim() : "";
       const options = Array.isArray(row["options"])
-        ? row["options"].filter((option): option is string => typeof option === "string").map((option) => option.trim())
+        ? row["options"]
+            .filter((option): option is string => typeof option === "string")
+            .map((option) => option.trim())
         : [];
       const correct = typeof row["correct_answer"] === "string" ? row["correct_answer"].trim() : "";
       const explanation = typeof row["explanation"] === "string" ? row["explanation"].trim() : "";
@@ -140,7 +140,9 @@ export async function generateOrdysQuiz(input: {
     throw new Error(result["error"]);
   }
   if (error) {
-    throw new Error("Não foi possível gerar o simulado pelo serviço seguro. Verifique sua conexão e tente novamente.");
+    throw new Error(
+      "Não foi possível gerar o simulado pelo serviço seguro. Verifique sua conexão e tente novamente.",
+    );
   }
   throw new Error("O serviço de simulados retornou uma resposta inválida.");
 }
@@ -169,7 +171,7 @@ async function invokeAssistant(options: { body: Record<string, unknown> }) {
 function nativeAssistantFailure(error: unknown) {
   return new Error(
     edgeFunctionUnavailableMessage(error, "assistant") ??
-    "O Assistente Ordys não respondeu pelo serviço seguro. Verifique sua conexão e tente novamente.",
+      "O Assistente Ordys não respondeu pelo serviço seguro. Verifique sua conexão e tente novamente.",
   );
 }
 
@@ -198,12 +200,17 @@ function compactDate(value: string | null | undefined) {
 }
 
 function weekdayLabel(value: number | null | undefined) {
-  return ["segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo"][value ?? -1] ?? "dia não informado";
+  return (
+    ["segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo"][value ?? -1] ??
+    "dia não informado"
+  );
 }
 
 type ContextQueryResult = { data: unknown; error: unknown | null };
 
-function contextQuery<T>(query: PromiseLike<{ data: T; error: unknown }>): Promise<ContextQueryResult> {
+function contextQuery<T>(
+  query: PromiseLike<{ data: T; error: unknown }>,
+): Promise<ContextQueryResult> {
   return Promise.resolve(query).then(({ data, error }) => ({ data, error }));
 }
 
@@ -225,78 +232,236 @@ async function loadOrdysContext(
   if (!sections.size) return "";
 
   const needsSubjectLabels = [
-    "subjects", "schedules", "tasks", "exams", "grades", "attendance",
-    "goals", "topics", "plan", "focus", "reviews", "quizAttempts",
+    "subjects",
+    "schedules",
+    "tasks",
+    "exams",
+    "grades",
+    "attendance",
+    "goals",
+    "topics",
+    "plan",
+    "focus",
+    "reviews",
+    "quizAttempts",
   ].some((section) => sections.has(section as OrdysContextSection));
 
   const profilePromise = sections.has("profile")
-    ? contextQuery(supabase.from("profiles").select("stage,timezone,grade_scale_max,grade_pass,attendance_target,weekly_study_target_minutes,daily_load_limit_minutes").eq("id", userId).maybeSingle())
+    ? contextQuery(
+        supabase
+          .from("profiles")
+          .select(
+            "stage,timezone,grade_scale_max,grade_pass,attendance_target,weekly_study_target_minutes,daily_load_limit_minutes",
+          )
+          .eq("id", userId)
+          .maybeSingle(),
+      )
     : emptyContextQuery();
   const subjectsPromise = sections.has("subjects")
-    ? contextQuery(supabase.from("subjects").select("id,name,teacher,room,term,weekly_hours,grade_goal,attendance_goal").eq("user_id", userId).eq("archived", false).order("name").limit(80))
+    ? contextQuery(
+        supabase
+          .from("subjects")
+          .select("id,name,teacher,room,term,weekly_hours,grade_goal,attendance_goal")
+          .eq("user_id", userId)
+          .eq("archived", false)
+          .order("name")
+          .limit(80),
+      )
     : needsSubjectLabels
-      ? contextQuery(supabase.from("subjects").select("id,name").eq("user_id", userId).eq("archived", false).order("name").limit(80))
+      ? contextQuery(
+          supabase
+            .from("subjects")
+            .select("id,name")
+            .eq("user_id", userId)
+            .eq("archived", false)
+            .order("name")
+            .limit(80),
+        )
       : emptyContextQuery();
   const schedulesPromise = sections.has("schedules")
-    ? contextQuery(supabase.from("subject_schedules").select("subject_id,weekday,start_time,end_time,room").eq("user_id", userId).order("weekday").order("start_time").limit(200))
+    ? contextQuery(
+        supabase
+          .from("subject_schedules")
+          .select("subject_id,weekday,start_time,end_time,room")
+          .eq("user_id", userId)
+          .order("weekday")
+          .order("start_time")
+          .limit(200),
+      )
     : emptyContextQuery();
   const tasksPromise = sections.has("tasks")
-    ? contextQuery(supabase.from("tasks").select("subject_id,title,due_at,priority,status,estimated_minutes").eq("user_id", userId).order("due_at", { ascending: true, nullsFirst: false }).limit(40))
+    ? contextQuery(
+        supabase
+          .from("tasks")
+          .select("subject_id,title,due_at,priority,status,estimated_minutes")
+          .eq("user_id", userId)
+          .order("due_at", { ascending: true, nullsFirst: false })
+          .limit(40),
+      )
     : emptyContextQuery();
   const examsPromise = sections.has("exams")
-    ? contextQuery(supabase.from("exams").select("subject_id,title,exam_at,weight,content,kind").eq("user_id", userId).order("exam_at").limit(30))
+    ? contextQuery(
+        supabase
+          .from("exams")
+          .select("subject_id,title,exam_at,weight,content,kind")
+          .eq("user_id", userId)
+          .order("exam_at")
+          .limit(30),
+      )
     : emptyContextQuery();
   const gradesPromise = sections.has("grades")
-    ? contextQuery(supabase.from("grades").select("subject_id,title,score,max_score,weight,term,graded_on").eq("user_id", userId).order("graded_on", { ascending: false }).limit(60))
+    ? contextQuery(
+        supabase
+          .from("grades")
+          .select("subject_id,title,score,max_score,weight,term,graded_on")
+          .eq("user_id", userId)
+          .order("graded_on", { ascending: false })
+          .limit(60),
+      )
     : emptyContextQuery();
   const attendancePromise = sections.has("attendance")
-    ? contextQuery(supabase.from("attendance_records").select("subject_id,class_date,status,note").eq("user_id", userId).order("class_date", { ascending: false }).limit(60))
+    ? contextQuery(
+        supabase
+          .from("attendance_records")
+          .select("subject_id,class_date,status,note")
+          .eq("user_id", userId)
+          .order("class_date", { ascending: false })
+          .limit(60),
+      )
     : emptyContextQuery();
   const goalsPromise = sections.has("goals")
-    ? contextQuery(supabase.from("goals").select("subject_id,title,metric,target,period,active").eq("user_id", userId).eq("active", true).limit(30))
+    ? contextQuery(
+        supabase
+          .from("goals")
+          .select("subject_id,title,metric,target,period,active")
+          .eq("user_id", userId)
+          .eq("active", true)
+          .limit(30),
+      )
     : emptyContextQuery();
   const topicsPromise = sections.has("topics")
-    ? contextQuery(supabase.from("topics").select("id,subject_id,title,status,mastery,last_review,next_review").eq("user_id", userId).order("title").limit(80))
+    ? contextQuery(
+        supabase
+          .from("topics")
+          .select("id,subject_id,title,status,mastery,last_review,next_review")
+          .eq("user_id", userId)
+          .order("title")
+          .limit(80),
+      )
     : emptyContextQuery();
   const planPromise = sections.has("plan")
-    ? contextQuery(supabase.from("plan_sessions").select("subject_id,topic_id,session_date,start_time,duration_minutes,kind,reason,priority,status,generated").eq("user_id", userId).gte("session_date", dateKey(new Date())).limit(120))
+    ? contextQuery(
+        supabase
+          .from("plan_sessions")
+          .select(
+            "subject_id,topic_id,session_date,start_time,duration_minutes,kind,reason,priority,status,generated",
+          )
+          .eq("user_id", userId)
+          .gte("session_date", dateKey(new Date()))
+          .limit(120),
+      )
     : emptyContextQuery();
   const focusPromise = sections.has("focus")
-    ? contextQuery(supabase.from("focus_sessions").select("subject_id,topic_id,planned_minutes,actual_minutes,started_at,ended_at,status").eq("user_id", userId).order("started_at", { ascending: false }).limit(60))
+    ? contextQuery(
+        supabase
+          .from("focus_sessions")
+          .select("subject_id,topic_id,planned_minutes,actual_minutes,started_at,ended_at,status")
+          .eq("user_id", userId)
+          .order("started_at", { ascending: false })
+          .limit(60),
+      )
     : emptyContextQuery();
   const reviewsPromise = sections.has("reviews")
-    ? contextQuery(supabase.from("reviews").select("topic_id,due_on,status,reason,source,completed_at").eq("user_id", userId).order("due_on").limit(80))
+    ? contextQuery(
+        supabase
+          .from("reviews")
+          .select("topic_id,due_on,status,reason,source,completed_at")
+          .eq("user_id", userId)
+          .order("due_on")
+          .limit(80),
+      )
     : emptyContextQuery();
   const quizAttemptsPromise = sections.has("quizAttempts")
-    ? contextQuery(supabase.from("quiz_attempts").select("subject_id,difficulty,question_count,correct_count,status,created_at,finished_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(40))
+    ? contextQuery(
+        supabase
+          .from("quiz_attempts")
+          .select(
+            "subject_id,difficulty,question_count,correct_count,status,created_at,finished_at",
+          )
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(40),
+      )
     : emptyContextQuery();
   const checkinsPromise = sections.has("checkins")
-    ? contextQuery(supabase.from("daily_checkins").select("checkin_date,focus_rating,studied_minutes,completed_plan,pending_note").eq("user_id", userId).order("checkin_date", { ascending: false }).limit(30))
+    ? contextQuery(
+        supabase
+          .from("daily_checkins")
+          .select("checkin_date,focus_rating,studied_minutes,completed_plan,pending_note")
+          .eq("user_id", userId)
+          .order("checkin_date", { ascending: false })
+          .limit(30),
+      )
     : emptyContextQuery();
 
   const [
-    profileResult, subjectsResult, schedulesResult, tasksResult, examsResult,
-    gradesResult, attendanceResult, goalsResult, topicsResult, planResult,
-    focusResult, reviewsResult, quizAttemptsResult, checkinsResult,
+    profileResult,
+    subjectsResult,
+    schedulesResult,
+    tasksResult,
+    examsResult,
+    gradesResult,
+    attendanceResult,
+    goalsResult,
+    topicsResult,
+    planResult,
+    focusResult,
+    reviewsResult,
+    quizAttemptsResult,
+    checkinsResult,
   ] = await Promise.all([
-    profilePromise, subjectsPromise, schedulesPromise, tasksPromise, examsPromise,
-    gradesPromise, attendancePromise, goalsPromise, topicsPromise, planPromise,
-    focusPromise, reviewsPromise, quizAttemptsPromise, checkinsPromise,
+    profilePromise,
+    subjectsPromise,
+    schedulesPromise,
+    tasksPromise,
+    examsPromise,
+    gradesPromise,
+    attendancePromise,
+    goalsPromise,
+    topicsPromise,
+    planPromise,
+    focusPromise,
+    reviewsPromise,
+    quizAttemptsPromise,
+    checkinsPromise,
   ]);
 
   const queryResults = [
-    profileResult, subjectsResult, schedulesResult, tasksResult, examsResult,
-    gradesResult, attendanceResult, goalsResult, topicsResult, planResult,
-    focusResult, reviewsResult, quizAttemptsResult, checkinsResult,
+    profileResult,
+    subjectsResult,
+    schedulesResult,
+    tasksResult,
+    examsResult,
+    gradesResult,
+    attendanceResult,
+    goalsResult,
+    topicsResult,
+    planResult,
+    focusResult,
+    reviewsResult,
+    quizAttemptsResult,
+    checkinsResult,
   ].filter((result) => result.data !== null || result.error !== null);
   const contextQueryFailed = queryResults.some((result) => Boolean(result.error));
 
   const subjects = contextRows(subjectsResult.data);
   const subjectById = new Map<string, string>();
   subjects.forEach((subject) => {
-    if (typeof subject["id"] === "string") subjectById.set(subject["id"], String(subject["name"] ?? "Matéria sem nome"));
+    if (typeof subject["id"] === "string")
+      subjectById.set(subject["id"], String(subject["name"] ?? "Matéria sem nome"));
   });
-  const subjectName = (id: unknown) => subjectById.get(String(id ?? "")) ?? "Matéria não identificada";
+  const subjectName = (id: unknown) =>
+    subjectById.get(String(id ?? "")) ?? "Matéria não identificada";
   const output = [
     "DADOS ACADÊMICOS DO ORDYS — SOMENTE AS CATEGORIAS SELECIONADAS PELO ESTUDANTE",
     contextQueryFailed
@@ -305,80 +470,166 @@ async function loadOrdysContext(
   ];
 
   if (sections.has("profile")) {
-    const profile = profileResult.data && typeof profileResult.data === "object"
-      ? profileResult.data as Record<string, unknown>
-      : null;
-    output.push(profile
-      ? `PERFIL: etapa ${String(profile["stage"] ?? "não informada")} | fuso ${String(profile["timezone"] ?? "não informado")} | nota mínima ${String(profile["grade_pass"] ?? "não informada")} | meta de presença ${String(profile["attendance_target"] ?? "não informada")}%`
-      : "PERFIL: não disponível.");
-    output.push("MATÉRIAS:\n" + (subjects.length
-      ? subjects.map((item) => `- ${String(item["name"] ?? "Matéria")} | professor: ${String(item["teacher"] ?? "não informado")} | sala: ${String(item["room"] ?? "não informada")} | período: ${String(item["term"] ?? "não informado")}`).join("\n")
-      : "(nenhuma matéria cadastrada)"));
+    const profile =
+      profileResult.data && typeof profileResult.data === "object"
+        ? (profileResult.data as Record<string, unknown>)
+        : null;
+    output.push(
+      profile
+        ? `PERFIL: etapa ${String(profile["stage"] ?? "não informada")} | fuso ${String(profile["timezone"] ?? "não informado")} | nota mínima ${String(profile["grade_pass"] ?? "não informada")} | meta de presença ${String(profile["attendance_target"] ?? "não informada")}%`
+        : "PERFIL: não disponível.",
+    );
+    output.push(
+      "MATÉRIAS:\n" +
+        (subjects.length
+          ? subjects
+              .map(
+                (item) =>
+                  `- ${String(item["name"] ?? "Matéria")} | professor: ${String(item["teacher"] ?? "não informado")} | sala: ${String(item["room"] ?? "não informada")} | período: ${String(item["term"] ?? "não informado")}`,
+              )
+              .join("\n")
+          : "(nenhuma matéria cadastrada)"),
+    );
   }
   if (sections.has("schedules")) {
-    output.push("HORÁRIOS:\n" + contextRows(schedulesResult.data).map((item) =>
-      `- ${subjectName(item["subject_id"])}: ${weekdayLabel(typeof item["weekday"] === "number" ? item["weekday"] : null)}, ${String(item["start_time"] ?? "?")}–${String(item["end_time"] ?? "?")}${item["room"] ? ` | sala: ${String(item["room"])}` : ""}`,
-    ).join("\n") || "(nenhum horário cadastrado)");
+    output.push(
+      "HORÁRIOS:\n" +
+        contextRows(schedulesResult.data)
+          .map(
+            (item) =>
+              `- ${subjectName(item["subject_id"])}: ${weekdayLabel(typeof item["weekday"] === "number" ? item["weekday"] : null)}, ${String(item["start_time"] ?? "?")}–${String(item["end_time"] ?? "?")}${item["room"] ? ` | sala: ${String(item["room"])}` : ""}`,
+          )
+          .join("\n") || "(nenhum horário cadastrado)",
+    );
   }
   if (sections.has("tasks")) {
-    output.push("TAREFAS:\n" + contextRows(tasksResult.data).map((item) =>
-      `- ${String(item["title"] ?? "Tarefa")} | ${subjectName(item["subject_id"])} | prazo: ${compactDate(typeof item["due_at"] === "string" ? item["due_at"] : null)} | prioridade: ${String(item["priority"] ?? "não informada")} | status: ${String(item["status"] ?? "não informado")}`,
-    ).join("\n") || "(nenhuma tarefa encontrada no recorte atual)");
+    output.push(
+      "TAREFAS:\n" +
+        contextRows(tasksResult.data)
+          .map(
+            (item) =>
+              `- ${String(item["title"] ?? "Tarefa")} | ${subjectName(item["subject_id"])} | prazo: ${compactDate(typeof item["due_at"] === "string" ? item["due_at"] : null)} | prioridade: ${String(item["priority"] ?? "não informada")} | status: ${String(item["status"] ?? "não informado")}`,
+          )
+          .join("\n") || "(nenhuma tarefa encontrada no recorte atual)",
+    );
   }
   if (sections.has("exams")) {
-    output.push("PROVAS/AVALIAÇÕES:\n" + contextRows(examsResult.data).map((item) =>
-      `- ${String(item["title"] ?? "Avaliação")} | ${subjectName(item["subject_id"])} | data: ${compactDate(typeof item["exam_at"] === "string" ? item["exam_at"] : null)} | conteúdo: ${String(item["content"] ?? "não informado")}`,
-    ).join("\n") || "(nenhuma prova encontrada no recorte atual)");
+    output.push(
+      "PROVAS/AVALIAÇÕES:\n" +
+        contextRows(examsResult.data)
+          .map(
+            (item) =>
+              `- ${String(item["title"] ?? "Avaliação")} | ${subjectName(item["subject_id"])} | data: ${compactDate(typeof item["exam_at"] === "string" ? item["exam_at"] : null)} | conteúdo: ${String(item["content"] ?? "não informado")}`,
+          )
+          .join("\n") || "(nenhuma prova encontrada no recorte atual)",
+    );
   }
   if (sections.has("grades")) {
-    output.push("NOTAS:\n" + contextRows(gradesResult.data).map((item) =>
-      `- ${subjectName(item["subject_id"])} | ${String(item["title"] ?? "Nota")} | ${String(item["score"] ?? "?")}/${String(item["max_score"] ?? "10")} | peso: ${String(item["weight"] ?? "1")} | data: ${String(item["graded_on"] ?? "não informada")}`,
-    ).join("\n") || "(nenhuma nota encontrada no recorte atual)");
+    output.push(
+      "NOTAS:\n" +
+        contextRows(gradesResult.data)
+          .map(
+            (item) =>
+              `- ${subjectName(item["subject_id"])} | ${String(item["title"] ?? "Nota")} | ${String(item["score"] ?? "?")}/${String(item["max_score"] ?? "10")} | peso: ${String(item["weight"] ?? "1")} | data: ${String(item["graded_on"] ?? "não informada")}`,
+          )
+          .join("\n") || "(nenhuma nota encontrada no recorte atual)",
+    );
   }
   if (sections.has("attendance")) {
-    output.push("FREQUÊNCIA:\n" + contextRows(attendanceResult.data).map((item) =>
-      `- ${subjectName(item["subject_id"])} | ${String(item["class_date"] ?? "?")} | ${String(item["status"] ?? "não informado")}${item["note"] ? ` | ${String(item["note"])}` : ""}`,
-    ).join("\n") || "(nenhum registro de frequência encontrado)");
+    output.push(
+      "FREQUÊNCIA:\n" +
+        contextRows(attendanceResult.data)
+          .map(
+            (item) =>
+              `- ${subjectName(item["subject_id"])} | ${String(item["class_date"] ?? "?")} | ${String(item["status"] ?? "não informado")}${item["note"] ? ` | ${String(item["note"])}` : ""}`,
+          )
+          .join("\n") || "(nenhum registro de frequência encontrado)",
+    );
   }
   if (sections.has("goals")) {
-    output.push("METAS:\n" + contextRows(goalsResult.data).map((item) =>
-      `- ${String(item["title"] ?? "Meta")} | ${item["subject_id"] ? subjectName(item["subject_id"]) : "geral"} | métrica: ${String(item["metric"] ?? "?")} | alvo: ${String(item["target"] ?? "?")} | período: ${String(item["period"] ?? "?")}`,
-    ).join("\n") || "(nenhuma meta ativa encontrada)");
+    output.push(
+      "METAS:\n" +
+        contextRows(goalsResult.data)
+          .map(
+            (item) =>
+              `- ${String(item["title"] ?? "Meta")} | ${item["subject_id"] ? subjectName(item["subject_id"]) : "geral"} | métrica: ${String(item["metric"] ?? "?")} | alvo: ${String(item["target"] ?? "?")} | período: ${String(item["period"] ?? "?")}`,
+          )
+          .join("\n") || "(nenhuma meta ativa encontrada)",
+    );
   }
   if (sections.has("topics")) {
-    output.push("TÓPICOS:\n" + contextRows(topicsResult.data).map((item) =>
-      `- ${subjectName(item["subject_id"])}: ${String(item["title"] ?? "Tópico")} | domínio: ${String(item["mastery"] ?? 0)}% | status: ${String(item["status"] ?? "não informado")} | próxima revisão: ${String(item["next_review"] ?? "não agendada")}`,
-    ).join("\n") || "(nenhum tópico cadastrado no recorte atual)");
+    output.push(
+      "TÓPICOS:\n" +
+        contextRows(topicsResult.data)
+          .map(
+            (item) =>
+              `- ${subjectName(item["subject_id"])}: ${String(item["title"] ?? "Tópico")} | domínio: ${String(item["mastery"] ?? 0)}% | status: ${String(item["status"] ?? "não informado")} | próxima revisão: ${String(item["next_review"] ?? "não agendada")}`,
+          )
+          .join("\n") || "(nenhum tópico cadastrado no recorte atual)",
+    );
   }
   if (sections.has("plan")) {
-    output.push("PLANO DE ESTUDOS ATUAL:\n" + contextRows(planResult.data).map((item) =>
-      `- ${String(item["session_date"] ?? "?")} ${String(item["start_time"] ?? "?")} | ${subjectName(item["subject_id"])} | ${String(item["duration_minutes"] ?? 0)} min | ${String(item["kind"] ?? "estudo")} | ${String(item["status"] ?? "?")} | ${String(item["reason"] ?? "")}`,
-    ).join("\n") || "(nenhuma sessão encontrada no recorte atual)");
+    output.push(
+      "PLANO DE ESTUDOS ATUAL:\n" +
+        contextRows(planResult.data)
+          .map(
+            (item) =>
+              `- ${String(item["session_date"] ?? "?")} ${String(item["start_time"] ?? "?")} | ${subjectName(item["subject_id"])} | ${String(item["duration_minutes"] ?? 0)} min | ${String(item["kind"] ?? "estudo")} | ${String(item["status"] ?? "?")} | ${String(item["reason"] ?? "")}`,
+          )
+          .join("\n") || "(nenhuma sessão encontrada no recorte atual)",
+    );
   }
   if (sections.has("focus")) {
-    output.push("SESSÕES DE FOCO:\n" + contextRows(focusResult.data).map((item) =>
-      `- ${compactDate(typeof item["started_at"] === "string" ? item["started_at"] : null)} | ${subjectName(item["subject_id"])} | planejado: ${String(item["planned_minutes"] ?? 0)} min | realizado: ${String(item["actual_minutes"] ?? 0)} min | status: ${String(item["status"] ?? "?")}`,
-    ).join("\n") || "(nenhuma sessão de foco encontrada)");
+    output.push(
+      "SESSÕES DE FOCO:\n" +
+        contextRows(focusResult.data)
+          .map(
+            (item) =>
+              `- ${compactDate(typeof item["started_at"] === "string" ? item["started_at"] : null)} | ${subjectName(item["subject_id"])} | planejado: ${String(item["planned_minutes"] ?? 0)} min | realizado: ${String(item["actual_minutes"] ?? 0)} min | status: ${String(item["status"] ?? "?")}`,
+          )
+          .join("\n") || "(nenhuma sessão de foco encontrada)",
+    );
   }
   if (sections.has("reviews")) {
-    const topicsById = new Map<string, Record<string, unknown>>(contextRows(topicsResult.data).map((item) => [String(item["id"]), item] as const));
-    output.push("REVISÕES:\n" + contextRows(reviewsResult.data).map((item) => {
-      const topic = topicsById.get(String(item["topic_id"] ?? ""));
-      return `- ${String(item["due_on"] ?? "?")} | ${topic ? subjectName(topic["subject_id"]) : "Matéria não identificada"} | ${String(topic?.["title"] ?? "Tópico")} | ${String(item["status"] ?? "pendente")} | ${String(item["reason"] ?? "")}`;
-    }).join("\n") || "(nenhuma revisão encontrada)");
+    const topicsById = new Map<string, Record<string, unknown>>(
+      contextRows(topicsResult.data).map((item) => [String(item["id"]), item] as const),
+    );
+    output.push(
+      "REVISÕES:\n" +
+        contextRows(reviewsResult.data)
+          .map((item) => {
+            const topic = topicsById.get(String(item["topic_id"] ?? ""));
+            return `- ${String(item["due_on"] ?? "?")} | ${topic ? subjectName(topic["subject_id"]) : "Matéria não identificada"} | ${String(topic?.["title"] ?? "Tópico")} | ${String(item["status"] ?? "pendente")} | ${String(item["reason"] ?? "")}`;
+          })
+          .join("\n") || "(nenhuma revisão encontrada)",
+    );
   }
   if (sections.has("quizAttempts")) {
-    output.push("SIMULADOS:\n" + contextRows(quizAttemptsResult.data).map((item) =>
-      `- ${compactDate(typeof item["created_at"] === "string" ? item["created_at"] : null)} | ${subjectName(item["subject_id"])} | ${String(item["correct_count"] ?? 0)}/${String(item["question_count"] ?? 0)} | dificuldade: ${String(item["difficulty"] ?? "?")} | status: ${String(item["status"] ?? "?")}`,
-    ).join("\n") || "(nenhum simulado encontrado)");
+    output.push(
+      "SIMULADOS:\n" +
+        contextRows(quizAttemptsResult.data)
+          .map(
+            (item) =>
+              `- ${compactDate(typeof item["created_at"] === "string" ? item["created_at"] : null)} | ${subjectName(item["subject_id"])} | ${String(item["correct_count"] ?? 0)}/${String(item["question_count"] ?? 0)} | dificuldade: ${String(item["difficulty"] ?? "?")} | status: ${String(item["status"] ?? "?")}`,
+          )
+          .join("\n") || "(nenhum simulado encontrado)",
+    );
   }
   if (sections.has("checkins")) {
-    output.push("CHECK-INS DIÁRIOS:\n" + contextRows(checkinsResult.data).map((item) =>
-      `- ${String(item["checkin_date"] ?? "?")} | foco: ${String(item["focus_rating"] ?? "—")}/5 | estudado: ${String(item["studied_minutes"] ?? 0)} min | plano: ${String(item["completed_plan"] ?? "não informado")} | ${String(item["pending_note"] ?? "")}`,
-    ).join("\n") || "(nenhum check-in encontrado)");
+    output.push(
+      "CHECK-INS DIÁRIOS:\n" +
+        contextRows(checkinsResult.data)
+          .map(
+            (item) =>
+              `- ${String(item["checkin_date"] ?? "?")} | foco: ${String(item["focus_rating"] ?? "—")}/5 | estudado: ${String(item["studied_minutes"] ?? 0)} min | plano: ${String(item["completed_plan"] ?? "não informado")} | ${String(item["pending_note"] ?? "")}`,
+          )
+          .join("\n") || "(nenhum check-in encontrado)",
+    );
   }
 
-  output.push("Regra: este contexto contém apenas as categorias que o estudante selecionou para esta mensagem. As listas são limitadas e não representam necessariamente o histórico completo.");
+  output.push(
+    "Regra: este contexto contém apenas as categorias que o estudante selecionou para esta mensagem. As listas são limitadas e não representam necessariamente o histórico completo.",
+  );
   return output.join("\n\n").slice(0, 22000);
 }
 
@@ -400,13 +651,17 @@ async function prepareMessageWithContext(
 
   try {
     const context = await loadOrdysContext(userId, selectedScopes);
-    return context ? `${baseMessage}\n\n--- CONTEXTO ACADÊMICO DO ORDYS ---\n${context}` : baseMessage;
+    return context
+      ? `${baseMessage}\n\n--- CONTEXTO ACADÊMICO DO ORDYS ---\n${context}`
+      : baseMessage;
   } catch {
     return `${baseMessage}\n\n--- CONTEXTO ACADÊMICO DO ORDYS ---\nO contexto selecionado não pôde ser carregado nesta solicitação. Não invente dados da rotina.`;
   }
 }
 
-async function transcribeOrdysVideo(attachment: OrdysAttachment): Promise<{ transcript: string | null; note: string | null }> {
+async function transcribeOrdysVideo(
+  attachment: OrdysAttachment,
+): Promise<{ transcript: string | null; note: string | null }> {
   if (attachment.kind !== "video" || !attachment.dataUrl) return { transcript: null, note: null };
 
   if (!ORDYS_PLUS_AI_ENABLED) {
@@ -425,7 +680,11 @@ async function transcribeOrdysVideo(attachment: OrdysAttachment): Promise<{ tran
 
   try {
     const { data, error } = await supabase.functions.invoke("ordys-video-transcribe", {
-      body: { filename: attachment.name, mimeType: attachment.mimeType, dataUrl: attachment.dataUrl },
+      body: {
+        filename: attachment.name,
+        mimeType: attachment.mimeType,
+        dataUrl: attachment.dataUrl,
+      },
     });
     if (error || !data || typeof data !== "object") {
       return {
@@ -457,15 +716,19 @@ async function fallbackPost(accessToken: string, body: Record<string, unknown>) 
     body: JSON.stringify(body),
   });
   const payload = (await response.json().catch(() => null)) as OrdysAssistantResult | null;
-  if (!response.ok) throw new Error(payload?.error ?? "Não foi possível falar com o Assistente Ordys.");
+  if (!response.ok)
+    throw new Error(payload?.error ?? "Não foi possível falar com o Assistente Ordys.");
   return payload ?? { status: "failed", error: "Resposta inválida do servidor." };
 }
 
 async function fallbackPoll(accessToken: string, responseId: string) {
-  const response = await assistantFetch(`/api/ordys-assistant?responseId=${encodeURIComponent(responseId)}`, {
-    method: "GET",
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+  const response = await assistantFetch(
+    `/api/ordys-assistant?responseId=${encodeURIComponent(responseId)}`,
+    {
+      method: "GET",
+      headers: { Authorization: `Bearer ${accessToken}` },
+    },
+  );
   const payload = (await response.json().catch(() => null)) as OrdysAssistantResult | null;
   if (!response.ok) throw new Error(payload?.error ?? "Não foi possível consultar a pesquisa.");
   return payload ?? { status: "failed", error: "Resposta inválida do servidor." };
@@ -484,10 +747,13 @@ export async function askOrdysAssistant(input: {
     .select("birth_date,timezone")
     .eq("id", userId)
     .maybeSingle();
-  if (profileError) throw new Error("Não foi possível verificar a elegibilidade dos recursos de IA.");
+  if (profileError)
+    throw new Error("Não foi possível verificar a elegibilidade dos recursos de IA.");
   const aiEligibility = canUseOrdysAi(profile?.birth_date, profile?.timezone);
   if (!aiEligibility.allowed) throw new Error(aiEligibility.reason);
-  const videoAttachments = (input.attachments ?? []).filter((attachment) => attachment.kind === "video");
+  const videoAttachments = (input.attachments ?? []).filter(
+    (attachment) => attachment.kind === "video",
+  );
   const videoResults = await Promise.all(videoAttachments.map(transcribeOrdysVideo));
   const videoTranscripts = videoResults
     .map((result) => result.transcript)
@@ -508,15 +774,17 @@ export async function askOrdysAssistant(input: {
     message: enrichedMessage,
     mode: input.mode,
     history: (input.history ?? []).slice(-8),
-    attachments: (input.attachments ?? []).map(({ id, name, kind, mimeType, dataUrl, frames, durationSeconds }) => ({
-      id,
-      name,
-      kind,
-      mimeType,
-      dataUrl: kind === "video" ? undefined : dataUrl,
-      frames,
-      durationSeconds,
-    })),
+    attachments: (input.attachments ?? []).map(
+      ({ id, name, kind, mimeType, dataUrl, frames, durationSeconds }) => ({
+        id,
+        name,
+        kind,
+        mimeType,
+        dataUrl: kind === "video" ? undefined : dataUrl,
+        frames,
+        durationSeconds,
+      }),
+    ),
   };
 
   const { data, error } = await invokeAssistant({ body });
@@ -563,7 +831,11 @@ export async function applyOrdysConfiguration(plan: OrdysConfigurationPlan) {
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
     body: JSON.stringify(body),
   });
-  const payload = await response.json().catch(() => null) as { status?: string; error?: string; applied?: string[] } | null;
+  const payload = (await response.json().catch(() => null)) as {
+    status?: string;
+    error?: string;
+    applied?: string[];
+  } | null;
   if (!response.ok) throw new Error(payload?.error ?? "Não foi possível aplicar a configuração.");
   return payload ?? { status: "failed", error: "Resposta inválida do servidor." };
 }

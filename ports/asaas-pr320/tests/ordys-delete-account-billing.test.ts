@@ -32,16 +32,22 @@ function makeDependencies(
         p_cancellation_requested_at?: string | null;
       };
       const target = Array.isArray(subscriptionRows)
-        ? subscriptionRows.find((row) => row && typeof row === "object" &&
-          (row as Record<string, unknown>).id === body.p_subscription_id)
+        ? subscriptionRows.find(
+            (row) =>
+              row &&
+              typeof row === "object" &&
+              (row as Record<string, unknown>).id === body.p_subscription_id,
+          )
         : undefined;
       if (!target || typeof target !== "object") return "not_owner";
       const row = target as Record<string, unknown>;
       if (body.p_cancellation_requested_at === null) {
         if (
-          (row.provider_status !== "DELETED" && typeof row.cancellation_confirmed_at !== "string") ||
+          (row.provider_status !== "DELETED" &&
+            typeof row.cancellation_confirmed_at !== "string") ||
           (row.status !== "cancelled" && row.status !== "suspended")
-        ) return "not_owner";
+        )
+          return "not_owner";
       } else if (row.cancellation_requested_at !== body.p_cancellation_requested_at) {
         return "not_owner";
       }
@@ -50,11 +56,16 @@ function makeDependencies(
       row.cancellation_confirmed_at ??= new Date().toISOString();
       row.cancelled_at ??= new Date().toISOString();
       if (typeof row.checkout_attempt_id === "string" && Array.isArray(attemptRows)) {
-        const linkedAttempt = attemptRows.find((attempt) =>
-          attempt && typeof attempt === "object" &&
-          (attempt as Record<string, unknown>).id === row.checkout_attempt_id
+        const linkedAttempt = attemptRows.find(
+          (attempt) =>
+            attempt &&
+            typeof attempt === "object" &&
+            (attempt as Record<string, unknown>).id === row.checkout_attempt_id,
         ) as Record<string, unknown> | undefined;
-        if (linkedAttempt && (linkedAttempt.status === "linked" || linkedAttempt.status === "paid")) {
+        if (
+          linkedAttempt &&
+          (linkedAttempt.status === "linked" || linkedAttempt.status === "paid")
+        ) {
           linkedAttempt.status = "cancelled";
         }
       }
@@ -71,7 +82,9 @@ function makeDependencies(
       const idMatch = path.match(/[?&]id=eq\.([^&]+)/);
       const id = idMatch?.[1] ? decodeURIComponent(idMatch[1]) : "";
       const target = Array.isArray(subscriptionRows)
-        ? subscriptionRows.find((row) => row && typeof row === "object" && (row as Record<string, unknown>).id === id)
+        ? subscriptionRows.find(
+            (row) => row && typeof row === "object" && (row as Record<string, unknown>).id === id,
+          )
         : undefined;
       if (!target || typeof target !== "object") return [];
       const patch = JSON.parse(String(init.body ?? "{}")) as Record<string, unknown>;
@@ -94,17 +107,25 @@ function makeDependencies(
 
 describe("account deletion billing guard", () => {
   it("does not persist a Checkout cancellation claim when Asaas configuration is invalid", async () => {
-    const dependencies = makeDependencies("ready", [{
-      id: "checkout-1",
-      status: "pending",
-      provider_checkout_id: "asaas-checkout-1",
-      cancellation_requested_at: null,
-    }], [], {
-      providerConfigurationError: new Error("ASAAS_API_KEY ausente."),
-    });
+    const dependencies = makeDependencies(
+      "ready",
+      [
+        {
+          id: "checkout-1",
+          status: "pending",
+          provider_checkout_id: "asaas-checkout-1",
+          cancellation_requested_at: null,
+        },
+      ],
+      [],
+      {
+        providerConfigurationError: new Error("ASAAS_API_KEY ausente."),
+      },
+    );
 
-    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies))
-      .rejects.toThrow("ASAAS_API_KEY ausente.");
+    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies)).rejects.toThrow(
+      "ASAAS_API_KEY ausente.",
+    );
 
     expect(dependencies.assertAsaasConfigured).toHaveBeenCalledOnce();
     expect(dependencies.asaasRequest).not.toHaveBeenCalled();
@@ -119,16 +140,26 @@ describe("account deletion billing guard", () => {
   });
 
   it("does not persist a subscription cancellation claim when Asaas configuration is invalid", async () => {
-    const dependencies = makeDependencies("ready", [], [{
-      id: "subscription-1",
-      status: "active",
-      provider_subscription_id: "asaas-subscription-1",
-    }], {
-      providerConfigurationError: new Error("O provedor de pagamentos ainda não está configurado."),
-    });
+    const dependencies = makeDependencies(
+      "ready",
+      [],
+      [
+        {
+          id: "subscription-1",
+          status: "active",
+          provider_subscription_id: "asaas-subscription-1",
+        },
+      ],
+      {
+        providerConfigurationError: new Error(
+          "O provedor de pagamentos ainda não está configurado.",
+        ),
+      },
+    );
 
-    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies))
-      .rejects.toThrow("O provedor de pagamentos ainda não está configurado.");
+    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies)).rejects.toThrow(
+      "O provedor de pagamentos ainda não está configurado.",
+    );
 
     expect(dependencies.assertAsaasConfigured).toHaveBeenCalledOnce();
     expect(dependencies.asaasRequest).not.toHaveBeenCalled();
@@ -144,7 +175,9 @@ describe("account deletion billing guard", () => {
   it("allows core account deletion when the optional billing schema is absent", async () => {
     const dependencies = makeDependencies("absent");
 
-    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies)).resolves.toBeNull();
+    await expect(
+      cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies),
+    ).resolves.toBeNull();
 
     expect(dependencies.getBillingSchemaStatus).toHaveBeenCalledOnce();
     expect(dependencies.serviceRest).not.toHaveBeenCalled();
@@ -154,8 +187,9 @@ describe("account deletion billing guard", () => {
   it("fails closed when the billing schema is only partially installed", async () => {
     const dependencies = makeDependencies("partial");
 
-    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies))
-      .rejects.toThrow("estrutura de assinaturas está incompleta");
+    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies)).rejects.toThrow(
+      "estrutura de assinaturas está incompleta",
+    );
     expect(dependencies.serviceRest).not.toHaveBeenCalled();
     expect(dependencies.asaasRequest).not.toHaveBeenCalled();
   });
@@ -165,11 +199,12 @@ describe("account deletion billing guard", () => {
       unreconciledBillingEvents: true,
     });
 
-    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies))
-      .rejects.toMatchObject({
-        name: "BillingCancellationPendingError",
-        code: "billing_reconciliation_required",
-      });
+    await expect(
+      cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies),
+    ).rejects.toMatchObject({
+      name: "BillingCancellationPendingError",
+      code: "billing_reconciliation_required",
+    });
 
     expect(dependencies.serviceRest).toHaveBeenCalledWith(
       "rpc/ordys_has_unreconciled_billing_events",
@@ -185,8 +220,9 @@ describe("account deletion billing guard", () => {
     const dependencies = makeDependencies("ready");
     dependencies.getBillingSchemaStatus.mockRejectedValueOnce(new Error("database unavailable"));
 
-    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies))
-      .rejects.toThrow("database unavailable");
+    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies)).rejects.toThrow(
+      "database unavailable",
+    );
     expect(dependencies.serviceRest).not.toHaveBeenCalled();
     expect(dependencies.asaasRequest).not.toHaveBeenCalled();
   });
@@ -198,27 +234,37 @@ describe("account deletion billing guard", () => {
       throw new Error(`Unexpected serviceRest path after reservation refusal: ${path}`);
     });
 
-    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies))
-      .rejects.toBeInstanceOf(CheckoutCreationInProgressError);
+    await expect(
+      cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies),
+    ).rejects.toBeInstanceOf(CheckoutCreationInProgressError);
 
     expect(dependencies.serviceRest).toHaveBeenCalledOnce();
-    expect(dependencies.serviceRest).toHaveBeenCalledWith(
-      "rpc/ordys_reserve_account_deletion",
-      { method: "POST", body: JSON.stringify({ p_user_id: "user-1" }) },
-    );
+    expect(dependencies.serviceRest).toHaveBeenCalledWith("rpc/ordys_reserve_account_deletion", {
+      method: "POST",
+      body: JSON.stringify({ p_user_id: "user-1" }),
+    });
     expect(dependencies.asaasRequest).not.toHaveBeenCalled();
   });
 
   it("keeps the processing lease for the caller to hold through account deletion", async () => {
     const dependencies = makeDependencies("ready");
-    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies)).resolves.toEqual(expect.any(String));
+    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies)).resolves.toEqual(
+      expect.any(String),
+    );
     expect(dependencies.serviceRest).toHaveBeenCalledTimes(5);
     expect(dependencies.serviceRest.mock.calls[0]?.[0]).toBe("rpc/ordys_reserve_account_deletion");
-    expect(dependencies.serviceRest.mock.calls[1]?.[0]).toBe("rpc/ordys_claim_account_deletion_processing");
+    expect(dependencies.serviceRest.mock.calls[1]?.[0]).toBe(
+      "rpc/ordys_claim_account_deletion_processing",
+    );
     expect(dependencies.serviceRest.mock.calls[2]?.[0]).toMatch(/^ordys_billing_checkout_attempts/);
     expect(dependencies.serviceRest.mock.calls[3]?.[0]).toMatch(/^ordys_billing_subscriptions/);
-    expect(dependencies.serviceRest.mock.calls[4]?.[0]).toBe("rpc/ordys_has_unreconciled_billing_events");
-    expect(dependencies.serviceRest).not.toHaveBeenCalledWith("rpc/ordys_release_account_deletion_processing", expect.anything());
+    expect(dependencies.serviceRest.mock.calls[4]?.[0]).toBe(
+      "rpc/ordys_has_unreconciled_billing_events",
+    );
+    expect(dependencies.serviceRest).not.toHaveBeenCalledWith(
+      "rpc/ordys_release_account_deletion_processing",
+      expect.anything(),
+    );
   });
 
   it("rejects a competing deletion before it can call Asaas or read billing rows", async () => {
@@ -228,8 +274,9 @@ describe("account deletion billing guard", () => {
       if (path === "rpc/ordys_claim_account_deletion_processing") return "deletion_processing";
       throw new Error(`Unexpected serviceRest path while another deletion owns the lease: ${path}`);
     });
-    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies))
-      .rejects.toBeInstanceOf(AccountDeletionProcessingError);
+    await expect(
+      cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies),
+    ).rejects.toBeInstanceOf(AccountDeletionProcessingError);
     expect(dependencies.serviceRest).toHaveBeenCalledTimes(2);
     expect(dependencies.asaasRequest).not.toHaveBeenCalled();
   });
@@ -237,49 +284,65 @@ describe("account deletion billing guard", () => {
   it("does not treat an unexpected table response as an empty billing history", async () => {
     const dependencies = makeDependencies("ready", null, []);
 
-    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies))
-      .rejects.toThrow("confirmar as cobranças");
+    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies)).rejects.toThrow(
+      "confirmar as cobranças",
+    );
     expect(dependencies.asaasRequest).not.toHaveBeenCalled();
   });
 
   it("requests provider cancellation for active subscriptions before account deletion", async () => {
-    const dependencies = makeDependencies("ready", [], [{
-      id: "subscription-1",
-      status: "active",
-      provider_subscription_id: "asaas-subscription-1",
-    }]);
-
-    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies)).resolves.toEqual(expect.any(String));
-
-    expect(dependencies.asaasRequest).toHaveBeenCalledWith(
-      "/subscriptions/asaas-subscription-1",
-      { method: "DELETE" },
+    const dependencies = makeDependencies(
+      "ready",
+      [],
+      [
+        {
+          id: "subscription-1",
+          status: "active",
+          provider_subscription_id: "asaas-subscription-1",
+        },
+      ],
     );
+
+    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies)).resolves.toEqual(
+      expect.any(String),
+    );
+
+    expect(dependencies.asaasRequest).toHaveBeenCalledWith("/subscriptions/asaas-subscription-1", {
+      method: "DELETE",
+    });
   });
 
   it("persists subscription cancellation intent before Asaas and records the synchronous confirmation", async () => {
-    const dependencies = makeDependencies("ready", [], [{
-      id: "subscription-1",
-      status: "active",
-      provider_subscription_id: "asaas-subscription-1",
-    }]);
+    const dependencies = makeDependencies(
+      "ready",
+      [],
+      [
+        {
+          id: "subscription-1",
+          status: "active",
+          provider_subscription_id: "asaas-subscription-1",
+        },
+      ],
+    );
 
-    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies))
-      .resolves.toEqual(expect.any(String));
+    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies)).resolves.toEqual(
+      expect.any(String),
+    );
 
     const requestMarkerIndex = dependencies.serviceRest.mock.invocationCallOrder.find((_, index) =>
       dependencies.serviceRest.mock.calls[index]?.[0].includes("cancellation_requested_at=is.null"),
     );
     const providerDeleteIndex = dependencies.asaasRequest.mock.invocationCallOrder[0];
-    const confirmationMarkerIndex = dependencies.serviceRest.mock.invocationCallOrder.find((_, index) =>
-      dependencies.serviceRest.mock.calls[index]?.[0] === "rpc/ordys_confirm_subscription_cancellation",
+    const confirmationMarkerIndex = dependencies.serviceRest.mock.invocationCallOrder.find(
+      (_, index) =>
+        dependencies.serviceRest.mock.calls[index]?.[0] ===
+        "rpc/ordys_confirm_subscription_cancellation",
     );
     expect(requestMarkerIndex!).toBeLessThan(providerDeleteIndex!);
     expect(providerDeleteIndex!).toBeLessThan(confirmationMarkerIndex!);
-    expect(dependencies.asaasRequest).toHaveBeenCalledWith(
-      "/subscriptions/asaas-subscription-1",
-      { method: "DELETE" },
-    );
+    expect(dependencies.asaasRequest).toHaveBeenCalledWith("/subscriptions/asaas-subscription-1", {
+      method: "DELETE",
+    });
     expect(dependencies.serviceRest).toHaveBeenCalledWith(
       "rpc/ordys_confirm_subscription_cancellation",
       expect.objectContaining({
@@ -312,16 +375,16 @@ describe("account deletion billing guard", () => {
       subscriptionMarkerResponseLost: true,
     });
 
-    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies))
-      .resolves.toEqual(expect.any(String));
+    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies)).resolves.toEqual(
+      expect.any(String),
+    );
 
     expect(subscription.cancellation_requested_at).toEqual(expect.any(String));
     expect(subscription.cancellation_claim_id).toEqual(expect.any(String));
     expect(dependencies.asaasRequest).toHaveBeenCalledTimes(1);
-    expect(dependencies.asaasRequest).toHaveBeenCalledWith(
-      "/subscriptions/asaas-subscription-1",
-      { method: "DELETE" },
-    );
+    expect(dependencies.asaasRequest).toHaveBeenCalledWith("/subscriptions/asaas-subscription-1", {
+      method: "DELETE",
+    });
   });
 
   it("keeps account deletion blocked when Asaas returns 404 for an inaccessible subscription", async () => {
@@ -333,11 +396,12 @@ describe("account deletion billing guard", () => {
     const dependencies = makeDependencies("ready", [], [subscription]);
     dependencies.asaasRequest.mockRejectedValueOnce(new AsaasApiError(404));
 
-    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies))
-      .rejects.toMatchObject({
-        name: "BillingCancellationPendingError",
-        code: "billing_cancellation_processing",
-      });
+    await expect(
+      cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies),
+    ).rejects.toMatchObject({
+      name: "BillingCancellationPendingError",
+      code: "billing_cancellation_processing",
+    });
 
     expect(subscription.cancellation_requested_at).toEqual(expect.any(String));
     expect(subscription.cancellation_confirmed_at).toBeUndefined();
@@ -355,11 +419,17 @@ describe("account deletion billing guard", () => {
     );
   });
   it("does not call Asaas when the provider webhook confirms cancellation before the intent compare-and-set", async () => {
-    const dependencies = makeDependencies("ready", [], [{
-      id: "subscription-1",
-      status: "active",
-      provider_subscription_id: "asaas-subscription-1",
-    }]);
+    const dependencies = makeDependencies(
+      "ready",
+      [],
+      [
+        {
+          id: "subscription-1",
+          status: "active",
+          provider_subscription_id: "asaas-subscription-1",
+        },
+      ],
+    );
     dependencies.serviceRest.mockImplementation(async (path: string, init?: RequestInit) => {
       if (path === "rpc/ordys_reserve_account_deletion") return "reserved";
       if (path === "rpc/ordys_claim_account_deletion_processing") return "claimed";
@@ -368,47 +438,65 @@ describe("account deletion billing guard", () => {
       if (path === "rpc/ordys_has_unreconciled_billing_events") return false;
       if (path.startsWith("ordys_billing_checkout_attempts?")) return [];
       if (path.startsWith("ordys_billing_subscriptions?") && init?.method === "PATCH") return [];
-      if (path.includes("select=id,status,provider_status,cancellation_requested_at,cancellation_confirmed_at,cancellation_claim_id")) {
-        return [{
-          id: "subscription-1",
-          status: "suspended",
-          provider_subscription_id: "asaas-subscription-1",
-          cancellation_requested_at: "2026-11-03T20:00:00.000Z",
-          cancellation_confirmed_at: "2026-11-03T20:01:00.000Z",
-        }];
+      if (
+        path.includes(
+          "select=id,status,provider_status,cancellation_requested_at,cancellation_confirmed_at,cancellation_claim_id",
+        )
+      ) {
+        return [
+          {
+            id: "subscription-1",
+            status: "suspended",
+            provider_subscription_id: "asaas-subscription-1",
+            cancellation_requested_at: "2026-11-03T20:00:00.000Z",
+            cancellation_confirmed_at: "2026-11-03T20:01:00.000Z",
+          },
+        ];
       }
       if (path.startsWith("ordys_billing_subscriptions?")) {
-        return [{
-          id: "subscription-1",
-          status: "active",
-          provider_subscription_id: "asaas-subscription-1",
-          cancellation_requested_at: null,
-          cancellation_confirmed_at: null,
-        }];
+        return [
+          {
+            id: "subscription-1",
+            status: "active",
+            provider_subscription_id: "asaas-subscription-1",
+            cancellation_requested_at: null,
+            cancellation_confirmed_at: null,
+          },
+        ];
       }
       throw new Error(`Unexpected serviceRest path during webhook/CAS race: ${path}`);
     });
 
-    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies))
-      .resolves.toEqual(expect.any(String));
+    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies)).resolves.toEqual(
+      expect.any(String),
+    );
 
-    expect(dependencies.serviceRest.mock.calls.some(([path]) =>
-      path.includes("cancellation_confirmed_at=is.null"),
-    )).toBe(true);
+    expect(
+      dependencies.serviceRest.mock.calls.some(([path]) =>
+        path.includes("cancellation_confirmed_at=is.null"),
+      ),
+    ).toBe(true);
     expect(dependencies.asaasRequest).not.toHaveBeenCalled();
   });
 
   it("does not resend subscription DELETE after an ambiguous prior request", async () => {
-    const dependencies = makeDependencies("ready", [], [{
-      id: "subscription-1",
-      status: "active",
-      provider_subscription_id: "asaas-subscription-1",
-      cancellation_requested_at: "2026-11-03T20:00:00.000Z",
-      cancellation_confirmed_at: null,
-    }]);
+    const dependencies = makeDependencies(
+      "ready",
+      [],
+      [
+        {
+          id: "subscription-1",
+          status: "active",
+          provider_subscription_id: "asaas-subscription-1",
+          cancellation_requested_at: "2026-11-03T20:00:00.000Z",
+          cancellation_confirmed_at: null,
+        },
+      ],
+    );
 
-    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies))
-      .rejects.toBeInstanceOf(BillingCancellationPendingError);
+    await expect(
+      cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies),
+    ).rejects.toBeInstanceOf(BillingCancellationPendingError);
 
     expect(dependencies.asaasRequest).not.toHaveBeenCalled();
     expect(dependencies.serviceRest).not.toHaveBeenCalledWith(
@@ -418,16 +506,23 @@ describe("account deletion billing guard", () => {
   });
 
   it("does not resend a subscription DELETE already confirmed by Asaas", async () => {
-    const dependencies = makeDependencies("ready", [], [{
-      id: "subscription-1",
-      status: "active",
-      provider_subscription_id: "asaas-subscription-1",
-      cancellation_requested_at: "2026-11-03T20:00:00.000Z",
-      cancellation_confirmed_at: "2026-11-03T20:01:00.000Z",
-    }]);
+    const dependencies = makeDependencies(
+      "ready",
+      [],
+      [
+        {
+          id: "subscription-1",
+          status: "active",
+          provider_subscription_id: "asaas-subscription-1",
+          cancellation_requested_at: "2026-11-03T20:00:00.000Z",
+          cancellation_confirmed_at: "2026-11-03T20:01:00.000Z",
+        },
+      ],
+    );
 
-    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies))
-      .resolves.toEqual(expect.any(String));
+    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies)).resolves.toEqual(
+      expect.any(String),
+    );
 
     expect(dependencies.asaasRequest).not.toHaveBeenCalled();
     expect(dependencies.serviceRest).toHaveBeenCalledWith(
@@ -443,19 +538,22 @@ describe("account deletion billing guard", () => {
     "reconciles legacy provider-confirmed deletions without repeating Asaas for a %s subscription",
     async (status) => {
       const attempts = [{ id: "attempt-legacy", status: "linked" }];
-      const subscriptions = [{
-        id: "subscription-legacy",
-        status,
-        provider_status: "DELETED",
-        checkout_attempt_id: "attempt-legacy",
-        provider_subscription_id: "asaas-subscription-legacy",
-        cancellation_requested_at: null,
-        cancellation_confirmed_at: null,
-      }];
+      const subscriptions = [
+        {
+          id: "subscription-legacy",
+          status,
+          provider_status: "DELETED",
+          checkout_attempt_id: "attempt-legacy",
+          provider_subscription_id: "asaas-subscription-legacy",
+          cancellation_requested_at: null,
+          cancellation_confirmed_at: null,
+        },
+      ];
       const dependencies = makeDependencies("ready", attempts, subscriptions);
 
-      await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies))
-        .resolves.toEqual(expect.any(String));
+      await expect(
+        cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies),
+      ).resolves.toEqual(expect.any(String));
 
       expect(dependencies.asaasRequest).not.toHaveBeenCalled();
       expect(dependencies.serviceRest).toHaveBeenCalledWith(
@@ -471,29 +569,43 @@ describe("account deletion billing guard", () => {
   );
 
   it("allows deletion after Asaas confirms cancellation of a chargeback-suspended subscription", async () => {
-    const dependencies = makeDependencies("ready", [], [{
-      id: "subscription-suspended",
-      status: "suspended",
-      provider_subscription_id: "asaas-subscription-suspended",
-      cancellation_requested_at: "2026-11-03T20:00:00.000Z",
-      cancellation_confirmed_at: "2026-11-03T20:01:00.000Z",
-    }]);
+    const dependencies = makeDependencies(
+      "ready",
+      [],
+      [
+        {
+          id: "subscription-suspended",
+          status: "suspended",
+          provider_subscription_id: "asaas-subscription-suspended",
+          cancellation_requested_at: "2026-11-03T20:00:00.000Z",
+          cancellation_confirmed_at: "2026-11-03T20:01:00.000Z",
+        },
+      ],
+    );
 
-    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies))
-      .resolves.toEqual(expect.any(String));
+    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies)).resolves.toEqual(
+      expect.any(String),
+    );
 
     expect(dependencies.asaasRequest).not.toHaveBeenCalled();
   });
 
   it("blocks deletion until a pending checkout cancellation is reconciled", async () => {
-    const dependencies = makeDependencies("ready", [{
-      id: "attempt-1",
-      status: "pending",
-      provider_checkout_id: "asaas-checkout-1",
-    }], []);
+    const dependencies = makeDependencies(
+      "ready",
+      [
+        {
+          id: "attempt-1",
+          status: "pending",
+          provider_checkout_id: "asaas-checkout-1",
+        },
+      ],
+      [],
+    );
 
-    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies))
-      .rejects.toBeInstanceOf(BillingCancellationPendingError);
+    await expect(
+      cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies),
+    ).rejects.toBeInstanceOf(BillingCancellationPendingError);
     expect(dependencies.serviceRest).toHaveBeenCalledWith(
       "rpc/ordys_release_account_deletion_processing",
       expect.objectContaining({ method: "POST" }),
@@ -508,20 +620,21 @@ describe("account deletion billing guard", () => {
     const providerCancelOrder = dependencies.asaasRequest.mock.invocationCallOrder[0];
     expect(markerWriteOrder).toBeDefined();
     expect(markerWriteOrder!).toBeLessThan(providerCancelOrder!);
-    expect(dependencies.asaasRequest).toHaveBeenCalledWith(
-      "/checkouts/asaas-checkout-1/cancel",
-      { method: "POST" },
-    );
+    expect(dependencies.asaasRequest).toHaveBeenCalledWith("/checkouts/asaas-checkout-1/cancel", {
+      method: "POST",
+    });
   });
 
   it("sends the Checkout cancellation when its own committed claim PATCH response is lost", async () => {
-    const attempts = [{
-      id: "attempt-claim-owned",
-      status: "pending",
-      provider_checkout_id: "asaas-checkout-claim-owned",
-      cancellation_requested_at: null,
-      cancellation_claim_id: null,
-    }];
+    const attempts = [
+      {
+        id: "attempt-claim-owned",
+        status: "pending",
+        provider_checkout_id: "asaas-checkout-claim-owned",
+        cancellation_requested_at: null,
+        cancellation_claim_id: null,
+      },
+    ];
     const dependencies = makeDependencies("ready", attempts, []);
     const original = dependencies.serviceRest.getMockImplementation();
     if (!original) throw new Error("Missing serviceRest mock implementation");
@@ -534,8 +647,9 @@ describe("account deletion billing guard", () => {
       return original(path, init);
     });
 
-    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies))
-      .rejects.toBeInstanceOf(BillingCancellationPendingError);
+    await expect(
+      cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies),
+    ).rejects.toBeInstanceOf(BillingCancellationPendingError);
 
     expect(attempts[0]?.cancellation_claim_id).toEqual(expect.any(String));
     expect(dependencies.asaasRequest).toHaveBeenCalledOnce();
@@ -546,13 +660,15 @@ describe("account deletion billing guard", () => {
   });
 
   it("does not send Checkout cancellation when a different claim owner won the PATCH", async () => {
-    const attempts = [{
-      id: "attempt-claim-other",
-      status: "pending",
-      provider_checkout_id: "asaas-checkout-claim-other",
-      cancellation_requested_at: null,
-      cancellation_claim_id: null,
-    }];
+    const attempts = [
+      {
+        id: "attempt-claim-other",
+        status: "pending",
+        provider_checkout_id: "asaas-checkout-claim-other",
+        cancellation_requested_at: null,
+        cancellation_claim_id: null,
+      },
+    ];
     const dependencies = makeDependencies("ready", attempts, []);
     const original = dependencies.serviceRest.getMockImplementation();
     if (!original) throw new Error("Missing serviceRest mock implementation");
@@ -566,23 +682,31 @@ describe("account deletion billing guard", () => {
       return original(path, init);
     });
 
-    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies))
-      .rejects.toBeInstanceOf(BillingCancellationPendingError);
+    await expect(
+      cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies),
+    ).rejects.toBeInstanceOf(BillingCancellationPendingError);
 
     expect(attempts[0]?.cancellation_claim_id).toBe("another-invocation");
     expect(dependencies.asaasRequest).not.toHaveBeenCalled();
   });
 
   it("does not resend Checkout cancellation after a previous request awaits webhook reconciliation", async () => {
-    const dependencies = makeDependencies("ready", [{
-      id: "attempt-1",
-      status: "pending",
-      provider_checkout_id: "asaas-checkout-1",
-      cancellation_requested_at: "2026-11-03T20:00:00.000Z",
-    }], []);
+    const dependencies = makeDependencies(
+      "ready",
+      [
+        {
+          id: "attempt-1",
+          status: "pending",
+          provider_checkout_id: "asaas-checkout-1",
+          cancellation_requested_at: "2026-11-03T20:00:00.000Z",
+        },
+      ],
+      [],
+    );
 
-    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies))
-      .rejects.toBeInstanceOf(BillingCancellationPendingError);
+    await expect(
+      cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies),
+    ).rejects.toBeInstanceOf(BillingCancellationPendingError);
 
     expect(dependencies.asaasRequest).not.toHaveBeenCalled();
     expect(dependencies.serviceRest).not.toHaveBeenCalledWith(
@@ -624,11 +748,12 @@ describe("account deletion billing guard", () => {
       return original(path, init);
     });
 
-    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies))
-      .rejects.toMatchObject({
-        name: "BillingCancellationPendingError",
-        code: "checkout_cancellation_processing",
-      });
+    await expect(
+      cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies),
+    ).rejects.toMatchObject({
+      name: "BillingCancellationPendingError",
+      code: "checkout_cancellation_processing",
+    });
 
     expect(dependencies.asaasRequest).toHaveBeenCalledOnce();
     expect(dependencies.asaasRequest).toHaveBeenCalledWith(
@@ -678,11 +803,12 @@ describe("account deletion billing guard", () => {
       return original(path, init);
     });
 
-    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies))
-      .rejects.toMatchObject({
-        name: "BillingCancellationPendingError",
-        code: "checkout_cancellation_processing",
-      });
+    await expect(
+      cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies),
+    ).rejects.toMatchObject({
+      name: "BillingCancellationPendingError",
+      code: "checkout_cancellation_processing",
+    });
 
     expect(dependencies.asaasRequest).toHaveBeenCalledOnce();
     expect(dependencies.asaasRequest).toHaveBeenCalledWith(
@@ -694,22 +820,31 @@ describe("account deletion billing guard", () => {
   });
 
   it("continues known subscription cancellations when Checkout records need reconciliation", async () => {
-    const dependencies = makeDependencies("ready", [{
-      id: "attempt-paid-unlinked",
-      status: "paid",
-      provider_checkout_id: "asaas-checkout-paid-unlinked",
-    }], [{
-      id: "subscription-known",
-      status: "active",
-      checkout_attempt_id: "another-checkout",
-      provider_subscription_id: "asaas-subscription-known",
-    }]);
+    const dependencies = makeDependencies(
+      "ready",
+      [
+        {
+          id: "attempt-paid-unlinked",
+          status: "paid",
+          provider_checkout_id: "asaas-checkout-paid-unlinked",
+        },
+      ],
+      [
+        {
+          id: "subscription-known",
+          status: "active",
+          checkout_attempt_id: "another-checkout",
+          provider_subscription_id: "asaas-subscription-known",
+        },
+      ],
+    );
 
-    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies))
-      .rejects.toMatchObject({
-        name: "BillingCancellationPendingError",
-        code: "billing_reconciliation_required",
-      });
+    await expect(
+      cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies),
+    ).rejects.toMatchObject({
+      name: "BillingCancellationPendingError",
+      code: "billing_reconciliation_required",
+    });
 
     expect(dependencies.asaasRequest).toHaveBeenCalledOnce();
     expect(dependencies.asaasRequest).toHaveBeenCalledWith(
@@ -726,25 +861,30 @@ describe("account deletion billing guard", () => {
   });
 
   it("attempts every known subscription cancellation when one provider response is uncertain", async () => {
-    const dependencies = makeDependencies("ready", [], [
-      {
-        id: "subscription-first",
-        status: "active",
-        provider_subscription_id: "asaas-subscription-first",
-      },
-      {
-        id: "subscription-second",
-        status: "active",
-        provider_subscription_id: "asaas-subscription-second",
-      },
-    ]);
+    const dependencies = makeDependencies(
+      "ready",
+      [],
+      [
+        {
+          id: "subscription-first",
+          status: "active",
+          provider_subscription_id: "asaas-subscription-first",
+        },
+        {
+          id: "subscription-second",
+          status: "active",
+          provider_subscription_id: "asaas-subscription-second",
+        },
+      ],
+    );
     dependencies.asaasRequest.mockRejectedValueOnce(new AsaasApiError(404));
 
-    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies))
-      .rejects.toMatchObject({
-        name: "BillingCancellationPendingError",
-        code: "billing_cancellation_processing",
-      });
+    await expect(
+      cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies),
+    ).rejects.toMatchObject({
+      name: "BillingCancellationPendingError",
+      code: "billing_cancellation_processing",
+    });
 
     expect(dependencies.asaasRequest).toHaveBeenCalledTimes(2);
     expect(dependencies.asaasRequest).toHaveBeenNthCalledWith(
@@ -767,38 +907,50 @@ describe("account deletion billing guard", () => {
   });
 
   it("blocks deletion when a paid checkout has no linked subscription record", async () => {
-    const dependencies = makeDependencies("ready", [{
-      id: "attempt-1",
-      status: "paid",
-      provider_checkout_id: "asaas-checkout-1",
-    }], []);
+    const dependencies = makeDependencies(
+      "ready",
+      [
+        {
+          id: "attempt-1",
+          status: "paid",
+          provider_checkout_id: "asaas-checkout-1",
+        },
+      ],
+      [],
+    );
 
-    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies))
-      .rejects.toMatchObject({
-        name: "BillingCancellationPendingError",
-        code: "billing_reconciliation_required",
-      });
+    await expect(
+      cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies),
+    ).rejects.toMatchObject({
+      name: "BillingCancellationPendingError",
+      code: "billing_reconciliation_required",
+    });
     expect(dependencies.asaasRequest).not.toHaveBeenCalled();
   });
 
   it("reconciles a provider-confirmed subscription after a late inactivation event", async () => {
-    const attemptRows = [{
-      id: "attempt-linked-confirmed",
-      status: "linked",
-    }];
-    const subscriptionRows = [{
-      id: "subscription-confirmed-late-event",
-      status: "cancelled",
-      checkout_attempt_id: "attempt-linked-confirmed",
-      provider_status: "INACTIVE",
-      provider_subscription_id: "asaas-subscription-confirmed-late-event",
-      cancellation_requested_at: null,
-      cancellation_confirmed_at: "2026-11-04T14:00:00.000Z",
-    }];
+    const attemptRows = [
+      {
+        id: "attempt-linked-confirmed",
+        status: "linked",
+      },
+    ];
+    const subscriptionRows = [
+      {
+        id: "subscription-confirmed-late-event",
+        status: "cancelled",
+        checkout_attempt_id: "attempt-linked-confirmed",
+        provider_status: "INACTIVE",
+        provider_subscription_id: "asaas-subscription-confirmed-late-event",
+        cancellation_requested_at: null,
+        cancellation_confirmed_at: "2026-11-04T14:00:00.000Z",
+      },
+    ];
     const dependencies = makeDependencies("ready", attemptRows, subscriptionRows);
 
-    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies))
-      .resolves.toEqual(expect.any(String));
+    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies)).resolves.toEqual(
+      expect.any(String),
+    );
 
     expect(dependencies.asaasRequest).not.toHaveBeenCalled();
     expect(dependencies.serviceRest).toHaveBeenCalledWith(
@@ -812,26 +964,28 @@ describe("account deletion billing guard", () => {
   });
 
   it("cancels a legacy locally cancelled subscription before account deletion", async () => {
-    const subscriptionRows = [{
-      id: "subscription-legacy-cancelled",
-      status: "cancelled",
-      provider_status: "ACTIVE",
-      provider_subscription_id: "asaas-subscription-legacy-cancelled",
-      cancellation_requested_at: null,
-      cancellation_claim_id: null,
-      cancellation_confirmed_at: null,
-    }];
+    const subscriptionRows = [
+      {
+        id: "subscription-legacy-cancelled",
+        status: "cancelled",
+        provider_status: "ACTIVE",
+        provider_subscription_id: "asaas-subscription-legacy-cancelled",
+        cancellation_requested_at: null,
+        cancellation_claim_id: null,
+        cancellation_confirmed_at: null,
+      },
+    ];
     const dependencies = makeDependencies("ready", [], subscriptionRows);
 
-    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies))
-      .resolves.toEqual(expect.any(String));
+    await expect(cancelOrdysBillingBeforeAccountDeletion("user-1", dependencies)).resolves.toEqual(
+      expect.any(String),
+    );
 
-    const claimCall = dependencies.serviceRest.mock.calls.find(([path, init]) =>
-      String(path).startsWith("ordys_billing_subscriptions?") && init?.method === "PATCH",
+    const claimCall = dependencies.serviceRest.mock.calls.find(
+      ([path, init]) =>
+        String(path).startsWith("ordys_billing_subscriptions?") && init?.method === "PATCH",
     );
-    expect(claimCall?.[0]).toContain(
-      "status=in.(pending,active,past_due,suspended,cancelled)",
-    );
+    expect(claimCall?.[0]).toContain("status=in.(pending,active,past_due,suspended,cancelled)");
     expect(claimCall?.[0]).toContain("cancellation_requested_at=is.null");
     expect(claimCall?.[0]).toContain("cancellation_claim_id=is.null");
     expect(claimCall?.[0]).toContain("cancellation_confirmed_at=is.null");
@@ -856,7 +1010,6 @@ describe("account deletion billing guard", () => {
     );
   });
 });
-
 
 it("requires the final billing readiness function to verify all 16 webhook error guards", () => {
   const migration = readFileSync(
@@ -904,9 +1057,15 @@ it("requires the final billing readiness function to verify all 16 webhook error
     "prosrc LIKE '%inbox.event_payload #>> ''{checkout,externalReference}'' IS NULL%'",
   );
   expect(readiness).toContain("AND relrowsecurity");
-  expect(readiness).toContain("NOT has_table_privilege('anon', 'public.ordys_billing_webhook_inbox', 'SELECT')");
-  expect(readiness).toContain("NOT has_table_privilege('authenticated', 'public.ordys_billing_webhook_inbox', 'SELECT')");
-  expect(readiness).toContain("has_table_privilege('service_role', 'public.ordys_billing_webhook_inbox', 'SELECT')");
+  expect(readiness).toContain(
+    "NOT has_table_privilege('anon', 'public.ordys_billing_webhook_inbox', 'SELECT')",
+  );
+  expect(readiness).toContain(
+    "NOT has_table_privilege('authenticated', 'public.ordys_billing_webhook_inbox', 'SELECT')",
+  );
+  expect(readiness).toContain(
+    "has_table_privilege('service_role', 'public.ordys_billing_webhook_inbox', 'SELECT')",
+  );
   expect(readiness).toContain("ordys_billing_webhook_inbox_admission_idx");
   expect(readiness).toContain("ordys_sync_billing_webhook_inbox_status");
   expect(readiness).toContain("UPDATE public.ordys_billing_webhook_inbox");
@@ -916,20 +1075,30 @@ it("requires the final billing readiness function to verify all 16 webhook error
   expect(readiness).toContain(
     "prosrc LIKE '%v_value_numeric * 100 <> trunc(v_value_numeric * 100)%'",
   );
-  expect(readiness).toContain(
-    "prosrc LIKE '%invalid_datetime_format OR datetime_field_overflow%'",
-  );
+  expect(readiness).toContain("prosrc LIKE '%invalid_datetime_format OR datetime_field_overflow%'");
   expect(readiness).toContain(
     "prosrc LIKE '%v_paid_at := LEAST(COALESCE(v_paid_at, now()), now())%'",
   );
   expect(readiness).toContain("prosrc LIKE '%IF v_paid_at IS NULL THEN%'");
   expect(readiness).toContain("ordys_billing_payment_subscription_paid_at_idx");
-  expect(migration).toContain("CREATE INDEX IF NOT EXISTS ordys_billing_webhook_subscription_delete_id_retry_idx");
-  expect(migration).toContain("CREATE INDEX IF NOT EXISTS ordys_billing_webhook_confirmed_payment_subscription_retry_idx");
-  expect(migration).toContain("CREATE INDEX IF NOT EXISTS ordys_billing_webhook_negative_payment_identity_retry_idx");
-  expect(readiness).toContain("to_regclass('public.ordys_billing_webhook_subscription_delete_id_retry_idx') IS NOT NULL");
-  expect(readiness).toContain("to_regclass('public.ordys_billing_webhook_confirmed_payment_subscription_retry_idx') IS NOT NULL");
-  expect(readiness).toContain("to_regclass('public.ordys_billing_webhook_negative_payment_identity_retry_idx') IS NOT NULL");
+  expect(migration).toContain(
+    "CREATE INDEX IF NOT EXISTS ordys_billing_webhook_subscription_delete_id_retry_idx",
+  );
+  expect(migration).toContain(
+    "CREATE INDEX IF NOT EXISTS ordys_billing_webhook_confirmed_payment_subscription_retry_idx",
+  );
+  expect(migration).toContain(
+    "CREATE INDEX IF NOT EXISTS ordys_billing_webhook_negative_payment_identity_retry_idx",
+  );
+  expect(readiness).toContain(
+    "to_regclass('public.ordys_billing_webhook_subscription_delete_id_retry_idx') IS NOT NULL",
+  );
+  expect(readiness).toContain(
+    "to_regclass('public.ordys_billing_webhook_confirmed_payment_subscription_retry_idx') IS NOT NULL",
+  );
+  expect(readiness).toContain(
+    "to_regclass('public.ordys_billing_webhook_negative_payment_identity_retry_idx') IS NOT NULL",
+  );
   expect(readiness).toContain("attname = 'paid_at'");
   expect(readiness).toContain("attnotnull");
   expect(readiness).toContain(
@@ -937,68 +1106,68 @@ it("requires the final billing readiness function to verify all 16 webhook error
   );
   expect(readiness).toContain("prosrc LIKE '%current_period_end = v_period_end%'");
   expect(readiness).toContain("prosrc LIKE '%payment.provider_payment_id = v_payment_id%'");
-});;
+});
 
-  it("requires schema readiness to verify every quarantined webhook error code", () => {
-    const migration = readFileSync(
-      "supabase/migrations/20261105040000_ordys_guard_permanent_billing_mismatches.sql",
-      "utf8",
-    );
-    const readinessStart = migration.indexOf(
-      "CREATE OR REPLACE FUNCTION public.ordys_billing_schema_status()",
-    );
-    const readinessEnd = migration.indexOf("\n$$;", readinessStart);
-    const readiness = migration.slice(readinessStart, readinessEnd);
-    const guardedCodes = [
-      "checkout_customer_mismatch",
-      "checkout_paid_after_closed",
-      "checkout_reference_mismatch",
-      "confirmed_payment_unmatched",
-      "negative_payment_unmatched",
-      "payment_subscription_unmatched",
-      "subscription_checkout_unmatched",
-      "subscription_delete_unmatched",
-      "ambiguous_customer_association",
-      "subscription_checkout_mismatch",
-      "subscription_customer_mismatch",
-      "subscription_identity_mismatch",
-      "subscription_amount_mismatch",
-      "payment_customer_mismatch",
-      "payment_identity_mismatch",
-      "amount_mismatch",
-    ];
+it("requires schema readiness to verify every quarantined webhook error code", () => {
+  const migration = readFileSync(
+    "supabase/migrations/20261105040000_ordys_guard_permanent_billing_mismatches.sql",
+    "utf8",
+  );
+  const readinessStart = migration.indexOf(
+    "CREATE OR REPLACE FUNCTION public.ordys_billing_schema_status()",
+  );
+  const readinessEnd = migration.indexOf("\n$$;", readinessStart);
+  const readiness = migration.slice(readinessStart, readinessEnd);
+  const guardedCodes = [
+    "checkout_customer_mismatch",
+    "checkout_paid_after_closed",
+    "checkout_reference_mismatch",
+    "confirmed_payment_unmatched",
+    "negative_payment_unmatched",
+    "payment_subscription_unmatched",
+    "subscription_checkout_unmatched",
+    "subscription_delete_unmatched",
+    "ambiguous_customer_association",
+    "subscription_checkout_mismatch",
+    "subscription_customer_mismatch",
+    "subscription_identity_mismatch",
+    "subscription_amount_mismatch",
+    "payment_customer_mismatch",
+    "payment_identity_mismatch",
+    "amount_mismatch",
+  ];
 
-    for (const code of guardedCodes) {
-      expect(readiness).toContain(`prosrc LIKE \'%${code}%\'`);
-    }
-  });
-  it("requires the final durable-inbox migration to serialize every account-deletion RPC before the per-user lock", () => {
-    const migration = readFileSync(
-      "supabase/migrations/20261105060000_ordys_block_checkout_with_unreconciled_webhooks.sql",
-      "utf8",
-    );
-    const readinessStart = migration.lastIndexOf(
-      "CREATE OR REPLACE FUNCTION public.ordys_billing_schema_status()",
-    );
-    const readinessEnd = migration.indexOf("\n$;", readinessStart);
-    const readiness = migration.slice(readinessStart, readinessEnd);
-    expect(readiness).toContain("strpos(prosrc, 'ordys:asaas-inbox-admission') = 0");
-    expect(readiness).toContain("strpos(prosrc, 'ordys:billing-lifecycle:') = 0");
-    expect(readiness).toContain("strpos(prosrc, 'ordys:asaas-inbox-admission') > strpos(prosrc, 'ordys:billing-lifecycle:')");
-    expect(readiness).toContain("prosrc LIKE '%ordys_apply_asaas_billing_event%'");
-    expect(readiness).toContain("prosrc LIKE '%ordys_receive_asaas_billing_webhook%'");
-    expect(readiness).toContain("prosrc LIKE '%v_null_candidate_count > 0%'");
+  for (const code of guardedCodes) {
+    expect(readiness).toContain(`prosrc LIKE '%${code}%'`);
+  }
+});
+it("requires the final durable-inbox migration to serialize every account-deletion RPC before the per-user lock", () => {
+  const migration = readFileSync(
+    "supabase/migrations/20261105060000_ordys_block_checkout_with_unreconciled_webhooks.sql",
+    "utf8",
+  );
+  const readinessStart = migration.lastIndexOf(
+    "CREATE OR REPLACE FUNCTION public.ordys_billing_schema_status()",
+  );
+  const readinessEnd = migration.indexOf("\n$;", readinessStart);
+  const readiness = migration.slice(readinessStart, readinessEnd);
+  expect(readiness).toContain("strpos(prosrc, 'ordys:asaas-inbox-admission') = 0");
+  expect(readiness).toContain("strpos(prosrc, 'ordys:billing-lifecycle:') = 0");
+  expect(readiness).toContain(
+    "strpos(prosrc, 'ordys:asaas-inbox-admission') > strpos(prosrc, 'ordys:billing-lifecycle:')",
+  );
+  expect(readiness).toContain("prosrc LIKE '%ordys_apply_asaas_billing_event%'");
+  expect(readiness).toContain("prosrc LIKE '%ordys_receive_asaas_billing_webhook%'");
+  expect(readiness).toContain("prosrc LIKE '%v_null_candidate_count > 0%'");
 
-    const receiveStart = migration.lastIndexOf(
-      "CREATE OR REPLACE FUNCTION public.ordys_receive_asaas_billing_webhook",
-    );
-    const receiveEnd = migration.indexOf("$;", receiveStart);
-    const receiveFunction = migration.slice(receiveStart, receiveEnd);
-    expect(receiveFunction).toContain("count(*) FILTER (WHERE candidate.user_id IS NULL)");
-    expect(receiveFunction).toContain(
-      "IF v_candidate_count <> 1 OR v_null_candidate_count > 0 THEN",
-    );
-  });
+  const receiveStart = migration.lastIndexOf(
+    "CREATE OR REPLACE FUNCTION public.ordys_receive_asaas_billing_webhook",
+  );
+  const receiveEnd = migration.indexOf("$;", receiveStart);
+  const receiveFunction = migration.slice(receiveStart, receiveEnd);
+  expect(receiveFunction).toContain("count(*) FILTER (WHERE candidate.user_id IS NULL)");
+  expect(receiveFunction).toContain("IF v_candidate_count <> 1 OR v_null_candidate_count > 0 THEN");
+});
 
 describe("account deletion deployment gates", () => {
   it("requires provider cancellation confirmation for every subscription in the release and direct-delete guards", () => {
@@ -1024,7 +1193,9 @@ describe("account deletion deployment gates", () => {
     const deleteEnd = directDeleteMigration.indexOf("$ordys$;", deleteStart);
     const deleteFunction = directDeleteMigration.slice(deleteStart, deleteEnd);
     expect(deleteFunction).toContain("subscription.cancellation_confirmed_at IS NULL");
-    expect(deleteFunction).not.toContain("subscription.status IN ('pending', 'active', 'past_due', 'suspended')");
+    expect(deleteFunction).not.toContain(
+      "subscription.status IN ('pending', 'active', 'past_due', 'suspended')",
+    );
   });
 
   it("requires the managed deletion lease even when the billing schema has no user history", () => {
@@ -1039,10 +1210,7 @@ describe("account deletion deployment gates", () => {
     const deleteFunction = directDeleteMigration.slice(deleteStart, deleteEnd);
     const historyStart = deleteFunction.indexOf("IF has_billing_history THEN");
     const historyEnd = deleteFunction.indexOf("\n    END IF;", historyStart);
-    const leaseGuard = deleteFunction.indexOf(
-      "IF NOT EXISTS (",
-      historyEnd,
-    );
+    const leaseGuard = deleteFunction.indexOf("IF NOT EXISTS (", historyEnd);
     const firstDataDeletion = deleteFunction.indexOf("DELETE FROM public.assistant_jobs");
 
     expect(historyStart).toBeGreaterThanOrEqual(0);
@@ -1058,12 +1226,19 @@ describe("account deletion deployment gates", () => {
   });
 
   it("verifies the account-deletion schema-status RPC after migrations and before deploying the function", () => {
-    const workflow = readFileSync("ports/asaas-pr320/github-workflows/deploy-ordys-assistant.yml", "utf8");
+    const workflow = readFileSync(
+      "ports/asaas-pr320/github-workflows/deploy-ordys-assistant.yml",
+      "utf8",
+    );
     const migrationApply = workflow.indexOf("- name: Apply Supabase database migrations");
-    const schemaGateStart = workflow.indexOf("- name: Verify account-deletion schema-status RPC before deploying core deletion");
+    const schemaGateStart = workflow.indexOf(
+      "- name: Verify account-deletion schema-status RPC before deploying core deletion",
+    );
     const deletionStart = workflow.indexOf("- name: Deploy Ordys Delete Account Edge Function");
     const checkoutStart = workflow.indexOf("- name: Deploy ORDYS Billing Checkout Edge Function");
-    const managementStart = workflow.indexOf("- name: Deploy ORDYS Billing Management Edge Function");
+    const managementStart = workflow.indexOf(
+      "- name: Deploy ORDYS Billing Management Edge Function",
+    );
     const managementEnd = workflow.indexOf("\n      - name:", managementStart + 1);
     const webhookStart = workflow.indexOf("- name: Deploy ORDYS Asaas Webhook Edge Function");
     const webhookEnd = workflow.indexOf("\n      - name:", webhookStart + 1);
@@ -1080,10 +1255,13 @@ describe("account deletion deployment gates", () => {
     expect(schemaGate).toContain(
       'required_lifecycle_migrations=("20261103010000" "20261103020000" "20261103030000" "20261105010000" "20261105020000" "20261105030000" "20261105040000" "20261105050000" "20261105060000" "20261111010000" "20261112010000")',
     );
-    const requiredVersions = schemaGate.match(/required_lifecycle_migrations=\(([^)]+)\)/)?.[1].match(/\d{14}/g) ?? [];
+    const requiredVersions =
+      schemaGate.match(/required_lifecycle_migrations=\(([^)]+)\)/)?.[1].match(/\d{14}/g) ?? [];
     expect(requiredVersions).toHaveLength(11);
     for (const version of requiredVersions) {
-      expect(readdirSync("supabase/migrations").some(name => name.startsWith(`${version}_`))).toBe(true);
+      expect(
+        readdirSync("supabase/migrations").some((name) => name.startsWith(`${version}_`)),
+      ).toBe(true);
     }
     expect(schemaGate).toContain("id: billing_lifecycle_lock");
     expect(deletionStart).toBeGreaterThan(schemaGateStart);
@@ -1102,15 +1280,33 @@ describe("account deletion deployment gates", () => {
     const migrations = readdirSync("supabase/migrations").sort();
     const schemaStatusIndex = migrations.findIndex((name) => name.startsWith("20261029232950_"));
     const emailRemovalIndex = migrations.findIndex((name) => name.startsWith("20261029233000_"));
-    const billingFoundationIndex = migrations.findIndex((name) => name.startsWith("20261031010000_"));
-    const lifecycleSerializationIndex = migrations.findIndex((name) => name.startsWith("20261103010000_"));
-    const suspendedDeletionConfirmationIndex = migrations.findIndex((name) => name.startsWith("20261103020000_"));
-    const unmatchedWebhookGuardIndex = migrations.findIndex((name) => name.startsWith("20261105010000_"));
-    const paymentCreatedReplayIndex = migrations.findIndex((name) => name.startsWith("20261105020000_"));
-    const ambiguousCustomerGuardIndex = migrations.findIndex((name) => name.startsWith("20261105030000_"));
-    const permanentMismatchGuardIndex = migrations.findIndex((name) => name.startsWith("20261105040000_"));
-    const confirmedPaymentReplayIndex = migrations.findIndex((name) => name.startsWith("20261105050000_"));
-    const durableWebhookInboxIndex = migrations.findIndex((name) => name.startsWith("20261105060000_"));
+    const billingFoundationIndex = migrations.findIndex((name) =>
+      name.startsWith("20261031010000_"),
+    );
+    const lifecycleSerializationIndex = migrations.findIndex((name) =>
+      name.startsWith("20261103010000_"),
+    );
+    const suspendedDeletionConfirmationIndex = migrations.findIndex((name) =>
+      name.startsWith("20261103020000_"),
+    );
+    const unmatchedWebhookGuardIndex = migrations.findIndex((name) =>
+      name.startsWith("20261105010000_"),
+    );
+    const paymentCreatedReplayIndex = migrations.findIndex((name) =>
+      name.startsWith("20261105020000_"),
+    );
+    const ambiguousCustomerGuardIndex = migrations.findIndex((name) =>
+      name.startsWith("20261105030000_"),
+    );
+    const permanentMismatchGuardIndex = migrations.findIndex((name) =>
+      name.startsWith("20261105040000_"),
+    );
+    const confirmedPaymentReplayIndex = migrations.findIndex((name) =>
+      name.startsWith("20261105050000_"),
+    );
+    const durableWebhookInboxIndex = migrations.findIndex((name) =>
+      name.startsWith("20261105060000_"),
+    );
 
     expect(schemaStatusIndex).toBeGreaterThanOrEqual(0);
     expect(emailRemovalIndex).toBeGreaterThan(schemaStatusIndex);
@@ -1130,9 +1326,7 @@ describe("account deletion deployment gates", () => {
       "supabase/migrations/20261105060000_ordys_block_checkout_with_unreconciled_webhooks.sql",
       "utf8",
     );
-    const deletionStart = migration.indexOf(
-      "CREATE OR REPLACE FUNCTION public.delete_own_data()",
-    );
+    const deletionStart = migration.indexOf("CREATE OR REPLACE FUNCTION public.delete_own_data()");
     const deletionEnd = migration.indexOf("$ordys$;", deletionStart);
     const deletionFunction = migration.slice(deletionStart, deletionEnd);
     const readinessStart = migration.lastIndexOf(
@@ -1159,39 +1353,32 @@ describe("account deletion deployment gates", () => {
       expect(migration).toContain(
         `FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE SET NULL`,
       );
-      expect(readiness).toContain(
-        `fk.conrelid = to_regclass('public.${table}')`,
-      );
+      expect(readiness).toContain(`fk.conrelid = to_regclass('public.${table}')`);
     }
 
-    expect(deletionFunction).toContain(
-      "UPDATE public.ordys_billing_webhook_inbox",
-    );
+    expect(deletionFunction).toContain("UPDATE public.ordys_billing_webhook_inbox");
     expect(deletionFunction).toContain("SET user_id = NULL");
     expect(readiness).toContain("fk.confdeltype = 'n'");
     expect(migration).toContain("FOR v_constraint IN");
     expect(readiness).toContain("fk.confdeltype <> 'n'");
     expect(readiness).toContain("prosrc LIKE '%SET user_id = NULL%'");
     expect(readiness).toContain("to_regclass('public.ordys_billing_webhook_inbox')");
-    expect(readiness).toContain("attname = 'user_id' AND attnum > 0 AND NOT attisdropped AND NOT attnotnull");
+    expect(readiness).toContain(
+      "attname = 'user_id' AND attnum > 0 AND NOT attisdropped AND NOT attnotnull",
+    );
     expect(processor).toContain(
       "existing_payment.user_id IS DISTINCT FROM v_billing_subscription.user_id",
     );
     expect(processor).toContain(
       "v_attempt.user_id IS DISTINCT FROM v_billing_subscription.user_id",
     );
-    expect(processor).toContain(
-      "existing.user_id IS DISTINCT FROM v_attempt.user_id",
-    );
+    expect(processor).toContain("existing.user_id IS DISTINCT FROM v_attempt.user_id");
     expect(processor).toContain(
       "existing_payment.user_id IS NOT DISTINCT FROM v_billing_subscription.user_id",
     );
     expect(processor).toContain(
       "payment.user_id IS NOT DISTINCT FROM v_billing_subscription.user_id",
     );
-    expect(processor).toContain(
-      "AND user_id IS NOT DISTINCT FROM v_billing_subscription.user_id",
-    );
+    expect(processor).toContain("AND user_id IS NOT DISTINCT FROM v_billing_subscription.user_id");
   });
-
 });

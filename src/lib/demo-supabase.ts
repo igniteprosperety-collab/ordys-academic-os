@@ -1,5 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { stopDemoMode, getActiveLocalProfile, type LocalProfile, DEMO_USER_ID } from "@/lib/demo-mode";
+import {
+  stopDemoMode,
+  getActiveLocalProfile,
+  type LocalProfile,
+  DEMO_USER_ID,
+} from "@/lib/demo-mode";
 import { supabase } from "@/integrations/supabase/client";
 
 type AnyRow = Record<string, any>;
@@ -10,26 +15,51 @@ type Result = { data: any; error: { message: string } | null; count?: number | n
 const STORAGE_PREFIX = "ordys_local_db_v3:";
 const now = () => new Date().toISOString();
 const uid = () => {
-  try { return crypto.randomUUID(); } catch { return `local-${Date.now()}-${Math.random().toString(36).slice(2)}`; }
+  try {
+    return crypto.randomUUID();
+  } catch {
+    return `local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
 };
 
 const TABLES = [
-  "profiles","subjects","topics","tasks","subtasks","exams","grades","attendance_records","focus_sessions",
-  "plan_sessions","reviews","goals","notifications","notification_preferences","subject_schedules",
-  "calendar_events","daily_checkins","quiz_attempts","quiz_answers","calendar_connections","usage_events",
+  "profiles",
+  "subjects",
+  "topics",
+  "tasks",
+  "subtasks",
+  "exams",
+  "grades",
+  "attendance_records",
+  "focus_sessions",
+  "plan_sessions",
+  "reviews",
+  "goals",
+  "notifications",
+  "notification_preferences",
+  "subject_schedules",
+  "calendar_events",
+  "daily_checkins",
+  "quiz_attempts",
+  "quiz_answers",
+  "calendar_connections",
+  "usage_events",
 ] as const;
 
 function emptyStore(_profile: LocalProfile): Record<string, AnyRow[]> {
-  return Object.fromEntries(
-    TABLES.map((table) => [table, []]),
-  ) as Record<string, AnyRow[]>;
+  return Object.fromEntries(TABLES.map((table) => [table, []])) as Record<string, AnyRow[]>;
 }
 
 function ensureProfile() {
   const profile = getActiveLocalProfile();
   if (profile) return profile;
   // Compatibility fallback for an already-active legacy demo flag.
-  return { id: DEMO_USER_ID, name: "Aluno ORDYS", created_at: now(), updated_at: now() } satisfies LocalProfile;
+  return {
+    id: DEMO_USER_ID,
+    name: "Aluno ORDYS",
+    created_at: now(),
+    updated_at: now(),
+  } satisfies LocalProfile;
 }
 
 function storageKey() {
@@ -45,35 +75,39 @@ function readStore(): Record<string, AnyRow[]> {
       return parsed && typeof parsed === "object" ? parsed : emptyStore(ensureProfile());
     }
     const initial = emptyStore(ensureProfile());
-    initial["profiles"] = [{
-      id: ensureProfile().id,
-      full_name: ensureProfile().name,
-      stage: "medio",
-      timezone: "America/Sao_Paulo",
-      grade_scale_max: 10,
-      grade_pass: 6,
-      attendance_target: 75,
-      weekly_study_target_minutes: 480,
-      daily_load_limit_minutes: 240,
-      created_at: ensureProfile().created_at,
-      updated_at: ensureProfile().updated_at,
-    }];
-    initial["notification_preferences"] = [{
-      id: uid(),
-      user_id: ensureProfile().id,
-      enabled: true,
-      exams: true,
-      tasks: true,
-      overdue: true,
-      classes: true,
-      study_sessions: true,
-      goals: true,
-      daily_summary: true,
-      weekly_summary: true,
-      monthly_summary: false,
-      created_at: now(),
-      updated_at: now(),
-    }];
+    initial["profiles"] = [
+      {
+        id: ensureProfile().id,
+        full_name: ensureProfile().name,
+        stage: "medio",
+        timezone: "America/Sao_Paulo",
+        grade_scale_max: 10,
+        grade_pass: 6,
+        attendance_target: 75,
+        weekly_study_target_minutes: 480,
+        daily_load_limit_minutes: 240,
+        created_at: ensureProfile().created_at,
+        updated_at: ensureProfile().updated_at,
+      },
+    ];
+    initial["notification_preferences"] = [
+      {
+        id: uid(),
+        user_id: ensureProfile().id,
+        enabled: true,
+        exams: true,
+        tasks: true,
+        overdue: true,
+        classes: true,
+        study_sessions: true,
+        goals: true,
+        daily_summary: true,
+        weekly_summary: true,
+        monthly_summary: false,
+        created_at: now(),
+        updated_at: now(),
+      },
+    ];
     window.localStorage.setItem(storageKey(), JSON.stringify(initial));
     return initial;
   } catch {
@@ -82,7 +116,8 @@ function readStore(): Record<string, AnyRow[]> {
 }
 
 function writeStore(store: Record<string, AnyRow[]>) {
-  if (typeof window !== "undefined") window.localStorage.setItem(storageKey(), JSON.stringify(store));
+  if (typeof window !== "undefined")
+    window.localStorage.setItem(storageKey(), JSON.stringify(store));
 }
 
 export function resetLocalStore() {
@@ -115,29 +150,72 @@ class DemoQuery implements PromiseLike<Result> {
 
   constructor(private readonly table: string) {}
 
-  select(_columns = "*") { return this; }
-  eq(column: string, value: any) { this.filters.push({ kind: "eq", column, value }); return this; }
-  neq(column: string, value: any) { this.filters.push({ kind: "neq", column, value }); return this; }
-  in(column: string, value: any[]) { this.filters.push({ kind: "in", column, value }); return this; }
-  gte(column: string, value: any) { this.filters.push({ kind: "gte", column, value }); return this; }
-  lte(column: string, value: any) { this.filters.push({ kind: "lte", column, value }); return this; }
-  is(column: string, value: any) { this.filters.push({ kind: "is", column, value }); return this; }
+  select(_columns = "*") {
+    return this;
+  }
+  eq(column: string, value: any) {
+    this.filters.push({ kind: "eq", column, value });
+    return this;
+  }
+  neq(column: string, value: any) {
+    this.filters.push({ kind: "neq", column, value });
+    return this;
+  }
+  in(column: string, value: any[]) {
+    this.filters.push({ kind: "in", column, value });
+    return this;
+  }
+  gte(column: string, value: any) {
+    this.filters.push({ kind: "gte", column, value });
+    return this;
+  }
+  lte(column: string, value: any) {
+    this.filters.push({ kind: "lte", column, value });
+    return this;
+  }
+  is(column: string, value: any) {
+    this.filters.push({ kind: "is", column, value });
+    return this;
+  }
   order(column: string, opts?: { ascending?: boolean; nullsFirst?: boolean }) {
     const sort: Sort = { column, ascending: opts?.ascending !== false };
     if (opts?.nullsFirst !== undefined) sort.nullsFirst = opts.nullsFirst;
     this.sorts.push(sort);
     return this;
   }
-  limit(n: number) { this.take = n; return this; }
-  single() { this.singleMode = "single"; return this; }
-  maybeSingle() { this.singleMode = "maybeSingle"; return this; }
-  insert(payload: AnyRow | AnyRow[]) { this.action = "insert"; this.payload = payload; return this; }
-  update(payload: AnyRow) { this.action = "update"; this.payload = payload; return this; }
-  delete() { this.action = "delete"; return this; }
+  limit(n: number) {
+    this.take = n;
+    return this;
+  }
+  single() {
+    this.singleMode = "single";
+    return this;
+  }
+  maybeSingle() {
+    this.singleMode = "maybeSingle";
+    return this;
+  }
+  insert(payload: AnyRow | AnyRow[]) {
+    this.action = "insert";
+    this.payload = payload;
+    return this;
+  }
+  update(payload: AnyRow) {
+    this.action = "update";
+    this.payload = payload;
+    return this;
+  }
+  delete() {
+    this.action = "delete";
+    return this;
+  }
   upsert(payload: AnyRow | AnyRow[], opts?: { onConflict?: string }) {
     this.action = "upsert";
     this.payload = payload;
-    this.conflictColumns = (opts?.onConflict ?? "id").split(",").map((x) => x.trim()).filter(Boolean);
+    this.conflictColumns = (opts?.onConflict ?? "id")
+      .split(",")
+      .map((x) => x.trim())
+      .filter(Boolean);
     return this;
   }
 
@@ -152,22 +230,36 @@ class DemoQuery implements PromiseLike<Result> {
     return this.filters.every((f) => {
       const actual = row[f.column];
       switch (f.kind) {
-        case "eq": return actual === f.value;
-        case "neq": return actual !== f.value;
-        case "in": return f.value.includes(actual);
-        case "gte": return actual != null && actual >= f.value;
-        case "lte": return actual != null && actual <= f.value;
-        case "is": return f.value === null ? actual == null : actual === f.value;
+        case "eq":
+          return actual === f.value;
+        case "neq":
+          return actual !== f.value;
+        case "in":
+          return f.value.includes(actual);
+        case "gte":
+          return actual != null && actual >= f.value;
+        case "lte":
+          return actual != null && actual <= f.value;
+        case "is":
+          return f.value === null ? actual == null : actual === f.value;
       }
     });
   }
 
   private project(rows: AnyRow[]): Result {
     let out = rows.slice();
-    for (const s of this.sorts) out.sort((a, b) => { const c = compare(a[s.column], b[s.column]); return s.ascending ? c : -c; });
+    for (const s of this.sorts)
+      out.sort((a, b) => {
+        const c = compare(a[s.column], b[s.column]);
+        return s.ascending ? c : -c;
+      });
     if (this.take != null) out = out.slice(0, this.take);
     if (this.singleMode === "single") {
-      if (out.length !== 1) return { data: null, error: { message: out.length ? "Multiple rows returned" : "No rows returned" } };
+      if (out.length !== 1)
+        return {
+          data: null,
+          error: { message: out.length ? "Multiple rows returned" : "No rows returned" },
+        };
       return { data: out[0], error: null };
     }
     if (this.singleMode === "maybeSingle") return { data: out[0] ?? null, error: null };
@@ -256,7 +348,8 @@ export function installDemoSupabaseBridge() {
   const cloud = supabase as any;
   const originalFrom = cloud.from.bind(cloud);
   const originalSignOut = cloud.auth.signOut.bind(cloud.auth);
-  cloud.from = (table: string) => isDemoBridgeActive() ? demoSupabase.from(table) : originalFrom(table);
+  cloud.from = (table: string) =>
+    isDemoBridgeActive() ? demoSupabase.from(table) : originalFrom(table);
   cloud.auth.signOut = async () => {
     if (isDemoBridgeActive()) {
       stopDemoMode();

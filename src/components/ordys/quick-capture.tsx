@@ -52,8 +52,7 @@ export function QuickCapture() {
       return;
     }
 
-    const numericValue =
-      value.trim() === "" ? null : Number(value);
+    const numericValue = value.trim() === "" ? null : Number(value);
     if (numericValue !== null && !Number.isFinite(numericValue)) {
       toast.error("Informe um valor numérico válido.");
       return;
@@ -148,7 +147,8 @@ export function QuickCapture() {
 
   return (
     <>
-      <button type="button"
+      <button
+        type="button"
         onClick={() => setOpen(true)}
         className="grid size-11 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground transition-colors hover:bg-primary/90 sm:size-8"
         aria-label="Captura rápida"
@@ -157,10 +157,16 @@ export function QuickCapture() {
         <Plus className="size-[16px]" strokeWidth={2} />
       </button>
 
-      <Modal open={open} onClose={() => setOpen(false)} title="Captura rápida" subtitle="Crie qualquer item em segundos">
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Captura rápida"
+        subtitle="Crie qualquer item em segundos"
+      >
         <div className="mb-4 flex flex-wrap gap-1.5">
           {kinds.map((k) => (
-            <button type="button"
+            <button
+              type="button"
               key={k.key}
               onClick={() => setKind(k.key)}
               className={`min-h-11 rounded-md border px-2.5 py-2 text-[12px] transition-colors ${
@@ -176,7 +182,11 @@ export function QuickCapture() {
 
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Título" className="sm:col-span-2">
-            <TextInput value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Descreva em poucas palavras" />
+            <TextInput
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Descreva em poucas palavras"
+            />
           </Field>
           <Field label="Disciplina">
             <Select

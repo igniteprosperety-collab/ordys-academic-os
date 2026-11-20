@@ -71,7 +71,10 @@ function dataClient() {
   return isDemoMode() ? getOrdysDataClient() : supabase;
 }
 
-function useOwnedQuery<T>(key: unknown[], run: (client: ReturnType<typeof dataClient>) => PromiseLike<Result<T>>) {
+function useOwnedQuery<T>(
+  key: unknown[],
+  run: (client: ReturnType<typeof dataClient>) => PromiseLike<Result<T>>,
+) {
   const { userId, loading } = useAuth();
   return useQuery({
     queryKey: [...key, userId, isDemoMode() ? "demo" : "cloud"],
@@ -82,7 +85,9 @@ function useOwnedQuery<T>(key: unknown[], run: (client: ReturnType<typeof dataCl
 
 export function useProfile() {
   const { userId } = useAuth();
-  return useOwnedQuery<Profile | null>(["profile"], (db) => db.from("profiles").select("*").eq("id", userId!).maybeSingle());
+  return useOwnedQuery<Profile | null>(["profile"], (db) =>
+    db.from("profiles").select("*").eq("id", userId!).maybeSingle(),
+  );
 }
 
 export function useSubjects(includeArchived = false) {
@@ -92,7 +97,11 @@ export function useSubjects(includeArchived = false) {
   });
 }
 
-export function useSchedules() { return useOwnedQuery<SubjectSchedule[]>(["schedules"], (db) => db.from("subject_schedules").select("*").order("start_time")); }
+export function useSchedules() {
+  return useOwnedQuery<SubjectSchedule[]>(["schedules"], (db) =>
+    db.from("subject_schedules").select("*").order("start_time"),
+  );
+}
 
 export function useTopics(subjectId?: string | null) {
   return useOwnedQuery<Topic[]>(["topics", subjectId ?? "all"], (db) => {
@@ -101,29 +110,108 @@ export function useTopics(subjectId?: string | null) {
   });
 }
 
-export function useTasks() { return useOwnedQuery<Task[]>(["tasks"], (db) => db.from("tasks").select("*").order("due_at", { nullsFirst: false })); }
-export function useSubtasks() { return useOwnedQuery<Subtask[]>(["subtasks"], (db) => db.from("subtasks").select("*").order("created_at")); }
-export function useExams() { return useOwnedQuery<Exam[]>(["exams"], (db) => db.from("exams").select("*").order("exam_at")); }
-export function useGrades() { return useOwnedQuery<Grade[]>(["grades"], (db) => db.from("grades").select("*").order("graded_on")); }
-export function useAttendance() { return useOwnedQuery<AttendanceRecord[]>(["attendance"], (db) => db.from("attendance_records").select("*").order("class_date")); }
-export function useFocusSessions() { return useOwnedQuery<FocusSession[]>(["focus"], (db) => db.from("focus_sessions").select("*").order("started_at", { ascending: false })); }
-export function usePlanSessions() { return useOwnedQuery<PlanSession[]>(["plan"], (db) => db.from("plan_sessions").select("*").order("session_date").order("start_time")); }
-export function useReviews() { return useOwnedQuery<Review[]>(["reviews"], (db) => db.from("reviews").select("*").order("due_on")); }
-export function useGoals() { return useOwnedQuery<Goal[]>(["goals"], (db) => db.from("goals").select("*").order("created_at")); }
+export function useTasks() {
+  return useOwnedQuery<Task[]>(["tasks"], (db) =>
+    db.from("tasks").select("*").order("due_at", { nullsFirst: false }),
+  );
+}
+export function useSubtasks() {
+  return useOwnedQuery<Subtask[]>(["subtasks"], (db) =>
+    db.from("subtasks").select("*").order("created_at"),
+  );
+}
+export function useExams() {
+  return useOwnedQuery<Exam[]>(["exams"], (db) => db.from("exams").select("*").order("exam_at"));
+}
+export function useGrades() {
+  return useOwnedQuery<Grade[]>(["grades"], (db) =>
+    db.from("grades").select("*").order("graded_on"),
+  );
+}
+export function useAttendance() {
+  return useOwnedQuery<AttendanceRecord[]>(["attendance"], (db) =>
+    db.from("attendance_records").select("*").order("class_date"),
+  );
+}
+export function useFocusSessions() {
+  return useOwnedQuery<FocusSession[]>(["focus"], (db) =>
+    db.from("focus_sessions").select("*").order("started_at", { ascending: false }),
+  );
+}
+export function usePlanSessions() {
+  return useOwnedQuery<PlanSession[]>(["plan"], (db) =>
+    db.from("plan_sessions").select("*").order("session_date").order("start_time"),
+  );
+}
+export function useReviews() {
+  return useOwnedQuery<Review[]>(["reviews"], (db) =>
+    db.from("reviews").select("*").order("due_on"),
+  );
+}
+export function useGoals() {
+  return useOwnedQuery<Goal[]>(["goals"], (db) => db.from("goals").select("*").order("created_at"));
+}
 export function useNotifications() {
-  return useOwnedQuery<NotificationRow[]>(["notifications"], (db) => db.from("notifications").select("*").is("dismissed_at", null).order("created_at", { ascending: false }).limit(60));
+  return useOwnedQuery<NotificationRow[]>(["notifications"], (db) =>
+    db
+      .from("notifications")
+      .select("*")
+      .is("dismissed_at", null)
+      .order("created_at", { ascending: false })
+      .limit(60),
+  );
 }
 export function useNotificationPrefs() {
   const { userId } = useAuth();
-  return useOwnedQuery<NotificationPrefs | null>(["notif-prefs"], (db) => db.from("notification_preferences").select("*").eq("user_id", userId!).maybeSingle());
+  return useOwnedQuery<NotificationPrefs | null>(["notif-prefs"], (db) =>
+    db.from("notification_preferences").select("*").eq("user_id", userId!).maybeSingle(),
+  );
 }
-export function useCalendarEvents() { return useOwnedQuery<CalendarEvent[]>(["events"], (db) => db.from("calendar_events").select("*").order("starts_at")); }
-export function useCheckins() { return useOwnedQuery<DailyCheckin[]>(["checkins"], (db) => db.from("daily_checkins").select("*").order("checkin_date", { ascending: false })); }
-export function useQuizAttempts() { return useOwnedQuery<QuizAttempt[]>(["quiz-attempts"], (db) => db.from("quiz_attempts").select("*").order("created_at", { ascending: false })); }
-export function useQuizAnswers() { return useOwnedQuery<QuizAnswer[]>(["quiz-answers"], (db) => db.from("quiz_answers").select("*").order("created_at", { ascending: false })); }
-export function useCalendarConnections() { return useOwnedQuery<Tables<"calendar_connections">[]>(["calendar-connections"], (db) => db.from("calendar_connections").select("*").order("provider")); }
+export function useCalendarEvents() {
+  return useOwnedQuery<CalendarEvent[]>(["events"], (db) =>
+    db.from("calendar_events").select("*").order("starts_at"),
+  );
+}
+export function useCheckins() {
+  return useOwnedQuery<DailyCheckin[]>(["checkins"], (db) =>
+    db.from("daily_checkins").select("*").order("checkin_date", { ascending: false }),
+  );
+}
+export function useQuizAttempts() {
+  return useOwnedQuery<QuizAttempt[]>(["quiz-attempts"], (db) =>
+    db.from("quiz_attempts").select("*").order("created_at", { ascending: false }),
+  );
+}
+export function useQuizAnswers() {
+  return useOwnedQuery<QuizAnswer[]>(["quiz-answers"], (db) =>
+    db.from("quiz_answers").select("*").order("created_at", { ascending: false }),
+  );
+}
+export function useCalendarConnections() {
+  return useOwnedQuery<Tables<"calendar_connections">[]>(["calendar-connections"], (db) =>
+    db.from("calendar_connections").select("*").order("provider"),
+  );
+}
 
-type TableName = "subjects" | "subject_schedules" | "topics" | "tasks" | "subtasks" | "exams" | "grades" | "attendance_records" | "focus_sessions" | "plan_sessions" | "reviews" | "goals" | "notifications" | "calendar_events" | "calendar_connections" | "daily_checkins" | "quiz_attempts" | "quiz_answers";
+type TableName =
+  | "subjects"
+  | "subject_schedules"
+  | "topics"
+  | "tasks"
+  | "subtasks"
+  | "exams"
+  | "grades"
+  | "attendance_records"
+  | "focus_sessions"
+  | "plan_sessions"
+  | "reviews"
+  | "goals"
+  | "notifications"
+  | "calendar_events"
+  | "calendar_connections"
+  | "daily_checkins"
+  | "quiz_attempts"
+  | "quiz_answers";
 
 export function useOrdysMutations() {
   const client = useQueryClient();
@@ -145,7 +233,11 @@ export function useOrdysMutations() {
 
   async function insert(table: TableName, values: Record<string, unknown>) {
     if (!userId) throw new Error("Sem sessão");
-    const res = await mutationDb().from(table).insert({ ...values, user_id: userId }).select().single();
+    const res = await mutationDb()
+      .from(table)
+      .insert({ ...values, user_id: userId })
+      .select()
+      .single();
     const row = unwrap(res);
     refresh();
     return row;
@@ -168,18 +260,18 @@ export function useOrdysMutations() {
 
   async function remove(table: TableName, id: string) {
     if (!userId) throw new Error("Sem sessão");
-    const { error } = await mutationDb()
-      .from(table)
-      .delete()
-      .eq("id", id)
-      .eq("user_id", userId);
+    const { error } = await mutationDb().from(table).delete().eq("id", id).eq("user_id", userId);
     if (error) throw new Error(error.message);
     refresh();
   }
 
   async function upsertProfile(values: TablesUpdate<"profiles">) {
     if (!userId) throw new Error("Sem sessão");
-    const res = await mutationDb().from("profiles").upsert({ ...values, id: userId } as TablesInsert<"profiles">).select().single();
+    const res = await mutationDb()
+      .from("profiles")
+      .upsert({ ...values, id: userId } as TablesInsert<"profiles">)
+      .select()
+      .single();
     const row = unwrap(res);
     refresh();
     return row;
@@ -189,10 +281,9 @@ export function useOrdysMutations() {
     if (!userId) throw new Error("Sem sessão");
     const res = await mutationDb()
       .from("notification_preferences")
-      .upsert(
-        { ...values, user_id: userId } as TablesInsert<"notification_preferences">,
-        { onConflict: "user_id" },
-      )
+      .upsert({ ...values, user_id: userId } as TablesInsert<"notification_preferences">, {
+        onConflict: "user_id",
+      })
       .select()
       .single();
     const row = unwrap(res);
@@ -205,7 +296,10 @@ export function useOrdysMutations() {
 
 export function useAsyncAction<TArgs extends unknown[]>(fn: (...args: TArgs) => Promise<unknown>) {
   const client = useQueryClient();
-  return useMutation({ mutationFn: (args: TArgs) => fn(...args), onSuccess: () => client.invalidateQueries() });
+  return useMutation({
+    mutationFn: (args: TArgs) => fn(...args),
+    onSuccess: () => client.invalidateQueries(),
+  });
 }
 
 export function subjectAverage(grades: Grade[], subjectId: string, scaleMax = 10) {
@@ -240,5 +334,10 @@ export function subjectAttendance(records: AttendanceRecord[], subjectId: string
   return (present / rows.length) * 100;
 }
 
-export const fmtNumber = (n: number, digits = 1) => n.toLocaleString("pt-BR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
-export const minutesLabel = (minutes: number) => { const h = Math.floor(minutes / 60); const m = Math.round(minutes % 60); return h ? `${h}h${m ? String(m).padStart(2, "0") : ""}` : `${m}min`; };
+export const fmtNumber = (n: number, digits = 1) =>
+  n.toLocaleString("pt-BR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+export const minutesLabel = (minutes: number) => {
+  const h = Math.floor(minutes / 60);
+  const m = Math.round(minutes % 60);
+  return h ? `${h}h${m ? String(m).padStart(2, "0") : ""}` : `${m}min`;
+};

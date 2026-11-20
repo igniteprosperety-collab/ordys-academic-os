@@ -1,5 +1,9 @@
 import { readRequestBodyWithLimit } from "../_shared/request-body.ts";
-import { calculateAgeInTimeZone, getUserAgeProfile, isOrdysPlusEligible } from "../_shared/ordys-billing.ts";
+import {
+  calculateAgeInTimeZone,
+  getUserAgeProfile,
+  isOrdysPlusEligible,
+} from "../_shared/ordys-billing.ts";
 import { ORDYS_PLUS_AI_ENABLED, ORDYS_PLUS_LOCK_MESSAGE } from "../_shared/ordys-ai-access.ts";
 
 const corsHeaders = {
@@ -25,14 +29,22 @@ function response(body: unknown, status = 200) {
 }
 
 function jsonObject(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 }
 
 function stringValue(value: unknown, max = 500) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
 
-async function consumeUsageLimit(_request: Request, userId: string, kind: string, hourlyLimit: number, dailyLimit: number) {
+async function consumeUsageLimit(
+  _request: Request,
+  userId: string,
+  kind: string,
+  hourlyLimit: number,
+  dailyLimit: number,
+) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")?.trim();
   const secretKeysRaw = Deno.env.get("SUPABASE_SECRET_KEYS")?.trim();
   const serviceRoleKey = secretKeysRaw
@@ -46,7 +58,8 @@ async function consumeUsageLimit(_request: Request, userId: string, kind: string
       })()
     : Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
 
-  if (!supabaseUrl || !serviceRoleKey) throw new Error("Limite de uso não configurado no servidor.");
+  if (!supabaseUrl || !serviceRoleKey)
+    throw new Error("Limite de uso não configurado no servidor.");
 
   const serviceHeaders: Record<string, string> = serviceRoleKey.startsWith("sb_secret_")
     ? { apikey: serviceRoleKey }
@@ -55,14 +68,20 @@ async function consumeUsageLimit(_request: Request, userId: string, kind: string
   const result = await fetch(`${supabaseUrl}/rest/v1/rpc/consume_usage_limit`, {
     method: "POST",
     headers: { ...serviceHeaders, "Content-Type": "application/json" },
-    body: JSON.stringify({ p_user_id: userId, p_kind: kind, p_hourly_limit: hourlyLimit, p_daily_limit: dailyLimit }),
+    body: JSON.stringify({
+      p_user_id: userId,
+      p_kind: kind,
+      p_hourly_limit: hourlyLimit,
+      p_daily_limit: dailyLimit,
+    }),
   });
   if (!result.ok) {
     console.error("Supabase usage-limit request failed:", result.status);
     throw new Error("Não foi possível validar o limite de uso.");
   }
   const payload = jsonObject(await result.json().catch(() => ({})));
-  if (payload["allowed"] !== true) throw new Error("Limite de uso atingido. Aguarde antes de tentar novamente.");
+  if (payload["allowed"] !== true)
+    throw new Error("Limite de uso atingido. Aguarde antes de tentar novamente.");
 }
 
 async function validateUser(request: Request) {
@@ -89,25 +108,26 @@ async function validateUser(request: Request) {
   if (result.status === 401 || result.status === 403) return null;
   if (!result.ok) throw new Error("O serviço de autenticação não respondeu corretamente.");
   const user = jsonObject(await result.json().catch(() => ({})));
-  if (typeof user["id"] !== "string") throw new Error("Resposta inválida do serviço de autenticação.");
+  if (typeof user["id"] !== "string")
+    throw new Error("Resposta inválida do serviço de autenticação.");
   return user["id"];
 }
 
 async function assertAiEligible(request: Request, userId: string) {
-  const ageProfile = await getUserAgeProfile(
-    userId,
-    request.headers.get("Authorization") ?? "",
-  );
+  const ageProfile = await getUserAgeProfile(userId, request.headers.get("Authorization") ?? "");
   const age = calculateAgeInTimeZone(ageProfile.birthDate, ageProfile.timezone);
   if (age === null || age < 18) {
-    throw new Error("Os recursos de IA que usam a OpenAI estão disponíveis apenas para contas com 18 anos ou mais.");
+    throw new Error(
+      "Os recursos de IA que usam a OpenAI estão disponíveis apenas para contas com 18 anos ou mais.",
+    );
   }
 }
 
 function decodeDataUrl(dataUrl: string) {
   const match = dataUrl.match(/^data:([^;,]+)?(?:;base64)?,([\s\S]*)$/);
   if (!match) throw new Error("Conteúdo do vídeo inválido.");
-  if (dataUrl.length > MAX_DATA_URL_CHARS) throw new Error("O vídeo excede o limite para transcrição.");
+  if (dataUrl.length > MAX_DATA_URL_CHARS)
+    throw new Error("O vídeo excede o limite para transcrição.");
 
   const mimeType = (match[1] || "").toLowerCase();
   if (!Object.hasOwn(SUPPORTED_VIDEO_TRANSCRIPTION_FORMATS, mimeType)) {
@@ -118,7 +138,8 @@ function decodeDataUrl(dataUrl: string) {
   if (!dataUrl.includes(";base64,")) throw new Error("O vídeo precisa ser enviado em base64.");
 
   const binary = atob(payload);
-  if (binary.length > MAX_BYTES) throw new Error("O vídeo excede o limite de 24 MB para transcrição.");
+  if (binary.length > MAX_BYTES)
+    throw new Error("O vídeo excede o limite de 24 MB para transcrição.");
   const bytes = new Uint8Array(binary.length);
   for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
   return { bytes, mimeType };
@@ -126,13 +147,17 @@ function decodeDataUrl(dataUrl: string) {
 
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  if (request.method !== "POST") return response({ status: "failed", error: "Método não permitido." }, 405);
+  if (request.method !== "POST")
+    return response({ status: "failed", error: "Método não permitido." }, 405);
 
   let userId: string | null;
   try {
     userId = await validateUser(request);
   } catch {
-    return response({ status: "failed", error: "Não foi possível validar sua sessão agora. Tente novamente." }, 503);
+    return response(
+      { status: "failed", error: "Não foi possível validar sua sessão agora. Tente novamente." },
+      503,
+    );
   }
   if (!userId) return response({ status: "failed", error: "Sessão inválida." }, 401);
 
@@ -147,11 +172,17 @@ Deno.serve(async (request) => {
     }
     const contentLength = Number(request.headers.get("Content-Length") ?? 0);
     if (Number.isFinite(contentLength) && contentLength > MAX_REQUEST_BYTES) {
-      return response({ status: "failed", error: "A solicitação de transcrição excede o limite permitido." }, 413);
+      return response(
+        { status: "failed", error: "A solicitação de transcrição excede o limite permitido." },
+        413,
+      );
     }
     const requestText = await readRequestBodyWithLimit(request, MAX_REQUEST_BYTES);
     if (requestText === null) {
-      return response({ status: "failed", error: "A solicitação de transcrição excede o limite permitido." }, 413);
+      return response(
+        { status: "failed", error: "A solicitação de transcrição excede o limite permitido." },
+        413,
+      );
     }
     let body: Record<string, unknown>;
     try {
@@ -160,9 +191,13 @@ Deno.serve(async (request) => {
       return response({ status: "failed", error: "Corpo JSON inválido." }, 400);
     }
     const dataUrl = typeof body["dataUrl"] === "string" ? body["dataUrl"].trim() : "";
-    if (!dataUrl.startsWith("data:")) return response({ status: "failed", error: "Envie um vídeo válido." }, 400);
+    if (!dataUrl.startsWith("data:"))
+      return response({ status: "failed", error: "Envie um vídeo válido." }, 400);
     if (dataUrl.length > MAX_DATA_URL_CHARS) {
-      return response({ status: "failed", error: "O vídeo excede o limite para transcrição." }, 413);
+      return response(
+        { status: "failed", error: "O vídeo excede o limite para transcrição." },
+        413,
+      );
     }
 
     const rawFilename = stringValue(body["filename"], 180);
@@ -173,11 +208,19 @@ Deno.serve(async (request) => {
     const supportedExtension = SUPPORTED_VIDEO_TRANSCRIPTION_FORMATS[declaredDataUrlMime];
     const actualExtension = filename.toLowerCase().match(/\.([a-z0-9]+)$/)?.[1] ?? "";
 
-    if (!supportedExtension || declaredMime !== declaredDataUrlMime || actualExtension !== supportedExtension) {
-      return response({
-        status: "failed",
-        error: "A transcrição de áudio aceita apenas arquivos MP4 ou WebM com tipo e extensão correspondentes. Outros vídeos continuam disponíveis para análise visual.",
-      }, 415);
+    if (
+      !supportedExtension ||
+      declaredMime !== declaredDataUrlMime ||
+      actualExtension !== supportedExtension
+    ) {
+      return response(
+        {
+          status: "failed",
+          error:
+            "A transcrição de áudio aceita apenas arquivos MP4 ou WebM com tipo e extensão correspondentes. Outros vídeos continuam disponíveis para análise visual.",
+        },
+        415,
+      );
     }
 
     const { bytes, mimeType } = decodeDataUrl(dataUrl);
@@ -201,7 +244,9 @@ Deno.serve(async (request) => {
         body: form,
       });
     } catch {
-      throw new Error("O serviço de transcrição está temporariamente indisponível. Tente novamente.");
+      throw new Error(
+        "O serviço de transcrição está temporariamente indisponível. Tente novamente.",
+      );
     }
     const payload = jsonObject(await result.json().catch(() => ({})));
     if (!result.ok) {
@@ -211,6 +256,12 @@ Deno.serve(async (request) => {
     const transcript = stringValue(payload["text"], 120_000);
     return response({ status: "completed", transcript });
   } catch (error) {
-    return response({ status: "failed", error: error instanceof Error ? error.message : "Não foi possível transcrever o vídeo." }, 502);
+    return response(
+      {
+        status: "failed",
+        error: error instanceof Error ? error.message : "Não foi possível transcrever o vídeo.",
+      },
+      502,
+    );
   }
 });

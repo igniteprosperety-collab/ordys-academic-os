@@ -31,21 +31,13 @@ describe("ORDYS AI age eligibility", () => {
     const beforeSaoPauloBirthday = new Date("2026-10-31T02:30:00.000Z");
     const afterSaoPauloBirthday = new Date("2026-10-31T03:30:00.000Z");
 
-    expect(calculateAgeInTimeZone(
-      "2008-10-31",
-      "America/Sao_Paulo",
-      beforeSaoPauloBirthday,
-    )).toBe(17);
-    expect(calculateAgeInTimeZone(
-      "2008-10-31",
-      "UTC",
-      beforeSaoPauloBirthday,
-    )).toBe(18);
-    expect(calculateAgeInTimeZone(
-      "2008-10-31",
-      "America/Sao_Paulo",
-      afterSaoPauloBirthday,
-    )).toBe(18);
+    expect(calculateAgeInTimeZone("2008-10-31", "America/Sao_Paulo", beforeSaoPauloBirthday)).toBe(
+      17,
+    );
+    expect(calculateAgeInTimeZone("2008-10-31", "UTC", beforeSaoPauloBirthday)).toBe(18);
+    expect(calculateAgeInTimeZone("2008-10-31", "America/Sao_Paulo", afterSaoPauloBirthday)).toBe(
+      18,
+    );
   });
 
   it("fails closed for invalid dates and IANA time zones", () => {

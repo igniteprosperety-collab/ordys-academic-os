@@ -1,11 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import { claimOrdysSubscriptionCancellation } from "../edge-functions/_shared/ordys-subscription-cancellation";
 
-function setup(options: {
-  patchResult?: unknown;
-  losePatchResponseAfterCommit?: boolean;
-  row?: Record<string, unknown>;
-} = {}) {
+function setup(
+  options: {
+    patchResult?: unknown;
+    losePatchResponseAfterCommit?: boolean;
+    row?: Record<string, unknown>;
+  } = {},
+) {
   const row: Record<string, unknown> = {
     id: "subscription-1",
     status: "active",
@@ -36,7 +38,11 @@ describe("ORDYS recurring subscription cancellation claim", () => {
   it("proves ownership from the PATCH representation", async () => {
     const { row, serviceRest } = setup();
 
-    const result = await claimOrdysSubscriptionCancellation("user-1", "subscription-1", serviceRest);
+    const result = await claimOrdysSubscriptionCancellation(
+      "user-1",
+      "subscription-1",
+      serviceRest,
+    );
 
     expect(result.status).toBe("claimed");
     expect(row.cancellation_claim_id).toEqual(expect.any(String));
@@ -50,7 +56,11 @@ describe("ORDYS recurring subscription cancellation claim", () => {
       row: { status: "cancelled", provider_status: "ACTIVE" },
     });
 
-    const result = await claimOrdysSubscriptionCancellation("user-1", "subscription-1", serviceRest);
+    const result = await claimOrdysSubscriptionCancellation(
+      "user-1",
+      "subscription-1",
+      serviceRest,
+    );
 
     expect(result.status).toBe("claimed");
     expect(row.cancellation_claim_id).toEqual(expect.any(String));
@@ -63,7 +73,11 @@ describe("ORDYS recurring subscription cancellation claim", () => {
   it("proves ownership after the PATCH commits but its response is lost", async () => {
     const { row, serviceRest } = setup({ losePatchResponseAfterCommit: true });
 
-    const result = await claimOrdysSubscriptionCancellation("user-1", "subscription-1", serviceRest);
+    const result = await claimOrdysSubscriptionCancellation(
+      "user-1",
+      "subscription-1",
+      serviceRest,
+    );
 
     expect(result).toMatchObject({
       status: "claimed",
@@ -82,7 +96,11 @@ describe("ORDYS recurring subscription cancellation claim", () => {
       },
     });
 
-    const result = await claimOrdysSubscriptionCancellation("user-1", "subscription-1", serviceRest);
+    const result = await claimOrdysSubscriptionCancellation(
+      "user-1",
+      "subscription-1",
+      serviceRest,
+    );
 
     expect(result).toEqual({ status: "already_claimed" });
     expect(serviceRest).toHaveBeenCalledTimes(2);
@@ -97,8 +115,9 @@ describe("ORDYS recurring subscription cancellation claim", () => {
       return [];
     });
 
-    await expect(claimOrdysSubscriptionCancellation("user-1", "subscription-1", serviceRest))
-      .rejects.toThrow("database readback unavailable");
+    await expect(
+      claimOrdysSubscriptionCancellation("user-1", "subscription-1", serviceRest),
+    ).rejects.toThrow("database readback unavailable");
     expect(serviceRest).toHaveBeenCalledTimes(2);
   });
 
@@ -112,7 +131,11 @@ describe("ORDYS recurring subscription cancellation claim", () => {
       },
     });
 
-    const result = await claimOrdysSubscriptionCancellation("user-1", "subscription-1", serviceRest);
+    const result = await claimOrdysSubscriptionCancellation(
+      "user-1",
+      "subscription-1",
+      serviceRest,
+    );
 
     expect(result).toEqual({ status: "confirmed", cancellationRequestedAt: null });
     expect(serviceRest).toHaveBeenCalledTimes(2);

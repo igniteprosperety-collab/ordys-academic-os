@@ -58,11 +58,10 @@ function redactStackFrame(line: string) {
       ? line.length - 1
       : line.length;
 
-  return (
-    line.slice(0, queryStart) +
-    "?[redacted]" +
-    line.slice(suffixStart)
-  ).slice(0, STACK_FRAME_LENGTH_LIMIT);
+  return (line.slice(0, queryStart) + "?[redacted]" + line.slice(suffixStart)).slice(
+    0,
+    STACK_FRAME_LENGTH_LIMIT,
+  );
 }
 
 function safeStackFrames(error: Error) {

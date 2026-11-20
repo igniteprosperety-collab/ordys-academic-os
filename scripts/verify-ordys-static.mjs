@@ -12,7 +12,9 @@ function read(path) {
   try {
     return readFileSync(path, "utf8");
   } catch (error) {
-    failures.push(`Não foi possível ler ${path}: ${error instanceof Error ? error.message : String(error)}`);
+    failures.push(
+      `Não foi possível ler ${path}: ${error instanceof Error ? error.message : String(error)}`,
+    );
     return "";
   }
 }
@@ -35,8 +37,12 @@ requireFile("mobile/branding/ordys-launcher.webp");
 const brandLockupSource = read("src/components/ordys/brand-lockup.tsx");
 const shell = read("src/components/ordys/shell.tsx");
 const canonicalBranding =
-  brandLockupSource.includes('import officialLogo from "../../../mobile/branding/ordys-launcher.webp";') &&
-  brandLockupSource.includes('import symbolLogo from "../../../mobile/branding/ordys-symbol.svg";') &&
+  brandLockupSource.includes(
+    'import officialLogo from "../../../mobile/branding/ordys-launcher.webp";',
+  ) &&
+  brandLockupSource.includes(
+    'import symbolLogo from "../../../mobile/branding/ordys-symbol.svg";',
+  ) &&
   brandLockupSource.includes("src={compact ? symbolLogo : officialLogo}") &&
   brandLockupSource.includes('alt={compact ? "ORDYS" : "ORDYS ACADEMY"}');
 if (!canonicalBranding) {
@@ -46,15 +52,26 @@ if (!shell.includes("min-h-11 px-1 text-left sm:min-h-9")) {
   failures.push("Ações de notificação devem ter alvo de toque mobile de 44px");
 }
 
-for (const forbidden of ["ORDYS_OFFICIAL_LOGO", "@/lib/ordys-brand", "ordys-logo.webp", "ordys-icon.webp"]) {
+for (const forbidden of [
+  "ORDYS_OFFICIAL_LOGO",
+  "@/lib/ordys-brand",
+  "ordys-logo.webp",
+  "ordys-icon.webp",
+]) {
   if (brandLockupSource.includes(forbidden)) {
     failures.push(`brand-lockup.tsx ainda contém ativo legado: ${forbidden}`);
   }
 }
 
 const authRoute = read("src/routes/auth.tsx");
-if (authRoute.includes('<p className="text-[11px] font-semibold tracking-[0.18em] text-primary">ORDYS ACADEMY</p>')) {
-  failures.push("auth.tsx não deve duplicar o lockup ORDYS ACADEMY já renderizado por OrdysBrandLockup");
+if (
+  authRoute.includes(
+    '<p className="text-[11px] font-semibold tracking-[0.18em] text-primary">ORDYS ACADEMY</p>',
+  )
+) {
+  failures.push(
+    "auth.tsx não deve duplicar o lockup ORDYS ACADEMY já renderizado por OrdysBrandLockup",
+  );
 }
 
 const manifestText = read("public/manifest.webmanifest");
@@ -96,7 +113,9 @@ try {
     failures.push("manifest.orientation deve ser portrait-primary");
   }
 } catch (error) {
-  failures.push(`manifest.webmanifest inválido: ${error instanceof Error ? error.message : String(error)}`);
+  failures.push(
+    `manifest.webmanifest inválido: ${error instanceof Error ? error.message : String(error)}`,
+  );
 }
 
 const migrationDir = "supabase/migrations";
@@ -106,8 +125,7 @@ try {
     .filter((name) => /^\d{14}_.+\.sql$/.test(name))
     .sort();
   const foreignKeys = new Map();
-const constraints = new Map();
-
+  const constraints = new Map();
 
   for (const file of migrationFiles) {
     const content = readFileSync(migrationDir + "/" + file, "utf8");
@@ -123,13 +141,17 @@ const constraints = new Map();
         const key = `${table}|${name}`;
         const previous = constraints.get(key);
         if (previous && !content.includes("DROP CONSTRAINT IF EXISTS " + name)) {
-          failures.push("Migration " + file + " repete a constraint de " + previous.file + ": " + key);
+          failures.push(
+            "Migration " + file + " repete a constraint de " + previous.file + ": " + key,
+          );
         }
         constraints.set(key, { file });
       }
       const constraintMatch = line.match(/ADD CONSTRAINT\s+([a-zA-Z0-9_]+)/i);
       if (constraintMatch) pendingConstraint = constraintMatch[1];
-      const fkMatch = line.match(/FOREIGN KEY\s*\(([^)]+)\)\s*REFERENCES\s+public\.([a-zA-Z0-9_]+)\s*\(([^)]+)\)\s*(?:ON DELETE\s+([A-Z ]+))?/i);
+      const fkMatch = line.match(
+        /FOREIGN KEY\s*\(([^)]+)\)\s*REFERENCES\s+public\.([a-zA-Z0-9_]+)\s*\(([^)]+)\)\s*(?:ON DELETE\s+([A-Z ]+))?/i,
+      );
       if (!fkMatch || !table) continue;
       const signature = [
         table,
@@ -140,14 +162,24 @@ const constraints = new Map();
       ].join("|");
       const previous = foreignKeys.get(signature);
       if (previous && !content.includes("DROP CONSTRAINT IF EXISTS " + previous.constraint)) {
-        failures.push("Migration " + file + " repete a mesma foreign key de " + previous.file + ": " + signature);
+        failures.push(
+          "Migration " +
+            file +
+            " repete a mesma foreign key de " +
+            previous.file +
+            ": " +
+            signature,
+        );
       }
       foreignKeys.set(signature, { file, constraint: pendingConstraint });
       pendingConstraint = "";
     }
   }
 } catch (error) {
-  failures.push("Não foi possível verificar as migrations de integridade: " + (error instanceof Error ? error.message : String(error)));
+  failures.push(
+    "Não foi possível verificar as migrations de integridade: " +
+      (error instanceof Error ? error.message : String(error)),
+  );
 }
 
 /**
@@ -194,21 +226,25 @@ try {
     const tableTarget = "(?:TABLE\\s+)?public\\." + escapedTable + "\\b";
     const serviceRoleGrant = new RegExp(
       "\\bGRANT\\s+(?:ALL|[A-Z]+(?:\\s*,\\s*[A-Z]+)*)\\s+ON\\s+" +
-        tableTarget + "\\s+TO\\s+service_role\\s*;",
+        tableTarget +
+        "\\s+TO\\s+service_role\\s*;",
       "i",
     ).test(allMigrationSource);
     const authenticatedGrant = new RegExp(
       "\\bGRANT\\s+(?:ALL|SELECT\\s*,\\s*INSERT\\s*,\\s*UPDATE\\s*,\\s*DELETE)\\s+ON\\s+" +
-        tableTarget + "\\s+TO\\s+authenticated\\s*;",
+        tableTarget +
+        "\\s+TO\\s+authenticated\\s*;",
       "i",
     ).test(allMigrationSource);
     const clientRolesRevoked = new RegExp(
-      "\\bREVOKE\\s+ALL\\s+ON\\s+" + tableTarget +
+      "\\bREVOKE\\s+ALL\\s+ON\\s+" +
+        tableTarget +
         "\\s+FROM\\s+PUBLIC\\s*,\\s*anon\\s*,\\s*authenticated\\s*;",
       "i",
     ).test(allMigrationSource);
     const rlsEnabled = new RegExp(
-      "\\bALTER\\s+TABLE\\s+public\\." + escapedTable +
+      "\\bALTER\\s+TABLE\\s+public\\." +
+        escapedTable +
         "\\s+ENABLE\\s+ROW\\s+LEVEL\\s+SECURITY\\s*;",
       "i",
     ).test(allMigrationSource);
@@ -216,17 +252,15 @@ try {
     const ownerScopedPolicy = [
       ...allMigrationSource.matchAll(
         new RegExp(
-          "\\bCREATE\\s+POLICY\\b[^;]*?\\bON\\s+public\\." +
-            escapedTable + "\\b[^;]*;",
+          "\\bCREATE\\s+POLICY\\b[^;]*?\\bON\\s+public\\." + escapedTable + "\\b[^;]*;",
           "gi",
         ),
       ),
     ].some(([policy]) => {
       const hasOwnerPredicate = (expression) =>
-        new RegExp(
-          "\\bauth\\.uid\\s*\\(\\s*\\)\\s*=\\s*" + ownerColumn + "\\b",
-          "i",
-        ).test(expression);
+        new RegExp("\\bauth\\.uid\\s*\\(\\s*\\)\\s*=\\s*" + ownerColumn + "\\b", "i").test(
+          expression,
+        );
       const usingClause = policy.match(/\bUSING\s*\([\s\S]*$/i)?.[0] ?? "";
       const checkClause = policy.match(/\bWITH\s+CHECK\s*\([\s\S]*$/i)?.[0] ?? "";
       return (
@@ -242,7 +276,10 @@ try {
 
     if (!serviceRoleGrant) {
       failures.push(
-        "Migration " + createdIn + ": public." + table +
+        "Migration " +
+          createdIn +
+          ": public." +
+          table +
           " precisa de GRANT explícito para service_role.",
       );
     }
@@ -251,7 +288,10 @@ try {
     }
     if (anonymousGrant) {
       failures.push(
-        "Migration " + createdIn + ": public." + table +
+        "Migration " +
+          createdIn +
+          ": public." +
+          table +
           " não pode conceder acesso direto a anon sem revisão explícita.",
       );
     }
@@ -263,13 +303,19 @@ try {
 
     if (!authenticatedGrant) {
       failures.push(
-        "Migration " + createdIn + ": public." + table +
+        "Migration " +
+          createdIn +
+          ": public." +
+          table +
           " precisa declarar GRANT explícito para authenticated ou revogar os papéis clientes como tabela interna.",
       );
     }
     if (!ownerScopedPolicy) {
       failures.push(
-        "Migration " + createdIn + ": public." + table +
+        "Migration " +
+          createdIn +
+          ": public." +
+          table +
           " precisa de policy para authenticated com escopo auth.uid().",
       );
     }
@@ -281,9 +327,15 @@ try {
   );
 }
 
-const baseSchema = read("supabase/migrations/20260814212706_7d997b1c-8901-4617-8850-9b7f79519157.sql");
-const baseTables = [...baseSchema.matchAll(/CREATE TABLE public\.([a-zA-Z0-9_]+)/g)].map((match) => match[1]);
-const retentionDeletion = read("supabase/migrations/20260926073000_profile_validation_and_retention.sql");
+const baseSchema = read(
+  "supabase/migrations/20260814212706_7d997b1c-8901-4617-8850-9b7f79519157.sql",
+);
+const baseTables = [...baseSchema.matchAll(/CREATE TABLE public\.([a-zA-Z0-9_]+)/g)].map(
+  (match) => match[1],
+);
+const retentionDeletion = read(
+  "supabase/migrations/20260926073000_profile_validation_and_retention.sql",
+);
 for (const table of baseTables) {
   if (!retentionDeletion.includes(`DELETE FROM public.${table}`)) {
     failures.push(`Exclusão de conta não remove explicitamente a tabela base: ${table}`);
@@ -295,11 +347,17 @@ for (const table of ["assistant_jobs", "usage_events"]) {
   }
 }
 
-const rlsTables = new Set([...baseSchema.matchAll(/ALTER TABLE public\.([a-zA-Z0-9_]+)\s+ENABLE ROW LEVEL SECURITY/gi)].map((match) => match[1]));
+const rlsTables = new Set(
+  [...baseSchema.matchAll(/ALTER TABLE public\.([a-zA-Z0-9_]+)\s+ENABLE ROW LEVEL SECURITY/gi)].map(
+    (match) => match[1],
+  ),
+);
 const policyLines = baseSchema.split("\n").filter((line) => /CREATE POLICY /i.test(line));
 for (const table of baseTables) {
   if (!rlsTables.has(table)) failures.push(`Tabela base sem RLS: ${table}`);
-  const policiesForTable = policyLines.filter((line) => new RegExp(`ON public\\.${table}\\b`, "i").test(line));
+  const policiesForTable = policyLines.filter((line) =>
+    new RegExp(`ON public\\.${table}\\b`, "i").test(line),
+  );
   if (!policiesForTable.length) failures.push(`Tabela base sem policy: ${table}`);
   if (policiesForTable.some((line) => !line.includes("auth.uid()"))) {
     failures.push(`Tabela base possui policy sem escopo explícito de sessão: ${table}`);
@@ -310,11 +368,17 @@ const serverSource = read("src/server.ts");
 if (!serverSource.includes("if (response.status >= 500)")) {
   failures.push("server.ts deve aplicar ERROR_CSP somente às respostas de erro");
 }
-if (/headers\.set\("Content-Security-Policy", ERROR_CSP\);\s*\n\s*headers\.set\("X-Content-Type-Options"/.test(serverSource)) {
+if (
+  /headers\.set\("Content-Security-Policy", ERROR_CSP\);\s*\n\s*headers\.set\("X-Content-Type-Options"/.test(
+    serverSource,
+  )
+) {
   failures.push("server.ts não pode aplicar ERROR_CSP incondicionalmente às respostas normais");
 }
 
-const ownershipMigration = read("supabase/migrations/20260818093519_5e1aeded-54c4-456d-9c26-e7da5463940e.sql");
+const ownershipMigration = read(
+  "supabase/migrations/20260818093519_5e1aeded-54c4-456d-9c26-e7da5463940e.sql",
+);
 for (const expected of [
   "CREATE OR REPLACE FUNCTION public.prevent_owner_change()",
   "CREATE OR REPLACE FUNCTION public.enforce_same_owner_refs()",
@@ -332,7 +396,8 @@ for (const expected of [
   "DROP TRIGGER IF EXISTS attempts_refs_guard ON public.quiz_attempts;",
   "DROP TRIGGER IF EXISTS answers_refs_guard ON public.quiz_answers;",
 ]) {
-  if (!ownershipMigration.includes(expected)) failures.push(`Migration de ownership perdeu proteção esperada: ${expected}`);
+  if (!ownershipMigration.includes(expected))
+    failures.push(`Migration de ownership perdeu proteção esperada: ${expected}`);
 }
 
 const securityMigrations = [
@@ -421,22 +486,31 @@ const securityMigrations = [
 for (const guard of securityMigrations) {
   const source = read(guard.path);
   for (const expected of guard.required) {
-    if (!source.includes(expected)) failures.push(`${guard.path} perdeu hardening esperado: ${expected}`);
+    if (!source.includes(expected))
+      failures.push(`${guard.path} perdeu hardening esperado: ${expected}`);
   }
   for (const forbidden of guard.forbidden ?? []) {
-    if (source.includes(forbidden)) failures.push(`${guard.path} contém referência proibida: ${forbidden}`);
+    if (source.includes(forbidden))
+      failures.push(`${guard.path} contém referência proibida: ${forbidden}`);
   }
 }
 
-const recoveryCleanupMigration = read("supabase/migrations/20261029232900_delete_recovery_hash_on_account_deletion.sql");
-const recoveryRpcStart = recoveryCleanupMigration.indexOf("CREATE OR REPLACE FUNCTION public.can_request_password_recovery");
+const recoveryCleanupMigration = read(
+  "supabase/migrations/20261029232900_delete_recovery_hash_on_account_deletion.sql",
+);
+const recoveryRpcStart = recoveryCleanupMigration.indexOf(
+  "CREATE OR REPLACE FUNCTION public.can_request_password_recovery",
+);
 const recoveryRpcEnd = recoveryCleanupMigration.indexOf("$ordys$;", recoveryRpcStart);
-const recoveryRpcSource = recoveryRpcStart >= 0 && recoveryRpcEnd > recoveryRpcStart
-  ? recoveryCleanupMigration.slice(recoveryRpcStart, recoveryRpcEnd)
-  : "";
+const recoveryRpcSource =
+  recoveryRpcStart >= 0 && recoveryRpcEnd > recoveryRpcStart
+    ? recoveryCleanupMigration.slice(recoveryRpcStart, recoveryRpcEnd)
+    : "";
 const recentLimitPosition = recoveryRpcSource.indexOf("IF recent_count >= 3");
 const dailyLimitPosition = recoveryRpcSource.indexOf("IF daily_count >= 10");
-const recoveryAttemptInsertPosition = recoveryRpcSource.indexOf("INSERT INTO public.password_recovery_attempts (email_hash)");
+const recoveryAttemptInsertPosition = recoveryRpcSource.indexOf(
+  "INSERT INTO public.password_recovery_attempts (email_hash)",
+);
 if (
   !recoveryRpcSource ||
   recoveryRpcSource.includes("FROM auth.users") ||
@@ -444,21 +518,30 @@ if (
   recentLimitPosition < 0 ||
   dailyLimitPosition < 0 ||
   recoveryAttemptInsertPosition < 0 ||
-  !(recentLimitPosition < recoveryAttemptInsertPosition &&
-    dailyLimitPosition < recoveryAttemptInsertPosition)
+  !(
+    recentLimitPosition < recoveryAttemptInsertPosition &&
+    dailyLimitPosition < recoveryAttemptInsertPosition
+  )
 ) {
-  failures.push("Recovery RPC deve limitar por hash sem consultar auth.users nem revelar se a conta existe.");
+  failures.push(
+    "Recovery RPC deve limitar por hash sem consultar auth.users nem revelar se a conta existe.",
+  );
 }
-const deleteOwnDataStart = recoveryCleanupMigration.indexOf("CREATE OR REPLACE FUNCTION public.delete_own_data()");
+const deleteOwnDataStart = recoveryCleanupMigration.indexOf(
+  "CREATE OR REPLACE FUNCTION public.delete_own_data()",
+);
 const deleteOwnDataEnd = recoveryCleanupMigration.indexOf("$ordys$;", deleteOwnDataStart);
-const deleteOwnDataSource = deleteOwnDataStart >= 0 && deleteOwnDataEnd > deleteOwnDataStart
-  ? recoveryCleanupMigration.slice(deleteOwnDataStart, deleteOwnDataEnd)
-  : "";
+const deleteOwnDataSource =
+  deleteOwnDataStart >= 0 && deleteOwnDataEnd > deleteOwnDataStart
+    ? recoveryCleanupMigration.slice(deleteOwnDataStart, deleteOwnDataEnd)
+    : "";
 if (
   !deleteOwnDataSource.includes("auth.uid()") ||
   !deleteOwnDataSource.includes("email_hash = encode(digest(normalized_email, 'sha256'), 'hex')")
 ) {
-  failures.push("Exclusão de conta deve remover o hash da solicitação de recuperação do endereço atual do próprio usuário.");
+  failures.push(
+    "Exclusão de conta deve remover o hash da solicitação de recuperação do endereço atual do próprio usuário.",
+  );
 }
 
 requireIncludes("src/routes/agenda.tsx", [
@@ -472,7 +555,9 @@ requireIncludes("src/routes/agenda.tsx", [
 ]);
 
 const agendaSource = read("src/routes/agenda.tsx");
-const mobileMonthStart = agendaSource.indexOf('monthDays.filter((day) => day.getMonth() === monthStart.getMonth()');
+const mobileMonthStart = agendaSource.indexOf(
+  "monthDays.filter((day) => day.getMonth() === monthStart.getMonth()",
+);
 const mobileMonthEnd = agendaSource.indexOf('{active === "Semana" ?', mobileMonthStart);
 if (mobileMonthStart >= 0 && mobileMonthEnd > mobileMonthStart) {
   const mobileMonth = agendaSource.slice(mobileMonthStart, mobileMonthEnd);
@@ -480,11 +565,18 @@ if (mobileMonthStart >= 0 && mobileMonthEnd > mobileMonthStart) {
     failures.push("agenda.tsx usa índice i fora de escopo na lista mobile do mês");
   }
   if (!mobileMonth.includes("onClick={() => openMonthItem(it, day)}")) {
-    failures.push("agenda.tsx deve abrir o dia correto ao tocar em atividade na visão mensal mobile");
+    failures.push(
+      "agenda.tsx deve abrir o dia correto ao tocar em atividade na visão mensal mobile",
+    );
   }
 }
-if (agendaSource.includes('onClick={() => openSubject(e.subject_id)}') || agendaSource.includes('onClick={() => openSubject(t.subject_id)}')) {
-  failures.push("agenda.tsx mantém ações que ficam sem efeito quando a atividade não possui disciplina");
+if (
+  agendaSource.includes("onClick={() => openSubject(e.subject_id)}") ||
+  agendaSource.includes("onClick={() => openSubject(t.subject_id)}")
+) {
+  failures.push(
+    "agenda.tsx mantém ações que ficam sem efeito quando a atividade não possui disciplina",
+  );
 }
 
 requireIncludes("src/routes/agenda.tsx", [
@@ -505,7 +597,6 @@ requireIncludes("src/components/ordys/form.tsx", [
 requireIncludes("src/components/ordys/form.tsx", [
   'className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground sm:size-8"',
 ]);
-
 
 requireIncludes("src/routes/assistente.tsx", [
   "isLoading: profileLoading, error: profileError",
@@ -549,17 +640,14 @@ requireIncludes("src/routes/excluir-conta.tsx", [
 requireIncludes("src/routes/disciplinas.tsx", [
   "const primarySchedule = existingSchedules[0];",
   "Horários adicionais desta disciplina são preservados ao editar.",
-  "await remove(\"subject_schedules\", existingSchedules[0]!.id);",
+  'await remove("subject_schedules", existingSchedules[0]!.id);',
 ]);
 
 requireIncludes("src/routes/disciplinas.tsx", [
-  'className={`flex min-h-11 items-center gap-2 rounded-lg border px-3 py-1.5',
-  'className={`-mb-px min-h-11 shrink-0 border-b px-3 py-2',
+  "className={`flex min-h-11 items-center gap-2 rounded-lg border px-3 py-1.5",
+  "className={`-mb-px min-h-11 shrink-0 border-b px-3 py-2",
 ]);
-requireIncludes("src/routes/estudos.tsx", [
-  'className={`min-h-11 rounded-lg border px-3 py-1.5',
-]);
-
+requireIncludes("src/routes/estudos.tsx", ["className={`min-h-11 rounded-lg border px-3 py-1.5"]);
 
 requireIncludes("src/server.ts", [
   'headers.set("Content-Security-Policy", ERROR_CSP)',
@@ -571,17 +659,17 @@ requireIncludes("src/server.ts", [
   'headers.set("Cross-Origin-Opener-Policy", "same-origin-allow-popups")',
 ]);
 requireIncludes("src/start.ts", [
-  'function requestHasPrivateAuth(request: Request)',
+  "function requestHasPrivateAuth(request: Request)",
   'headers.set("X-Permitted-Cross-Domain-Policies", "none")',
   'headers.set("Cache-Control", "private, no-store")',
   'headers.append("Vary", "Cookie")',
   'headers.append("Vary", "Authorization")',
-  'requestMiddleware: [securityHeadersMiddleware, errorMiddleware, csrfMiddleware]',
+  "requestMiddleware: [securityHeadersMiddleware, errorMiddleware, csrfMiddleware]",
 ]);
 
 requireIncludes("src/start.ts", [
   'headers.set("X-Content-Type-Options", "nosniff")',
-  'if (isProduction) {',
+  "if (isProduction) {",
   'headers.set("X-Frame-Options", "DENY");',
   'headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")',
   'headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")',
@@ -608,31 +696,37 @@ requireIncludes("src/routes/perfil.tsx", [
 ]);
 
 requireIncludes("src/lib/native-notifications.ts", [
-  'export const nativeNotificationsDisabled =',
+  "export const nativeNotificationsDisabled =",
   "// Do not trigger a permission prompt at app startup.",
   "getNativeNotificationPermission",
 ]);
 const nativeNotificationsSource = read("src/lib/native-notifications.ts");
 if (
-  !nativeNotificationsSource.includes('import.meta.env.VITE_ORDYS_DISABLE_NATIVE_NOTIFICATIONS === "1"') &&
-  !nativeNotificationsSource.includes('import.meta.env["VITE_ORDYS_DISABLE_NATIVE_NOTIFICATIONS"] === "1"')
+  !nativeNotificationsSource.includes(
+    'import.meta.env.VITE_ORDYS_DISABLE_NATIVE_NOTIFICATIONS === "1"',
+  ) &&
+  !nativeNotificationsSource.includes(
+    'import.meta.env["VITE_ORDYS_DISABLE_NATIVE_NOTIFICATIONS"] === "1"',
+  )
 ) {
-  failures.push("native-notifications.ts deve respeitar o flag de desativação para builds direct-install");
+  failures.push(
+    "native-notifications.ts deve respeitar o flag de desativação para builds direct-install",
+  );
 }
 requireIncludes("vite.mobile.config.ts", [
-  'const disableNativeNotifications =',
+  "const disableNativeNotifications =",
   'process.env["VITE_ORDYS_DISABLE_NATIVE_NOTIFICATIONS"] !== "0"',
   'JSON.stringify(disableNativeNotifications ? "1" : "0")',
 ]);
 requireIncludes("scripts/configure-ordys-notification-manifest.py", [
   'profile not in {"sideload", "play"}',
-  'notification_permissions = {',
+  "notification_permissions = {",
   '"POST_NOTIFICATIONS"',
   '"RECEIVE_BOOT_COMPLETED"',
   '"WAKE_LOCK"',
   'exact_alarm_permissions = {"SCHEDULE_EXACT_ALARM", "USE_EXACT_ALARM"}',
   'if profile == "play":',
-  'elif removal not in text:',
+  "elif removal not in text:",
   'tools:node="remove"',
 ]);
 requireIncludes("src/routes/perfil.tsx", [
@@ -678,30 +772,29 @@ requireIncludes("src/lib/native-notifications.ts", [
   '{ days: 1, label: "amanhã" }',
   '{ days: 0, label: "hoje" }',
   'const label = daysBefore === 0 ? "prazo hoje" : "prazo amanhã";',
-  'if (days === 0)',
-  'examDate.getTime() - 60 * 60 * 1000',
-  'daily_summary: boolean;',
-  'weekly_summary: boolean;',
-  'monthly_summary: boolean;',
-  'Resumo diário',
-  'Resumo semanal',
-  'Resumo mensal',
+  "if (days === 0)",
+  "examDate.getTime() - 60 * 60 * 1000",
+  "daily_summary: boolean;",
+  "weekly_summary: boolean;",
+  "monthly_summary: boolean;",
+  "Resumo diário",
+  "Resumo semanal",
+  "Resumo mensal",
 ]);
-
 
 requireIncludes("src/lib/ordys-db.ts", [
   '.eq("user_id", userId)',
-  'const { user_id: _ignoredUserId, ...safeValues } = values;',
+  "const { user_id: _ignoredUserId, ...safeValues } = values;",
   'onConflict: "user_id"',
 ]);
 
 requireIncludes("src/lib/ordys-engine.test.ts", [
   "returns null for invalid deadline dates",
-  "expect(daysUntil(\"not-a-date\")).toBeNull()",
+  'expect(daysUntil("not-a-date")).toBeNull()',
 ]);
 requireIncludes("src/lib/ordys-engine.test.ts", [
   "ignores invalid grade rows in summaries and subject averages",
-  "const invalid = { ...grade, id: \"grade-invalid\", max_score: 0, weight: 0 };",
+  'const invalid = { ...grade, id: "grade-invalid", max_score: 0, weight: 0 };',
 ]);
 
 const engineTests = read("src/lib/ordys-engine.test.ts");
@@ -711,12 +804,15 @@ for (const expected of [
   "does not create summary notifications",
   "vi.useFakeTimers()",
 ]) {
-  if (!engineTests.includes(expected)) failures.push(`Testes do engine de notificações não contêm: ${expected}`);
+  if (!engineTests.includes(expected))
+    failures.push(`Testes do engine de notificações não contêm: ${expected}`);
 }
 
 const engineSource = read("src/lib/ordys-engine.ts");
 if (engineSource.includes("supabase.from(")) {
-  failures.push("src/lib/ordys-engine.ts não deve acessar supabase.from() diretamente; use dataClient()");
+  failures.push(
+    "src/lib/ordys-engine.ts não deve acessar supabase.from() diretamente; use dataClient()",
+  );
 }
 requireIncludes("src/lib/ordys-engine.ts", [
   'import { getActiveLocalProfileId, isDemoMode } from "@/lib/demo-mode";',
@@ -736,22 +832,17 @@ requireIncludes("src/lib/ordys-engine.ts", [
   "summary-month:",
 ]);
 
-requireIncludes(".gitignore", [
-  "*.jks",
-  "*.jks.sha256",
-]);
+requireIncludes(".gitignore", ["*.jks", "*.jks.sha256"]);
 
-requireIncludes("supabase/config.toml", [
-  'project_id = "yqljcoukgpqdoxiispyn"',
-]);
+requireIncludes("supabase/config.toml", ['project_id = "yqljcoukgpqdoxiispyn"']);
 
 requireIncludes(".github/workflows/deploy-ordys-assistant.yml", [
-  'https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_ID/config/auth',
+  "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_ID/config/auth",
   "scripts/verify-supabase-auth-config.mjs",
   "supabase db query --linked --yes --output json --file scripts/queries/auth-trigger-readiness.sql",
   "No known or email_confirmed_at-related trigger was found on auth.users.",
   '[.. | objects | select(has("trigger_name"))] as $triggers',
-  'all($triggers[];',
+  "all($triggers[];",
   '.trigger_name == "ordys_auto_confirm_email_trigger"',
   '.function_schema == "public"',
   '.function_name == "ordys_auto_confirm_email"',
@@ -785,12 +876,12 @@ requireIncludes(".github/workflows/preflight-ordys-production.yml", [
   "supabase migration list --linked",
   "supabase db lint --linked --level error",
   "supabase db push --linked --dry-run",
-  'https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_ID/config/auth',
+  "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_ID/config/auth",
   "scripts/verify-supabase-auth-config.mjs",
   "supabase db query --linked --yes --output json --file scripts/queries/auth-trigger-readiness.sql",
   "No known or email_confirmed_at-related trigger was found on auth.users.",
   "A trigger on auth.users may set or otherwise reference email_confirmed_at.",
-  "supabase secrets list --project-ref \"$SUPABASE_PROJECT_ID\"",
+  'supabase secrets list --project-ref "$SUPABASE_PROJECT_ID"',
   "OPENAI_API_KEY",
   "No migrations or Edge Functions were deployed and no secrets were changed.",
 ]);
@@ -854,34 +945,51 @@ const authTriggerQuery = read("scripts/queries/auth-trigger-readiness.sql");
 if (!/^\s*(?:--[^\n]*\n\s*)*SELECT\b/i.test(authTriggerQuery)) {
   failures.push("Auth trigger metadata query must begin with SELECT.");
 }
-if (/\b(?:INSERT|UPDATE|DELETE|TRUNCATE|ALTER|DROP|CREATE|DO|CALL|COPY|LOCK)\b/i.test(authTriggerQuery)) {
-  failures.push("Auth trigger metadata query must not contain database write or control statements.");
+if (
+  /\b(?:INSERT|UPDATE|DELETE|TRUNCATE|ALTER|DROP|CREATE|DO|CALL|COPY|LOCK)\b/i.test(
+    authTriggerQuery,
+  )
+) {
+  failures.push(
+    "Auth trigger metadata query must not contain database write or control statements.",
+  );
 }
-if (!authTriggerQuery.includes("pg_catalog.pg_trigger") || !authTriggerQuery.includes("ordys_auto_confirm_email_trigger") || !authTriggerQuery.includes("p.prosrc ILIKE '%email_confirmed_at%'")) {
-  failures.push("Auth trigger metadata query must detect the known auto-confirm trigger and renamed functions referencing email_confirmed_at.");
+if (
+  !authTriggerQuery.includes("pg_catalog.pg_trigger") ||
+  !authTriggerQuery.includes("ordys_auto_confirm_email_trigger") ||
+  !authTriggerQuery.includes("p.prosrc ILIKE '%email_confirmed_at%'")
+) {
+  failures.push(
+    "Auth trigger metadata query must detect the known auto-confirm trigger and renamed functions referencing email_confirmed_at.",
+  );
 }
 
 requireIncludes("tests/password-recovery-redirect.test.ts", [
   "accepts the exact native callback without a public web origin",
-  'recoveryRequest(),',
+  "recoveryRequest(),",
   '"app.ordys.academy://auth/callback",',
   '""',
 ]);
 
 const productionPreflight = read(".github/workflows/preflight-ordys-production.yml");
 for (const [pattern, description] of [
-  [/^\s*(?:run:\s*)?supabase\s+(?:--yes\s+)?db\s+push\b(?![^\n]*--dry-run)/m, "db push sem --dry-run"],
+  [
+    /^\s*(?:run:\s*)?supabase\s+(?:--yes\s+)?db\s+push\b(?![^\n]*--dry-run)/m,
+    "db push sem --dry-run",
+  ],
   [/^\s*(?:run:\s*)?supabase\s+(?:--yes\s+)?functions\s+deploy\b/m, "deploy de Edge Function"],
   [/^\s*(?:run:\s*)?supabase\s+(?:--yes\s+)?secrets\s+set\b/m, "alteração de secrets"],
   [/^\s*(?:run:\s*)?supabase\s+(?:--yes\s+)?secrets\s+unset\b/m, "remoção de secrets"],
 ]) {
   if (pattern.test(productionPreflight)) {
-    failures.push("Preflight de produção deve permanecer somente leitura; comando proibido: " + description);
+    failures.push(
+      "Preflight de produção deve permanecer somente leitura; comando proibido: " + description,
+    );
   }
 }
 
 requireIncludes(".github/workflows/deploy-ordys-assistant.yml", [
-  "supabase secrets list --project-ref \"$SUPABASE_PROJECT_ID\"",
+  'supabase secrets list --project-ref "$SUPABASE_PROJECT_ID"',
   "OPENAI_API_KEY",
   "Required OpenAI runtime secret is configured; its value was not read.",
   "supabase --yes db push --linked",
@@ -901,9 +1009,16 @@ requireIncludes("supabase/migrations/20260927014500_focus_plan_ownership.sql", [
   "VALIDATE CONSTRAINT focus_sessions_plan_session_fk",
 ]);
 
-const focusSqlDelimiterMigrationGuard = read("supabase/migrations/20260927014000_focus_plan_reference_integrity.sql");
-if (!/^[ \t]*DO \$\$/m.test(focusSqlDelimiterMigrationGuard) || !/END \$\$;/.test(focusSqlDelimiterMigrationGuard)) {
-  failures.push("Migration de integridade das sessões de foco precisa ter delimitadores DO $$ ... END $$ válidos.");
+const focusSqlDelimiterMigrationGuard = read(
+  "supabase/migrations/20260927014000_focus_plan_reference_integrity.sql",
+);
+if (
+  !/^[ \t]*DO \$\$/m.test(focusSqlDelimiterMigrationGuard) ||
+  !/END \$\$;/.test(focusSqlDelimiterMigrationGuard)
+) {
+  failures.push(
+    "Migration de integridade das sessões de foco precisa ter delimitadores DO $$ ... END $$ válidos.",
+  );
 }
 if (/^[ \t]*DO \$(?:\r?\n)/m.test(focusSqlDelimiterMigrationGuard)) {
   failures.push("Migration de integridade das sessões de foco possui delimitador DO incompleto.");
@@ -961,15 +1076,21 @@ const singleRunSteps = [
 for (const stepName of singleRunSteps) {
   const matches = deploymentWorkflow.split(`- name: ${stepName}`).length - 1;
   if (matches !== 1) {
-    failures.push(`Deploy de produção deve conter exatamente uma etapa "${stepName}", encontrou ${matches}.`);
+    failures.push(
+      `Deploy de produção deve conter exatamente uma etapa "${stepName}", encontrou ${matches}.`,
+    );
   }
 }
-if (!deploymentWorkflow.includes("deno check supabase/functions/ordys-ai-report/index.ts") ||
+if (
+  !deploymentWorkflow.includes("deno check supabase/functions/ordys-ai-report/index.ts") ||
   !deploymentWorkflow.includes("supabase --yes functions deploy ordys-ai-report --project-ref") ||
   !deploymentWorkflow.includes("id: ai_report_schema") ||
   !deploymentWorkflow.includes('report_migration_version="20261031030000"') ||
-  !deploymentWorkflow.includes("steps.ai_report_schema.outputs.ready == 'true'")) {
-  failures.push("Deploy de produção deve validar o schema antes de publicar a Edge Function ordys-ai-report.");
+  !deploymentWorkflow.includes("steps.ai_report_schema.outputs.ready == 'true'")
+) {
+  failures.push(
+    "Deploy de produção deve validar o schema antes de publicar a Edge Function ordys-ai-report.",
+  );
 }
 for (const expected of [
   "email_confirmation_delivery_verified:",
@@ -977,12 +1098,12 @@ for (const expected of [
   "default: false",
   "held_migrations=0",
   "while IFS= read -r migration_file",
-  "migration_version=\"${migration_name%%_*}\"",
+  'migration_version="${migration_name%%_*}"',
   "find supabase/migrations -maxdepth 1 -type f -name '*.sql' | sort",
   "Holding the email-confirmation migration and",
   "later migration(s) until Gmail delivery is verified",
   "Supabase columns are LOCAL | REMOTE | TIME; awk field $2 is REMOTE.",
-  "'$2 ~ version { found=1 } END { print found ? \"yes\" : \"no\" }'",
+  '\'$2 ~ version { found=1 } END { print found ? "yes" : "no" }\'',
 ]) {
   if (!deploymentWorkflow.includes(expected)) {
     failures.push("Deploy de produção perdeu a proteção de confirmação de e-mail: " + expected);
@@ -1043,7 +1164,9 @@ requireIncludes("src/routes/excluir-conta.tsx", [
 
 const accountDeletionRouteSource = read("src/routes/excluir-conta.tsx");
 if (accountDeletionRouteSource.includes("window.confirm(")) {
-  failures.push("excluir-conta.tsx deve usar confirmação dentro do app, compatível com WebView Android");
+  failures.push(
+    "excluir-conta.tsx deve usar confirmação dentro do app, compatível com WebView Android",
+  );
 }
 requireIncludes("src/routes/excluir-conta.tsx", [
   'import { Button, ConfirmDialog } from "@/components/ordys/form";',
@@ -1058,7 +1181,9 @@ for (const path of [
   "src/routes/perfil.tsx",
 ]) {
   if (read(path).includes("window.confirm(")) {
-    failures.push(`${path} não pode depender de window.confirm(); use modal interno compatível com WebView Android`);
+    failures.push(
+      `${path} não pode depender de window.confirm(); use modal interno compatível com WebView Android`,
+    );
   }
 }
 requireIncludes("src/routes/perfil.tsx", [
@@ -1088,7 +1213,9 @@ for (const path of routeSources) {
   const content = read(path);
   for (const nativeDialog of ["window.confirm(", "window.alert(", "window.prompt("]) {
     if (content.includes(nativeDialog)) {
-      failures.push(`${path} não pode usar ${nativeDialog} em fluxos WebView; use os componentes internos do Ordys`);
+      failures.push(
+        `${path} não pode usar ${nativeDialog} em fluxos WebView; use os componentes internos do Ordys`,
+      );
     }
   }
   if (path !== "src/routes/__root.tsx" && !/\bhead\s*:\s*\(\s*\)\s*=>/.test(content)) {
@@ -1096,9 +1223,16 @@ for (const path of routeSources) {
   }
   for (const match of content.matchAll(/\btitle:\s*"([^"]+)"/g)) {
     const title = match[1];
-    if (title && !title.includes("Nenhuma ") && !title.includes("Nada com ") && !title.includes("Você ainda")) {
+    if (
+      title &&
+      !title.includes("Nenhuma ") &&
+      !title.includes("Nada com ") &&
+      !title.includes("Você ainda")
+    ) {
       if (routeTitles.has(title)) {
-        failures.push(`Título de rota duplicado: "${title}" em ${path} e ${routeTitles.get(title)}`);
+        failures.push(
+          `Título de rota duplicado: "${title}" em ${path} e ${routeTitles.get(title)}`,
+        );
       } else {
         routeTitles.set(title, path);
       }
@@ -1107,18 +1241,38 @@ for (const path of routeSources) {
   const imported = [];
   for (const match of content.matchAll(/import\s*\{([\s\S]*?)\}\s*from\s*["'][^"']+["'];/g)) {
     for (const piece of match[1].split(",")) {
-      const name = piece.trim().replace(/\bas\s+type\b/, "").replace(/\bas\b.*/, "").trim();
+      const name = piece
+        .trim()
+        .replace(/\bas\s+type\b/, "")
+        .replace(/\bas\b.*/, "")
+        .trim();
       if (name && name !== "type") imported.push(name);
     }
   }
-  const duplicates = [...new Set(imported.filter((name, index) => imported.indexOf(name) !== index))];
+  const duplicates = [
+    ...new Set(imported.filter((name, index) => imported.indexOf(name) !== index)),
+  ];
   if (duplicates.length) {
     failures.push(`${path} contém bindings importados duplicados: ${duplicates.join(", ")}`);
   }
 }
 
 const routeTree = read("src/routeTree.gen.ts");
-for (const route of ["/", "/agenda", "/assistente", "/auth", "/excluir-conta", "/privacidade", "/redefinir-senha", "/desempenho", "/disciplinas", "/estudos", "/perfil", "/simulado", "/tarefas"]) {
+for (const route of [
+  "/",
+  "/agenda",
+  "/assistente",
+  "/auth",
+  "/excluir-conta",
+  "/privacidade",
+  "/redefinir-senha",
+  "/desempenho",
+  "/disciplinas",
+  "/estudos",
+  "/perfil",
+  "/simulado",
+  "/tarefas",
+]) {
   if (!routeTree.includes(`path: '${route}'`) && route !== "/") {
     failures.push(`routeTree.gen.ts não registra a rota ${route}`);
   }
@@ -1139,10 +1293,10 @@ requireIncludes("src/routes/agenda.tsx", [
 
 const shellUiSource = read("src/components/ordys/shell.tsx");
 for (const expected of [
-  'pt-[calc(0.625rem+env(safe-area-inset-top))]',
-  'pb-[calc(6rem+env(safe-area-inset-bottom))]',
-  'fixed inset-x-3 top-[calc(4rem+env(safe-area-inset-top))]',
-  'grid size-11 shrink-0 place-items-center rounded-lg',
+  "pt-[calc(0.625rem+env(safe-area-inset-top))]",
+  "pb-[calc(6rem+env(safe-area-inset-bottom))]",
+  "fixed inset-x-3 top-[calc(4rem+env(safe-area-inset-top))]",
+  "grid size-11 shrink-0 place-items-center rounded-lg",
 ]) {
   if (!shellUiSource.includes(expected)) {
     failures.push(`Shell perdeu proteção/uso mobile esperado: ${expected}`);
@@ -1150,22 +1304,27 @@ for (const expected of [
 }
 
 const sharedFormSource = read("src/components/ordys/form.tsx");
-if (!sharedFormSource.includes("inline-flex min-h-11 shrink-0") || !sharedFormSource.includes("sm:min-h-9")) {
-  failures.push("Button compartilhado deve ter alvo de toque mobile de 44px e permanecer compacto no desktop");
+if (
+  !sharedFormSource.includes("inline-flex min-h-11 shrink-0") ||
+  !sharedFormSource.includes("sm:min-h-9")
+) {
+  failures.push(
+    "Button compartilhado deve ter alvo de toque mobile de 44px e permanecer compacto no desktop",
+  );
 }
 
 const modalSource = read("src/components/ordys/form.tsx");
-if (!modalSource.includes('pt-[calc(1.5rem+env(safe-area-inset-top))]')) {
+if (!modalSource.includes("pt-[calc(1.5rem+env(safe-area-inset-top))]")) {
   failures.push("Modal perdeu espaçamento seguro para a barra de status");
 }
-if (!modalSource.includes('pb-[calc(1.5rem+env(safe-area-inset-bottom))]')) {
+if (!modalSource.includes("pb-[calc(1.5rem+env(safe-area-inset-bottom))]")) {
   failures.push("Modal perdeu espaçamento seguro para a área de gestos");
 }
 
 const authUiSource = read("src/routes/auth.tsx");
 for (const expected of [
-  'min-h-11 rounded-md px-3 py-2 text-[12px] font-medium transition-colors',
-  'size-11 -translate-y-1/2 place-items-center',
+  "min-h-11 rounded-md px-3 py-2 text-[12px] font-medium transition-colors",
+  "size-11 -translate-y-1/2 place-items-center",
 ]) {
   if (!authUiSource.includes(expected)) {
     failures.push(`Auth perdeu alvo de toque mobile esperado: ${expected}`);
@@ -1173,7 +1332,9 @@ for (const expected of [
 }
 
 const tasksUiSource = read("src/routes/tarefas.tsx");
-if (!tasksUiSource.includes('className="mt-0 grid size-10 shrink-0 place-items-center rounded-md"')) {
+if (
+  !tasksUiSource.includes('className="mt-0 grid size-10 shrink-0 place-items-center rounded-md"')
+) {
   failures.push("Tarefas perdeu área de toque mobile adequada para concluir uma tarefa");
 }
 
@@ -1200,7 +1361,7 @@ requireIncludes("src/routes/assistente.tsx", [
 requireIncludes("src/components/ordys/assistant-panels.tsx", [
   'className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-border px-2.5 py-2',
 ]);
-if (!assistantPanelsSource.includes('w-full max-w-full min-w-0 overflow-hidden')) {
+if (!assistantPanelsSource.includes("w-full max-w-full min-w-0 overflow-hidden")) {
   failures.push("Prévia do mapa mental perdeu contenção responsiva");
 }
 
@@ -1208,9 +1369,9 @@ const modalUiSource = read("src/components/ordys/form.tsx");
 for (const expected of [
   'event.key === "Escape"',
   'document.body.style.overflow = "hidden"',
-  'dialogRef.current?.focus()',
-  'aria-labelledby={`${dialogId}-title`}',
-  'aria-describedby={subtitle ? `${dialogId}-description` : undefined}',
+  "dialogRef.current?.focus()",
+  "aria-labelledby={`${dialogId}-title`}",
+  "aria-describedby={subtitle ? `${dialogId}-description` : undefined}",
 ]) {
   if (!modalUiSource.includes(expected)) {
     failures.push(`Modal perdeu comportamento de acessibilidade esperado: ${expected}`);
@@ -1239,13 +1400,13 @@ if (/\[role=["']dialog["']\][^{]*\{[^}]*display:\s*none/i.test(mobileEntry)) {
 }
 
 requireIncludes("src/components/ordys/quick-capture.tsx", [
-  'min-h-11 rounded-md border px-2.5 py-2 text-[12px] transition-colors',
+  "min-h-11 rounded-md border px-2.5 py-2 text-[12px] transition-colors",
 ]);
 
 for (const forbidden of [
   'from "@/components/ui/sheet"',
-  'SheetTrigger',
-  'SheetContent',
+  "SheetTrigger",
+  "SheetContent",
   'aria-label="Abrir navegação"',
 ]) {
   if (shell.includes(forbidden)) {
@@ -1270,37 +1431,56 @@ for (const required of [
 
 const errorPage = read("src/lib/error-page.ts");
 for (const bad of ["This page didn't load", "Something went wrong", "Try again", "Go home"]) {
-  if (errorPage.includes(bad)) failures.push(`Fallback de erro do servidor ainda contém texto em inglês: ${bad}`);
+  if (errorPage.includes(bad))
+    failures.push(`Fallback de erro do servidor ainda contém texto em inglês: ${bad}`);
 }
-for (const required of ['lang="pt-BR"', 'href="/icon-192.png"', "Tentar novamente", "Voltar ao início"]) {
-  if (!errorPage.includes(required)) failures.push(`Fallback de erro do servidor não contém: ${required}`);
+for (const required of [
+  'lang="pt-BR"',
+  'href="/icon-192.png"',
+  "Tentar novamente",
+  "Voltar ao início",
+]) {
+  if (!errorPage.includes(required))
+    failures.push(`Fallback de erro do servidor não contém: ${required}`);
 }
-if (/\bon(?:click|load|error|submit|change|input|focus|blur|keydown|keyup|keypress)\s*=/i.test(errorPage)) {
+if (
+  /\bon(?:click|load|error|submit|change|input|focus|blur|keydown|keyup|keypress)\s*=/i.test(
+    errorPage,
+  )
+) {
   failures.push("Fallback de erro do servidor não pode conter handlers JavaScript inline");
 }
 
 requireFile("supabase/migrations/20260927023000_profile_full_name_limit.sql");
-const profileNameTriggerMigration = read("supabase/migrations/20260927024000_harden_new_user_profile_name.sql");
+const profileNameTriggerMigration = read(
+  "supabase/migrations/20260927024000_harden_new_user_profile_name.sql",
+);
 for (const expected of [
   "CREATE OR REPLACE FUNCTION public.handle_new_user()",
   "candidate := btrim",
   "candidate := left(candidate, 120);",
   "NULLIF(candidate, '')",
 ]) {
-  if (!profileNameTriggerMigration.includes(expected)) failures.push(`Trigger de cadastro não contém hardening esperado: ${expected}`);
+  if (!profileNameTriggerMigration.includes(expected))
+    failures.push(`Trigger de cadastro não contém hardening esperado: ${expected}`);
 }
 
 const profileNameMigration = read("supabase/migrations/20260927023000_profile_full_name_limit.sql");
 for (const expected of ["profiles_full_name_nonblank", "BETWEEN 1 AND 120", "NOT VALID"]) {
-  if (!profileNameMigration.includes(expected)) failures.push(`Migration de nome do perfil não contém: ${expected}`);
+  if (!profileNameMigration.includes(expected))
+    failures.push(`Migration de nome do perfil não contém: ${expected}`);
 }
 
 requireFile("supabase/migrations/20260926083000_remove_recovery_enumeration_timing.sql");
 requireFile("supabase/migrations/20260927011000_profile_academic_ranges.sql");
 
-const profileRangeMigration = read("supabase/migrations/20260927011000_profile_academic_ranges.sql");
+const profileRangeMigration = read(
+  "supabase/migrations/20260927011000_profile_academic_ranges.sql",
+);
 if (!profileRangeMigration.includes("IF NOT EXISTS (")) {
-  failures.push("Migration de perfil deve ser segura para reexecução durante reconciliação de produção");
+  failures.push(
+    "Migration de perfil deve ser segura para reexecução durante reconciliação de produção",
+  );
 }
 if (!profileRangeMigration.includes("conrelid = 'public.profiles'::regclass")) {
   failures.push("Migration de perfil deve identificar constraints existentes antes de recriá-las");
@@ -1325,15 +1505,17 @@ requireFile("supabase/migrations/20260927014500_focus_plan_ownership.sql");
 requireFile("supabase/migrations/20260927020000_goal_integrity.sql");
 requireFile("supabase/migrations/20260927110000_fix_profile_stage_constraint.sql");
 
-const academicIntegrityMigration = read("supabase/migrations/20260927013000_academic_data_integrity.sql");
+const academicIntegrityMigration = read(
+  "supabase/migrations/20260927013000_academic_data_integrity.sql",
+);
 for (const expected of [
   "DROP CONSTRAINT IF EXISTS grades_score_not_above_max",
   "DROP CONSTRAINT IF EXISTS grades_weight_positive",
   "NOT VALID",
 ]) {
-  if (!academicIntegrityMigration.includes(expected)) failures.push(`Integridade acadêmica não está protegida contra replay: ${expected}`);
+  if (!academicIntegrityMigration.includes(expected))
+    failures.push(`Integridade acadêmica não está protegida contra replay: ${expected}`);
 }
-
 
 for (const expected of [
   "IF NOT EXISTS (",
@@ -1341,7 +1523,8 @@ for (const expected of [
   "focus_sessions_plan_session_fk",
   "DROP TRIGGER IF EXISTS focus_refs_guard",
 ]) {
-  if (!focusSqlDelimiterMigrationGuard.includes(expected)) failures.push(`Migration de referência do foco não está segura para replay: ${expected}`);
+  if (!focusSqlDelimiterMigrationGuard.includes(expected))
+    failures.push(`Migration de referência do foco não está segura para replay: ${expected}`);
 }
 
 const focusOwnershipMigration = read("supabase/migrations/20260927014500_focus_plan_ownership.sql");
@@ -1351,56 +1534,71 @@ for (const expected of [
   "ADD CONSTRAINT focus_sessions_plan_session_fk",
   "DROP TRIGGER IF EXISTS focus_refs_guard",
 ]) {
-  if (!focusOwnershipMigration.includes(expected)) failures.push(`Migration de ownership do foco não contém hardening esperado: ${expected}`);
+  if (!focusOwnershipMigration.includes(expected))
+    failures.push(`Migration de ownership do foco não contém hardening esperado: ${expected}`);
 }
 
 const goalIntegrityMigration = read("supabase/migrations/20260927020000_goal_integrity.sql");
-if (!goalIntegrityMigration.includes("metric SET DEFAULT 'horas_estudo'") ||
-    !goalIntegrityMigration.includes("period SET DEFAULT 'semanal'")) {
+if (
+  !goalIntegrityMigration.includes("metric SET DEFAULT 'horas_estudo'") ||
+  !goalIntegrityMigration.includes("period SET DEFAULT 'semanal'")
+) {
   failures.push("Defaults de goals não estão alinhados com o formulário atual");
 }
 
-const profileStageMigration = read("supabase/migrations/20260927110000_fix_profile_stage_constraint.sql");
+const profileStageMigration = read(
+  "supabase/migrations/20260927110000_fix_profile_stage_constraint.sql",
+);
 for (const expected of [
   "profiles_stage_allowed",
   "conrelid = 'public.profiles'::regclass",
   "NOT VALID",
 ]) {
-  if (!profileStageMigration.includes(expected)) failures.push(`Migration de stage não contém hardening esperado: ${expected}`);
+  if (!profileStageMigration.includes(expected))
+    failures.push(`Migration de stage não contém hardening esperado: ${expected}`);
 }
 
-const recoveryMigration = read("supabase/migrations/20260926083000_remove_recovery_enumeration_timing.sql");
+const recoveryMigration = read(
+  "supabase/migrations/20260926083000_remove_recovery_enumeration_timing.sql",
+);
 if (recoveryMigration.includes("auth.users")) {
   failures.push("Migration de recovery não deve consultar auth.users para decidir o envio");
 }
-if (!recoveryMigration.includes("GRANT EXECUTE ON FUNCTION public.can_request_password_recovery(TEXT)")) {
+if (
+  !recoveryMigration.includes(
+    "GRANT EXECUTE ON FUNCTION public.can_request_password_recovery(TEXT)",
+  )
+) {
   failures.push("Migration de recovery precisa manter o RPC interno restrito");
 }
 
 const recoveryRoute = read("src/routes/redefinir-senha.tsx");
 requireIncludes("src/routes/redefinir-senha.tsx", [
-  'supabase.functions.invoke(',
+  "supabase.functions.invoke(",
   '"ordys-password-recovery"',
   "redirectTo,",
   "ORDYS_NATIVE_AUTH_REDIRECT_URI",
   'status !== "completed"',
 ]);
 if (recoveryRoute.includes("supabase.auth.resetPasswordForEmail(cleanEmail")) {
-  failures.push("A rota de recuperação deve passar pelo rate limit server-side de ordys-password-recovery");
+  failures.push(
+    "A rota de recuperação deve passar pelo rate limit server-side de ordys-password-recovery",
+  );
 }
 
 const recoveryFunction = read("supabase/functions/ordys-password-recovery/index.ts");
 for (const expected of [
   "const MAX_REQUEST_BYTES = 16 * 1024;",
   'const contentLength = Number(request.headers.get("Content-Length") ?? 0);',
-  'const requestText = await readRequestBodyWithLimit(request, MAX_REQUEST_BYTES);',
-  'requestText === null',
+  "const requestText = await readRequestBodyWithLimit(request, MAX_REQUEST_BYTES);",
+  "requestText === null",
   "let body: Record<string, unknown>;",
   "try {",
   "body = jsonObject(JSON.parse(requestText));",
   'return response({ status: "failed", error: "Corpo JSON inválido." }, 400);',
 ]) {
-  if (!recoveryFunction.includes(expected)) failures.push(`Recuperação de senha não contém limite de corpo esperado: ${expected}`);
+  if (!recoveryFunction.includes(expected))
+    failures.push(`Recuperação de senha não contém limite de corpo esperado: ${expected}`);
 }
 for (const expected of [
   "const MAX_EMAIL_CHARS = 320;",
@@ -1409,13 +1607,20 @@ for (const expected of [
   'if (guard["reason"] === "rate_limited")',
   "await sendRecoveryEmail(supabaseUrl, publishableKey, email, redirectTo);",
 ]) {
-  if (!recoveryFunction.includes(expected)) failures.push(`Recuperação de senha não contém limite esperado: ${expected}`);
+  if (!recoveryFunction.includes(expected))
+    failures.push(`Recuperação de senha não contém limite esperado: ${expected}`);
 }
 if (recoveryFunction.includes("if (guard.exists === true)")) {
   failures.push("Recuperação de senha não pode condicionar o envio à existência da conta");
 }
-if (!recoveryFunction.includes("await sendRecoveryEmail(supabaseUrl, publishableKey, email, redirectTo);")) {
-  failures.push("Recuperação de senha server-side deve permanecer consistente com o redirect validado");
+if (
+  !recoveryFunction.includes(
+    "await sendRecoveryEmail(supabaseUrl, publishableKey, email, redirectTo);",
+  )
+) {
+  failures.push(
+    "Recuperação de senha server-side deve permanecer consistente com o redirect validado",
+  );
 }
 if (!recoveryFunction.includes("redirect_to: redirectTo")) {
   failures.push("Recuperação de senha server-side deve transmitir o redirectTo ao Supabase Auth");
@@ -1427,7 +1632,7 @@ requireIncludes("supabase/functions/ordys-password-recovery/index.ts", [
 ]);
 requireIncludes("supabase/functions/_shared/validate-recovery-redirect.ts", [
   'const NATIVE_RECOVERY_REDIRECT = "app.ordys.academy://auth/callback";',
-  'const configuredOrigin = normalizeOrigin(configuredPublicAppUrl);',
+  "const configuredOrigin = normalizeOrigin(configuredPublicAppUrl);",
   "configuredOrigin !== requestOrigin",
   'candidate.protocol === "http:" && LOCAL_HTTP_HOSTS.has(candidate.hostname)',
   "if (!requestOrigin || candidate.origin !== requestOrigin) return false;",
@@ -1451,7 +1656,8 @@ for (const expected of [
   "[functions.ordys-billing-webhook]\nverify_jwt = false",
   "[functions.ordys-billing-return]\nverify_jwt = false",
 ]) {
-  if (!supabaseConfig.includes(expected)) failures.push(`supabase/config.toml não contém: ${expected.replaceAll("\n", " ")}`);
+  if (!supabaseConfig.includes(expected))
+    failures.push(`supabase/config.toml não contém: ${expected.replaceAll("\n", " ")}`);
 }
 
 requireIncludes("supabase/functions/ordys-billing-webhook/index.ts", [
@@ -1462,14 +1668,46 @@ requireIncludes("supabase/functions/ordys-billing-webhook/index.ts", [
 ]);
 requireFile("supabase/functions/_shared/request-body.ts");
 const boundedRequestBodyRoutes = [
-  ["supabase/functions/ordys-billing-webhook/index.ts", "readRequestBodyWithLimit(request, 1_048_576)", "if (text === null)"],
-  ["supabase/functions/ordys-video-transcribe/index.ts", "readRequestBodyWithLimit(request, MAX_REQUEST_BYTES)", "if (requestText === null)"],
-  ["supabase/functions/ordys-assistant/index.ts", "readRequestBodyWithLimit(request, MAX_REQUEST_BYTES)", "if (requestText === null)"],
-  ["supabase/functions/ordys-ai-report/index.ts", "readRequestBodyWithLimit(request, AI_CONTENT_REPORT_LIMITS.requestBytes)", "if (requestText === null)"],
-  ["supabase/functions/ordys-password-recovery/index.ts", "readRequestBodyWithLimit(request, MAX_REQUEST_BYTES)", "if (requestText === null)"],
-  ["supabase/functions/ordys-billing-checkout/index.ts", "readRequestBodyWithLimit(request, MAX_CHECKOUT_REQUEST_BYTES)", "if (text === null)"],
-  ["supabase/functions/ordys-billing-manage/index.ts", "readRequestBodyWithLimit(request, MAX_MANAGE_REQUEST_BYTES)", "if (text === null)"],
-  ["src/routes/api/ordys-assistant.ts", "readRequestBodyWithLimit(request, MAX_REQUEST_BYTES)", "if (requestText === null)"],
+  [
+    "supabase/functions/ordys-billing-webhook/index.ts",
+    "readRequestBodyWithLimit(request, 1_048_576)",
+    "if (text === null)",
+  ],
+  [
+    "supabase/functions/ordys-video-transcribe/index.ts",
+    "readRequestBodyWithLimit(request, MAX_REQUEST_BYTES)",
+    "if (requestText === null)",
+  ],
+  [
+    "supabase/functions/ordys-assistant/index.ts",
+    "readRequestBodyWithLimit(request, MAX_REQUEST_BYTES)",
+    "if (requestText === null)",
+  ],
+  [
+    "supabase/functions/ordys-ai-report/index.ts",
+    "readRequestBodyWithLimit(request, AI_CONTENT_REPORT_LIMITS.requestBytes)",
+    "if (requestText === null)",
+  ],
+  [
+    "supabase/functions/ordys-password-recovery/index.ts",
+    "readRequestBodyWithLimit(request, MAX_REQUEST_BYTES)",
+    "if (requestText === null)",
+  ],
+  [
+    "supabase/functions/ordys-billing-checkout/index.ts",
+    "readRequestBodyWithLimit(request, MAX_CHECKOUT_REQUEST_BYTES)",
+    "if (text === null)",
+  ],
+  [
+    "supabase/functions/ordys-billing-manage/index.ts",
+    "readRequestBodyWithLimit(request, MAX_MANAGE_REQUEST_BYTES)",
+    "if (text === null)",
+  ],
+  [
+    "src/routes/api/ordys-assistant.ts",
+    "readRequestBodyWithLimit(request, MAX_REQUEST_BYTES)",
+    "if (requestText === null)",
+  ],
 ];
 for (const [path, boundedRead, overflowCheck] of boundedRequestBodyRoutes) {
   const source = read(path);
@@ -1477,9 +1715,7 @@ for (const [path, boundedRead, overflowCheck] of boundedRequestBodyRoutes) {
     failures.push(path + " deve rejeitar o corpo excedente com readRequestBodyWithLimit.");
   }
   if (/\brequest(?:\.clone\(\))?\.(?:text|json|formData|arrayBuffer|blob)\s*\(/.test(source)) {
-    failures.push(
-      path + " não pode consumir o corpo diretamente; use readRequestBodyWithLimit.",
-    );
+    failures.push(path + " não pode consumir o corpo diretamente; use readRequestBodyWithLimit.");
   }
 }
 
@@ -1489,7 +1725,12 @@ requireIncludes("src/integrations/supabase/public-config.ts", [
   'import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"]',
   "sb_publishable_",
 ]);
-for (const forbidden of ["sb_secret_", "service_role", "SUPABASE_SECRET_KEYS", "SUPABASE_SERVICE_ROLE_KEY"]) {
+for (const forbidden of [
+  "sb_secret_",
+  "service_role",
+  "SUPABASE_SECRET_KEYS",
+  "SUPABASE_SERVICE_ROLE_KEY",
+]) {
   if (publicSupabaseConfig.includes(forbidden)) {
     failures.push(`public-config.ts não pode conter segredo Supabase: ${forbidden}`);
   }
@@ -1501,7 +1742,11 @@ const browserSupabaseClient = read("src/integrations/supabase/client.ts");
 if (!/from\s+["']\.\/public-config["']/.test(browserSupabaseClient)) {
   failures.push("client.ts deve usar a configuração pública versionada para bundles independentes");
 }
-for (const forbidden of ["SUPABASE_SECRET_KEYS", "SUPABASE_SERVICE_ROLE_KEY", "VITE_SUPABASE_SERVICE_ROLE_KEY"]) {
+for (const forbidden of [
+  "SUPABASE_SECRET_KEYS",
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "VITE_SUPABASE_SERVICE_ROLE_KEY",
+]) {
   if (browserSupabaseClient.includes(forbidden)) {
     failures.push(`client.ts não pode conter segredo/service-role do Supabase: ${forbidden}`);
   }
@@ -1518,25 +1763,30 @@ for (const expected of [
   "function resolveSupabaseSecretKey()",
   "process.env['SUPABASE_SECRET_KEYS']",
 ]) {
-  if (!serverClient.includes(expected)) failures.push(`client.server.ts não contém fallback seguro esperado: ${expected}`);
+  if (!serverClient.includes(expected))
+    failures.push(`client.server.ts não contém fallback seguro esperado: ${expected}`);
 }
 
 const assistantFunction = read("supabase/functions/ordys-assistant/index.ts");
 const assistantClient = read("src/lib/ordys-assistant-client.ts");
 for (const expected of [
   'import { canUseOrdysAi } from "@/lib/ai-eligibility";',
-  'const { data: profile, error: profileError } = await supabase',
+  "const { data: profile, error: profileError } = await supabase",
   '.select("birth_date,timezone")',
-  'const aiEligibility = canUseOrdysAi(profile?.birth_date, profile?.timezone);',
-  'if (!aiEligibility.allowed) throw new Error(aiEligibility.reason);',
+  "const aiEligibility = canUseOrdysAi(profile?.birth_date, profile?.timezone);",
+  "if (!aiEligibility.allowed) throw new Error(aiEligibility.reason);",
 ]) {
-  if (!assistantClient.includes(expected)) failures.push(`Cliente do Assistente não contém gate de idade antes da IA: ${expected}`);
+  if (!assistantClient.includes(expected))
+    failures.push(`Cliente do Assistente não contém gate de idade antes da IA: ${expected}`);
 }
 for (const expected of [
   'import { dateKey } from "@/lib/ordys-engine";',
   '.gte("session_date", dateKey(new Date()))',
 ]) {
-  if (!assistantClient.includes(expected)) failures.push("Cliente do Assistente não contém correção esperada para data local: " + expected);
+  if (!assistantClient.includes(expected))
+    failures.push(
+      "Cliente do Assistente não contém correção esperada para data local: " + expected,
+    );
 }
 
 if (
@@ -1545,42 +1795,63 @@ if (
   !assistantClient.includes("selectedScopes: readonly OrdysAcademicContextScope[]") ||
   !assistantClient.includes("const sections = getOrdysContextSections(selectedScopes);")
 ) {
-  failures.push("Cliente do Assistente deve receber userId e escopos explícitos para consultar somente o contexto autorizado");
+  failures.push(
+    "Cliente do Assistente deve receber userId e escopos explícitos para consultar somente o contexto autorizado",
+  );
 }
 if (!assistantClient.includes("if (!selectedScopes.length) return baseMessage;")) {
-  failures.push("Cliente do Assistente deve omitir todo o contexto acadêmico quando nenhuma categoria for selecionada");
+  failures.push(
+    "Cliente do Assistente deve omitir todo o contexto acadêmico quando nenhuma categoria for selecionada",
+  );
 }
 for (const expected of [
   "getOrdysContextSections",
   "normalizeOrdysContextScopes(input.academicContext)",
-  "contextQuery(supabase.from(\"grades\")",
-  "contextQuery(supabase.from(\"attendance_records\")",
-  "contextQuery(supabase.from(\"quiz_attempts\")",
+  'contextQuery(supabase.from("grades")',
+  'contextQuery(supabase.from("attendance_records")',
+  'contextQuery(supabase.from("quiz_attempts")',
 ]) {
-  if (!assistantClient.includes(expected)) failures.push("Cliente do Assistente não mantém a minimização por escopo: " + expected);
+  if (!assistantClient.includes(expected))
+    failures.push("Cliente do Assistente não mantém a minimização por escopo: " + expected);
 }
-if (!assistantClient.includes("const contextQueryFailed = queryResults.some((result) => Boolean(result.error));")) {
+if (
+  !assistantClient.includes(
+    "const contextQueryFailed = queryResults.some((result) => Boolean(result.error));",
+  )
+) {
   failures.push("Cliente do Assistente deve detectar falhas nas consultas do contexto acadêmico");
 }
 if (!assistantClient.includes("LIMITAÇÃO DO CONTEXTO: uma ou mais categorias selecionadas")) {
   failures.push("Cliente do Assistente deve sinalizar contexto acadêmico incompleto ao modelo");
 }
-const assistantOwnerFilterCount = (assistantClient.match(/\.eq\("user_id", userId\)/g) ?? []).length;
+const assistantOwnerFilterCount = (assistantClient.match(/\.eq\("user_id", userId\)/g) ?? [])
+  .length;
 if (assistantOwnerFilterCount < 13) {
-  failures.push("Cliente do Assistente perdeu filtros explícitos de proprietário no contexto acadêmico");
+  failures.push(
+    "Cliente do Assistente perdeu filtros explícitos de proprietário no contexto acadêmico",
+  );
 }
-if (!assistantClient.includes('.from("profiles").select("stage,timezone,grade_scale_max,grade_pass,attendance_target,weekly_study_target_minutes,daily_load_limit_minutes").eq("id", userId)')) {
-  failures.push("Cliente do Assistente deve consultar somente campos acadêmicos do perfil do usuário autenticado");
+if (
+  !assistantClient.includes(
+    '.from("profiles").select("stage,timezone,grade_scale_max,grade_pass,attendance_target,weekly_study_target_minutes,daily_load_limit_minutes").eq("id", userId)',
+  )
+) {
+  failures.push(
+    "Cliente do Assistente deve consultar somente campos acadêmicos do perfil do usuário autenticado",
+  );
 }
-if (assistantClient.includes("profile.full_name") || assistantClient.includes('.select("full_name')) {
-  failures.push("Nome completo e identificadores pessoais não podem integrar o contexto enviado à IA");
+if (
+  assistantClient.includes("profile.full_name") ||
+  assistantClient.includes('.select("full_name')
+) {
+  failures.push(
+    "Nome completo e identificadores pessoais não podem integrar o contexto enviado à IA",
+  );
 }
 
-for (const expected of [
-  'dataUrl: kind === "video" ? undefined : dataUrl',
-  "frames,",
-]) {
-  if (!assistantClient.includes(expected)) failures.push(`Cliente do Assistente não contém otimização esperada: ${expected}`);
+for (const expected of ['dataUrl: kind === "video" ? undefined : dataUrl', "frames,"]) {
+  if (!assistantClient.includes(expected))
+    failures.push(`Cliente do Assistente não contém otimização esperada: ${expected}`);
 }
 
 for (const expected of [
@@ -1590,10 +1861,16 @@ for (const expected of [
   "Por padrão, seus registros acadêmicos salvos não são incluídos no contexto enviado ao Assistente.",
 ]) {
   if (!read("src/routes/assistente.tsx").includes(expected)) {
-    failures.push("Tela do Assistente não contém controle explícito de contexto por mensagem: " + expected);
+    failures.push(
+      "Tela do Assistente não contém controle explícito de contexto por mensagem: " + expected,
+    );
   }
 }
-if (!read("tests/ordys-assistant-context.test.ts").includes("sends no account context unless a scope is explicitly selected")) {
+if (
+  !read("tests/ordys-assistant-context.test.ts").includes(
+    "sends no account context unless a scope is explicitly selected",
+  )
+) {
   failures.push("Falta teste garantindo contexto acadêmico desativado por padrão");
 }
 
@@ -1605,7 +1882,8 @@ for (const expected of [
   "Confirme sua data de nascimento e fuso horário no Perfil para liberar os recursos de IA.",
   "Os recursos de IA que usam a OpenAI estão disponíveis apenas para contas com 18 anos ou mais.",
 ]) {
-  if (!aiEligibility.includes(expected)) failures.push(`Regra central de idade da IA não contém: ${expected}`);
+  if (!aiEligibility.includes(expected))
+    failures.push(`Regra central de idade da IA não contém: ${expected}`);
 }
 
 const aiEligibilityTests = read("src/lib/ai-eligibility.test.ts");
@@ -1616,7 +1894,8 @@ for (const expected of [
   "uses the profile time zone at the exact birthday boundary",
   "fails closed for invalid dates and IANA time zones",
 ]) {
-  if (!aiEligibilityTests.includes(expected)) failures.push(`Testes de elegibilidade da IA não contêm: ${expected}`);
+  if (!aiEligibilityTests.includes(expected))
+    failures.push(`Testes de elegibilidade da IA não contêm: ${expected}`);
 }
 
 for (const expected of [
@@ -1624,7 +1903,8 @@ for (const expected of [
   'const raw = Deno.env.get("SUPABASE_PUBLISHABLE_KEYS")?.trim();',
   'return (Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY"))?.trim() || "";',
 ]) {
-  if (!assistantFunction.includes(expected)) failures.push(`Assistente perdeu suporte seguro às chaves publicáveis Supabase: ${expected}`);
+  if (!assistantFunction.includes(expected))
+    failures.push(`Assistente perdeu suporte seguro às chaves publicáveis Supabase: ${expected}`);
 }
 
 const assistantApiFallback = read("src/routes/api/ordys-assistant.ts");
@@ -1639,7 +1919,8 @@ for (const expected of [
   "body = JSON.parse(requestText) as Record<string, unknown>;",
   'return json({ status: "failed", error: "Corpo JSON inválido." }, 400);',
 ]) {
-  if (!assistantApiFallback.includes(expected)) failures.push(`Fallback HTTP do Assistente perdeu proteção esperada: ${expected}`);
+  if (!assistantApiFallback.includes(expected))
+    failures.push(`Fallback HTTP do Assistente perdeu proteção esperada: ${expected}`);
 }
 
 const privacyAiDisclosure = read("src/routes/privacidade.tsx");
@@ -1660,7 +1941,10 @@ for (const expected of [
 
   "os recursos que enviam dados à OpenAI ficam disponíveis apenas para contas com 18 anos ou mais",
 ]) {
-  if (!privacyAiDisclosure.includes(expected)) failures.push(`Política de privacidade não descreve o contexto de IA usado pelo Assistente: ${expected}`);
+  if (!privacyAiDisclosure.includes(expected))
+    failures.push(
+      `Política de privacidade não descreve o contexto de IA usado pelo Assistente: ${expected}`,
+    );
 }
 
 for (const expected of [
@@ -1669,29 +1953,33 @@ for (const expected of [
   "profiles?select=birth_date,timezone&id=eq.",
   'const timezone = typeof row?.["timezone"] === "string" ? row["timezone"] : null;',
   "calculateAgeInTimeZone(birthDate, timezone)",
-  'if (age === null || age < 18)',
+  "if (age === null || age < 18)",
   "await assertAiEligible(request, user.id);",
 ]) {
-  if (!assistantFunction.includes(expected)) failures.push(`Assistente não contém gate de idade por fuso esperado: ${expected}`);
+  if (!assistantFunction.includes(expected))
+    failures.push(`Assistente não contém gate de idade por fuso esperado: ${expected}`);
 }
 if ((assistantFunction.match(/function calculateAge\(/g) ?? []).length !== 0) {
-  failures.push("Assistente deve reutilizar o cálculo de idade por fuso compartilhado, sem implementação local");
+  failures.push(
+    "Assistente deve reutilizar o cálculo de idade por fuso compartilhado, sem implementação local",
+  );
 }
 if ((assistantFunction.match(/async function assertAiEligible\(/g) ?? []).length !== 1) {
   failures.push("Assistente deve manter uma única implementação de assertAiEligible");
 }
 for (const expected of [
   "const MAX_REQUEST_BYTES = 14 * 1024 * 1024;",
-  "const rawDataUrl = typeof obj[\"dataUrl\"] === \"string\" ? obj[\"dataUrl\"].trim() : \"\";",
+  'const rawDataUrl = typeof obj["dataUrl"] === "string" ? obj["dataUrl"].trim() : "";',
   'if ((kind === "image" || kind === "file") && rawDataUrl.length > MAX_ATTACHMENT_CHARS)',
   'return { kind, name, mimeType, dataUrl: kind === "video" ? "" : rawDataUrl, frames, durationSeconds };',
   'const contentLength = Number(request.headers.get("Content-Length") ?? 0);',
-  'const requestText = await readRequestBodyWithLimit(request, MAX_REQUEST_BYTES);',
-  'requestText === null',
+  "const requestText = await readRequestBodyWithLimit(request, MAX_REQUEST_BYTES);",
+  "requestText === null",
   "let body: Record<string, unknown>;",
   "body = jsonObject(JSON.parse(requestText));",
 ]) {
-  if (!assistantFunction.includes(expected)) failures.push(`Assistente não contém limite de corpo esperado: ${expected}`);
+  if (!assistantFunction.includes(expected))
+    failures.push(`Assistente não contém limite de corpo esperado: ${expected}`);
 }
 const videoAiFunction = read("supabase/functions/ordys-video-transcribe/index.ts");
 for (const [sourceName, source] of [
@@ -1704,7 +1992,9 @@ for (const [sourceName, source] of [
     "const day = Number(birthDate.slice(8, 10));",
   ]) {
     if (!source.includes(expected)) {
-      failures.push(`${sourceName} deve analisar a data de nascimento com fatias numéricas seguras: ${expected}`);
+      failures.push(
+        `${sourceName} deve analisar a data de nascimento com fatias numéricas seguras: ${expected}`,
+      );
     }
   }
 }
@@ -1714,13 +2004,16 @@ for (const expected of [
   "getUserAgeProfile(",
   'request.headers.get("Authorization") ?? ""',
   "calculateAgeInTimeZone(ageProfile.birthDate, ageProfile.timezone)",
-  'if (age === null || age < 18)',
+  "if (age === null || age < 18)",
   "await assertAiEligible(request, userId);",
 ]) {
-  if (!videoAiFunction.includes(expected)) failures.push(`Transcrição de vídeo não contém gate de idade por fuso esperado: ${expected}`);
+  if (!videoAiFunction.includes(expected))
+    failures.push(`Transcrição de vídeo não contém gate de idade por fuso esperado: ${expected}`);
 }
 if ((videoAiFunction.match(/function calculateAge\(/g) ?? []).length !== 0) {
-  failures.push("Transcrição de vídeo deve reutilizar o cálculo de idade por fuso compartilhado, sem implementação local");
+  failures.push(
+    "Transcrição de vídeo deve reutilizar o cálculo de idade por fuso compartilhado, sem implementação local",
+  );
 }
 if ((videoAiFunction.match(/async function assertAiEligible\(/g) ?? []).length !== 1) {
   failures.push("Transcrição de vídeo deve manter uma única implementação de assertAiEligible");
@@ -1733,36 +2026,49 @@ const assistantPartialApplyGuard = [
   "setStatus(result.error ??",
 ];
 for (const expected of assistantPartialApplyGuard) {
-  if (!assistantFunction.includes(expected) && !read("src/routes/assistente.tsx").includes(expected)) {
+  if (
+    !assistantFunction.includes(expected) &&
+    !read("src/routes/assistente.tsx").includes(expected)
+  ) {
     failures.push(`Fluxo de configuração não contém tratamento de aplicação parcial: ${expected}`);
   }
 }
-if (read("src/routes/assistente.tsx").includes("if (!configuration || configuration.questions.length === 0) setStatus(\"\");")) {
-  failures.push("Assistente não deve limpar silenciosamente a mensagem de erro após falha na configuração");
+if (
+  read("src/routes/assistente.tsx").includes(
+    'if (!configuration || configuration.questions.length === 0) setStatus("");',
+  )
+) {
+  failures.push(
+    "Assistente não deve limpar silenciosamente a mensagem de erro após falha na configuração",
+  );
 }
 
 const assistantConfigurationPreflightGuard = [
   "function assertConfigurationPlanSafe(plan: ReturnType<typeof normalizePlan>)",
-  "const allowedStages = new Set([\"fundamental\", \"medio\", \"superior\", \"pos\", \"outro\"]);",
+  'const allowedStages = new Set(["fundamental", "medio", "superior", "pos", "outro"]);',
   "assertConfigurationPlanSafe(plan);",
   "action.endTime <= action.startTime",
-  "new Intl.DateTimeFormat(\"pt-BR\", { timeZone: action.timezone }).format();",
+  'new Intl.DateTimeFormat("pt-BR", { timeZone: action.timezone }).format();',
 ];
 for (const expected of assistantConfigurationPreflightGuard) {
-  if (!assistantFunction.includes(expected)) failures.push(`Assistente não contém preflight de configuração esperado: ${expected}`);
+  if (!assistantFunction.includes(expected))
+    failures.push(`Assistente não contém preflight de configuração esperado: ${expected}`);
 }
 
 const assistantConfigOwnerGuard = [
-  'async function findSubject(request: Request, name: string, userId: string)',
-  'subjects?select=id,name&user_id=eq.',
-  'const existing = await findSubject(request, name, userId);',
-  'subjects?id=eq.${queryValue(subject.id)}&user_id=eq.${queryValue(userId)}',
+  "async function findSubject(request: Request, name: string, userId: string)",
+  "subjects?select=id,name&user_id=eq.",
+  "const existing = await findSubject(request, name, userId);",
+  "subjects?id=eq.${queryValue(subject.id)}&user_id=eq.${queryValue(userId)}",
   "subject_schedules?select=id&user_id=eq.",
   "tasks?select=id&user_id=eq.",
   "exams?select=id&user_id=eq.",
 ];
 for (const expected of assistantConfigOwnerGuard) {
-  if (!assistantFunction.includes(expected)) failures.push(`Configuração do Assistente perdeu escopo explícito de proprietário: ${expected}`);
+  if (!assistantFunction.includes(expected))
+    failures.push(
+      `Configuração do Assistente perdeu escopo explícito de proprietário: ${expected}`,
+    );
 }
 
 const assistantIdempotencyGuard = [
@@ -1773,7 +2079,8 @@ const assistantIdempotencyGuard = [
   "if (Array.isArray(existing) && existing.length) continue;",
 ];
 for (const expected of assistantIdempotencyGuard) {
-  if (!assistantFunction.includes(expected)) failures.push(`Assistente não contém proteção de idempotência esperada: ${expected}`);
+  if (!assistantFunction.includes(expected))
+    failures.push(`Assistente não contém proteção de idempotência esperada: ${expected}`);
 }
 
 requireIncludes("supabase/functions/ordys-assistant/index.ts", [
@@ -1784,10 +2091,11 @@ for (const expected of [
   "const SUPPORTED_FILE_MIME = new Set([",
   'if (kind === "image")',
   'if (kind === "file")',
-  'const extensionAllowed = /\\.(pdf|txt|md|csv|json|doc|docx|ppt|pptx|xls|xlsx)$/i.test(name);',
+  "const extensionAllowed = /\\.(pdf|txt|md|csv|json|doc|docx|ppt|pptx|xls|xlsx)$/i.test(name);",
   'Number.isFinite(obj["durationSeconds"])',
 ]) {
-  if (!assistantFunction.includes(expected)) failures.push(`Assistente não contém validação esperada: ${expected}`);
+  if (!assistantFunction.includes(expected))
+    failures.push(`Assistente não contém validação esperada: ${expected}`);
 }
 
 const deleteAccountRoute = read("src/routes/excluir-conta.tsx");
@@ -1797,10 +2105,13 @@ for (const expected of [
   "deleteLocalProfile(profileId)",
   "stopDemoMode();",
 ]) {
-  if (!deleteAccountRoute.includes(expected)) failures.push(`Exclusão de conta não trata corretamente o modo local: ${expected}`);
+  if (!deleteAccountRoute.includes(expected))
+    failures.push(`Exclusão de conta não trata corretamente o modo local: ${expected}`);
 }
-if (deleteAccountRoute.includes('supabase.functions.invoke("ordys-delete-account"') &&
-    !deleteAccountRoute.includes("if (isDemo || isDemoMode())")) {
+if (
+  deleteAccountRoute.includes('supabase.functions.invoke("ordys-delete-account"') &&
+  !deleteAccountRoute.includes("if (isDemo || isDemoMode())")
+) {
   failures.push("Exclusão de conta não pode enviar perfil local para a Edge Function de produção");
 }
 
@@ -1818,10 +2129,13 @@ for (const expected of [
   "última atualização: 31 de outubro de 2026",
   "Quando a geração de simulados estiver habilitada e for acionada",
 ]) {
-  if (!privacyRoute.includes(expected)) failures.push(`Política de privacidade não contém divulgação esperada: ${expected}`);
+  if (!privacyRoute.includes(expected))
+    failures.push(`Política de privacidade não contém divulgação esperada: ${expected}`);
 }
 if (privacyRoute.includes("credenciais guardadas são removidas")) {
-  failures.push("Política de privacidade não deve afirmar remoção de credenciais sem implementação correspondente");
+  failures.push(
+    "Política de privacidade não deve afirmar remoção de credenciais sem implementação correspondente",
+  );
 }
 
 requireIncludes("src/routes/auth.tsx", [
@@ -1833,11 +2147,9 @@ requireIncludes("src/routes/auth.tsx", [
 ]);
 
 const resetRoute = read("src/routes/redefinir-senha.tsx");
-for (const expected of [
-  "if (cleanEmail.length > 320)",
-  "maxLength={320}",
-]) {
-  if (!resetRoute.includes(expected)) failures.push(`Redefinição de senha não contém limite esperado: ${expected}`);
+for (const expected of ["if (cleanEmail.length > 320)", "maxLength={320}"]) {
+  if (!resetRoute.includes(expected))
+    failures.push(`Redefinição de senha não contém limite esperado: ${expected}`);
 }
 
 const profileRoute = read("src/routes/perfil.tsx");
@@ -1852,7 +2164,8 @@ for (const expected of [
   'remove("calendar_connections", id)',
   "await syncNativeAcademicNotifications();",
 ]) {
-  if (!profileRoute.includes(expected)) failures.push(`Perfil não contém validação esperada: ${expected}`);
+  if (!profileRoute.includes(expected))
+    failures.push(`Perfil não contém validação esperada: ${expected}`);
 }
 if (profileRoute.includes('supabase.from("calendar_connections").delete()')) {
   failures.push("Perfil não deve remover integrações por id sem filtro explícito de proprietário");
@@ -1864,7 +2177,8 @@ for (const expected of [
   "plugins: [tsconfigPaths()]",
   'include: ["tests/**/*.test.ts", "src/**/*.test.ts"]',
 ]) {
-  if (!vitestConfig.includes(expected)) failures.push(`Vitest não contém configuração esperada: ${expected}`);
+  if (!vitestConfig.includes(expected))
+    failures.push(`Vitest não contém configuração esperada: ${expected}`);
 }
 
 const disciplineRoute = read("src/routes/disciplinas.tsx");
@@ -1876,13 +2190,14 @@ for (const expected of [
   "const maxScore = Number(gradeForm.max_score || scale);",
   "score > maxScore",
 ]) {
-  if (!disciplineRoute.includes(expected)) failures.push(`Disciplinas não contém validação esperada: ${expected}`);
+  if (!disciplineRoute.includes(expected))
+    failures.push(`Disciplinas não contém validação esperada: ${expected}`);
 }
 
 const performanceRoute = read("src/routes/desempenho.tsx");
 for (const expected of [
   "const target = Number(form.target);",
-  "const maxTarget = metric === \"media\" ? scale : metric === \"frequencia\" ? 100 : 100000;",
+  'const maxTarget = metric === "media" ? scale : metric === "frequencia" ? 100 : 100000;',
   "A meta de média deve ficar entre 0 e",
   "A meta de frequência deve ficar entre 0% e 100%.",
   "O alvo da meta deve estar entre zero e 100.000.",
@@ -1893,7 +2208,8 @@ for (const expected of [
   'yAxisId="grade"',
   'yAxisId="hours"',
 ]) {
-  if (!performanceRoute.includes(expected)) failures.push(`Desempenho não contém validação esperada: ${expected}`);
+  if (!performanceRoute.includes(expected))
+    failures.push(`Desempenho não contém validação esperada: ${expected}`);
 }
 
 const dashboardRoute = read("src/routes/index.tsx");
@@ -1902,13 +2218,14 @@ for (const expected of [
   "weekEnd.setHours(23, 59, 59, 999);",
   "const weekRange = { from: weekStart, to: weekEnd };",
 ]) {
-  if (!dashboardRoute.includes(expected)) failures.push("Dashboard não contém correção esperada para o resumo semanal: " + expected);
+  if (!dashboardRoute.includes(expected))
+    failures.push("Dashboard não contém correção esperada para o resumo semanal: " + expected);
 }
 
 const studiesRoute = read("src/routes/estudos.tsx");
 for (const expected of [
   "const todayCheckin = checkins.find((c) => c.checkin_date === todayKey) ?? null;",
-  'if (todayCheckin) {',
+  "if (todayCheckin) {",
   'update("daily_checkins", todayCheckin.id, payload)',
   "const automaticReviewSignature = [",
   "const automaticReviewSignatureRef = useRef<string | null>(null);",
@@ -1927,7 +2244,8 @@ for (const expected of [
   "const weekStart = startOfWeek(new Date());",
   "weekEnd.setHours(23, 59, 59, 999);",
 ]) {
-  if (!studiesRoute.includes(expected)) failures.push(`Estudos não contém correção esperada: ${expected}`);
+  if (!studiesRoute.includes(expected))
+    failures.push(`Estudos não contém correção esperada: ${expected}`);
 }
 
 const quizEdgeFunction = read("supabase/functions/ordys-assistant/index.ts");
@@ -1939,7 +2257,8 @@ for (const expected of [
   "const generated = await callOpenAI({",
   'name: "ordys_quiz"',
 ]) {
-  if (!quizEdgeFunction.includes(expected)) failures.push("Simulados não usam o fluxo seguro compartilhado: " + expected);
+  if (!quizEdgeFunction.includes(expected))
+    failures.push("Simulados não usam o fluxo seguro compartilhado: " + expected);
 }
 const simuladoRoute = read("src/routes/simulado.tsx");
 if (simuladoRoute.includes("useServerFn") || simuladoRoute.includes("@/lib/quiz.functions")) {
@@ -1957,7 +2276,8 @@ for (const expected of [
   '.eq("user_id", userId);',
   "disabled={saving || Object.keys(answers).length !== questions.length}",
 ]) {
-  if (!simuladoRoute.includes(expected)) failures.push(`Simulado não contém proteção/salvamento esperado: ${expected}`);
+  if (!simuladoRoute.includes(expected))
+    failures.push(`Simulado não contém proteção/salvamento esperado: ${expected}`);
 }
 
 const assistantRoute = read("src/routes/assistente.tsx");
@@ -1969,14 +2289,16 @@ for (const expected of [
   "Recursos de IA temporariamente indisponíveis",
   "disabled={isDemo || aiUnavailable}",
 ]) {
-  if (!assistantRoute.includes(expected)) failures.push(`Tela do Assistente não contém gate de idade esperado: ${expected}`);
+  if (!assistantRoute.includes(expected))
+    failures.push(`Tela do Assistente não contém gate de idade esperado: ${expected}`);
 }
 for (const expected of [
   "const { isDemo } = useAuth();",
   "O Assistente com IA exige uma conta ORDYS.",
   "disabled={isDemo || aiUnavailable || busy || preparingFiles}",
 ]) {
-  if (!assistantRoute.includes(expected)) failures.push(`Assistente não contém proteção de modo demo: ${expected}`);
+  if (!assistantRoute.includes(expected))
+    failures.push(`Assistente não contém proteção de modo demo: ${expected}`);
 }
 
 const demoMode = read("src/lib/demo-mode.ts");
@@ -1985,7 +2307,8 @@ for (const expected of [
   "window.localStorage.removeItem(\`ordys_local_db_v3:\${profileId}\`);",
   "export function deleteLocalProfile(profileId: string)",
 ]) {
-  if (!demoMode.includes(expected)) failures.push("Modo demo não contém proteção esperada: " + expected);
+  if (!demoMode.includes(expected))
+    failures.push("Modo demo não contém proteção esperada: " + expected);
 }
 
 const engine = read("src/lib/ordys-engine.ts");
@@ -1996,14 +2319,11 @@ for (const expected of [
   "const dueOn = dateKey(due < today ? today : due);",
   "if (existingAutomatic.has(\`${topic.id}:${dueOn}\`)) continue;",
 ]) {
-  if (!engine.includes(expected)) failures.push(`Engine de revisões não contém proteção esperada: ${expected}`);
+  if (!engine.includes(expected))
+    failures.push(`Engine de revisões não contém proteção esperada: ${expected}`);
 }
 
-for (const expected of [
-  "grades_score_not_above_max",
-  "grades_weight_positive",
-  "NOT VALID",
-]) {
+for (const expected of ["grades_score_not_above_max", "grades_weight_positive", "NOT VALID"]) {
   if (!academicIntegrityMigration.includes(expected)) {
     failures.push(`Migration de integridade acadêmica não contém: ${expected}`);
   }
@@ -2018,7 +2338,9 @@ for (const expected of [
   }
 }
 
-const baseSchemaMigration = read("supabase/migrations/20260903193429_bbbd75d7-520e-4135-bc3e-41658fd7aac3.sql");
+const baseSchemaMigration = read(
+  "supabase/migrations/20260903193429_bbbd75d7-520e-4135-bc3e-41658fd7aac3.sql",
+);
 for (const expected of [
   "topics_mastery_range",
   "tasks_status_allowed",
@@ -2036,7 +2358,9 @@ for (const expected of [
   }
 }
 
-const focusPlanMigration = read("supabase/migrations/20260927014000_focus_plan_reference_integrity.sql");
+const focusPlanMigration = read(
+  "supabase/migrations/20260927014000_focus_plan_reference_integrity.sql",
+);
 for (const expected of [
   "focus_plan_session_fk",
   "REFERENCES public.plan_sessions(id)",
@@ -2064,12 +2388,17 @@ requireIncludes("supabase/functions/ordys-video-transcribe/index.ts", [
   'return response({ status: "failed", error: "Corpo JSON inválido." }, 400);',
 ]);
 if ((videoFunction.match(/await assertAiEligible\(request, userId\);/g) ?? []).length !== 1) {
-  failures.push("Transcrição de vídeo deve validar elegibilidade de IA uma única vez por solicitação");
+  failures.push(
+    "Transcrição de vídeo deve validar elegibilidade de IA uma única vez por solicitação",
+  );
 }
-if (assistantFunction.includes('throw new Error(body.slice(0, 600)') || assistantFunction.includes('throw new Error(body.slice(0, 400)')) {
+if (
+  assistantFunction.includes("throw new Error(body.slice(0, 600)") ||
+  assistantFunction.includes("throw new Error(body.slice(0, 400)")
+) {
   failures.push("Erros brutos do Supabase não podem ser devolvidos ao cliente pelo Assistente");
 }
-if (videoFunction.includes('throw new Error(body.slice(0, 400)')) {
+if (videoFunction.includes("throw new Error(body.slice(0, 400)")) {
   failures.push("Erros brutos do Supabase não podem ser devolvidos ao cliente pela transcrição");
 }
 
@@ -2078,10 +2407,11 @@ for (const expected of [
   "getUserAgeProfile(",
   'request.headers.get("Authorization") ?? ""',
   "calculateAgeInTimeZone(ageProfile.birthDate, ageProfile.timezone)",
-  'if (age === null || age < 18)',
+  "if (age === null || age < 18)",
   "await assertAiEligible(request, userId);",
 ]) {
-  if (!videoFunction.includes(expected)) failures.push(`Transcrição de vídeo não contém gate de idade por fuso esperado: ${expected}`);
+  if (!videoFunction.includes(expected))
+    failures.push(`Transcrição de vídeo não contém gate de idade por fuso esperado: ${expected}`);
 }
 requireIncludes("tests/video-transcribe-edge.test.ts", [
   "blocks transcription for a verified account under 18 before usage accounting or OpenAI",
@@ -2090,43 +2420,48 @@ requireIncludes("tests/video-transcribe-edge.test.ts", [
 ]);
 
 for (const expected of [
-  'const MAX_DATA_URL_CHARS = 34 * 1024 * 1024;',
-  'const MAX_REQUEST_BYTES = 36 * 1024 * 1024;',
+  "const MAX_DATA_URL_CHARS = 34 * 1024 * 1024;",
+  "const MAX_REQUEST_BYTES = 36 * 1024 * 1024;",
   'const contentLength = Number(request.headers.get("Content-Length") ?? 0);',
-  'const requestText = await readRequestBodyWithLimit(request, MAX_REQUEST_BYTES);',
-  'requestText === null',
-  'if (dataUrl.length > MAX_DATA_URL_CHARS)',
+  "const requestText = await readRequestBodyWithLimit(request, MAX_REQUEST_BYTES);",
+  "requestText === null",
+  "if (dataUrl.length > MAX_DATA_URL_CHARS)",
   'const mimeType = (match[1] || "").toLowerCase();',
-  'if (!Object.hasOwn(SUPPORTED_VIDEO_TRANSCRIPTION_FORMATS, mimeType))',
+  "if (!Object.hasOwn(SUPPORTED_VIDEO_TRANSCRIPTION_FORMATS, mimeType))",
   'if (!dataUrl.includes(";base64,"))',
-  'const headerMatch = dataUrl.match(/^data:([^;,]+)?(?:;base64)?,/);',
+  "const headerMatch = dataUrl.match(/^data:([^;,]+)?(?:;base64)?,/);",
   'const declaredDataUrlMime = (headerMatch?.[1] || "").toLowerCase();',
-  'if (!supportedExtension || declaredMime !== declaredDataUrlMime || actualExtension !== supportedExtension)',
-  'const { bytes, mimeType } = decodeDataUrl(dataUrl);',
-  'const file = new File([bytes], filename, { type: mimeType });',
+  "if (!supportedExtension || declaredMime !== declaredDataUrlMime || actualExtension !== supportedExtension)",
+  "const { bytes, mimeType } = decodeDataUrl(dataUrl);",
+  "const file = new File([bytes], filename, { type: mimeType });",
   'await consumeUsageLimit(request, userId, "video-transcription", 5, 20);',
-  'const binary = atob(payload);',
+  "const binary = atob(payload);",
 ]) {
-  if (!videoFunction.includes(expected)) failures.push(`Transcrição de vídeo não valida o conteúdo antes do decode: ${expected}`);
+  if (!videoFunction.includes(expected))
+    failures.push(`Transcrição de vídeo não valida o conteúdo antes do decode: ${expected}`);
 }
 if (
-  !videoFunction.includes('const SUPPORTED_VIDEO_TRANSCRIPTION_FORMATS: Record<string, string> = {') ||
+  !videoFunction.includes(
+    "const SUPPORTED_VIDEO_TRANSCRIPTION_FORMATS: Record<string, string> = {",
+  ) ||
   !videoFunction.includes('"video/mp4": "mp4"') ||
   !videoFunction.includes('"video/webm": "webm"')
 ) {
   failures.push("Transcrição de vídeo deve manter allowlist explícita e restrita a MP4/WebM");
 }
 const decodePosition = videoFunction.indexOf("const { bytes, mimeType } = decodeDataUrl(dataUrl);");
-const usageLimitPosition = videoFunction.indexOf('await consumeUsageLimit(request, userId, "video-transcription", 5, 20);');
+const usageLimitPosition = videoFunction.indexOf(
+  'await consumeUsageLimit(request, userId, "video-transcription", 5, 20);',
+);
 if (decodePosition < 0 || usageLimitPosition < decodePosition) {
-  failures.push("Transcrição de vídeo deve validar e decodificar o formato antes de consumir a cota");
+  failures.push(
+    "Transcrição de vídeo deve validar e decodificar o formato antes de consumir a cota",
+  );
 }
 
-for (const expected of [
-  "focus_sessions_plan_session_fk",
-  "'plan_session_id','plan_sessions'",
-]) {
-  if (!focusOwnershipMigration.includes(expected)) failures.push(`Migration de ownership do foco não contém: ${expected}`);
+for (const expected of ["focus_sessions_plan_session_fk", "'plan_session_id','plan_sessions'"]) {
+  if (!focusOwnershipMigration.includes(expected))
+    failures.push(`Migration de ownership do foco não contém: ${expected}`);
 }
 
 requireIncludes("src/routes/index.tsx", [
@@ -2134,7 +2469,7 @@ requireIncludes("src/routes/index.tsx", [
   "notificationSyncSignature",
   "focus,",
   "prefs: prefs ?? null",
-  'notificationSyncRef.current === notificationSyncSignature',
+  "notificationSyncRef.current === notificationSyncSignature",
 ]);
 
 const nativeNotifications = read("src/lib/native-notifications.ts");
@@ -2142,16 +2477,22 @@ requireIncludes("src/lib/native-notifications.ts", [
   "const [prefsResult, examsResult, tasksResult, planResult, schedulesResult, focusResult, subjectsResult]",
   "const queryErrors = [",
   "Never delete already scheduled reminders when a transient data query fails.",
-  'if (queryErrors.length) {',
+  "if (queryErrors.length) {",
 ]);
 
-if (!nativeNotifications.includes('const daysUntilSunday = (0 - at.getDay() + 7) % 7;')) {
-  failures.push("Notificações semanais devem agendar o próximo domingo, não apenas o domingo atual");
+if (!nativeNotifications.includes("const daysUntilSunday = (0 - at.getDay() + 7) % 7;")) {
+  failures.push(
+    "Notificações semanais devem agendar o próximo domingo, não apenas o domingo atual",
+  );
 }
-if (!nativeNotifications.includes('const summaryWeekStart = startOfWeek(at);')) {
+if (!nativeNotifications.includes("const summaryWeekStart = startOfWeek(at);")) {
   failures.push("Resumo semanal deve usar a data da ocorrência agendada para deduplicação");
 }
-if (!nativeNotifications.includes('const summaryMonthStart = new Date(at.getFullYear(), at.getMonth(), 1);')) {
+if (
+  !nativeNotifications.includes(
+    "const summaryMonthStart = new Date(at.getFullYear(), at.getMonth(), 1);",
+  )
+) {
   failures.push("Resumo mensal deve usar o mês da ocorrência agendada para deduplicação");
 }
 
@@ -2177,18 +2518,23 @@ if (
     (line, index) => notificationSchemaLines[notificationSchemaIndex + index] !== line,
   )
 ) {
-  failures.push("Notificações nativas devem definir isExactNotification no nível de LocalNotificationSchema, fora de Schedule.");
+  failures.push(
+    "Notificações nativas devem definir isExactNotification no nível de LocalNotificationSchema, fora de Schedule.",
+  );
 }
 const demoSupabase = read("src/lib/demo-supabase.ts");
 for (const expected of [
-  'daily_summary: boolean;',
-  'weekly_summary: boolean;',
-  'monthly_summary: boolean;',
+  "daily_summary: boolean;",
+  "weekly_summary: boolean;",
+  "monthly_summary: boolean;",
   '"Resumo diário"',
   '"Resumo semanal"',
   '"Resumo mensal"',
 ]) {
-  if (!nativeNotifications.includes(expected) && !nativeNotifications.includes(expected.replaceAll('"', ""))) {
+  if (
+    !nativeNotifications.includes(expected) &&
+    !nativeNotifications.includes(expected.replaceAll('"', ""))
+  ) {
     failures.push("Notificações nativas não contêm resumo esperado: " + expected);
   }
 }
@@ -2196,28 +2542,34 @@ if (!demoSupabase.includes("monthly_summary: false,")) {
   failures.push("Modo demo deve manter monthly_summary desativado por padrão, alinhado ao banco.");
 }
 
-
 if (!nativeNotifications.includes("classes: boolean;")) {
   failures.push("native-notifications.ts deve tipar a preferência de aulas");
 }
-
 
 for (const expected of [
   'import { dateKey, ordysWeekdayToJsDay, parseTimeOfDay } from "@/lib/ordys-engine";',
   '.gte("session_date", dateKey(new Date()))',
 ]) {
-  if (!nativeNotifications.includes(expected)) failures.push("Notificações nativas não contêm correção esperada para data local: " + expected);
+  if (!nativeNotifications.includes(expected))
+    failures.push("Notificações nativas não contêm correção esperada para data local: " + expected);
 }
 
 const packageJson = JSON.parse(read("package.json"));
 const supabaseClientSource = read("src/integrations/supabase/client.ts");
-if (supabaseClientSource.includes("brokeredPreviewStorage") || supabaseClientSource.includes("previewAuthStorage")) {
-  failures.push("Supabase client não pode usar o broker de autenticação do Lovable em builds de entrega");
+if (
+  supabaseClientSource.includes("brokeredPreviewStorage") ||
+  supabaseClientSource.includes("previewAuthStorage")
+) {
+  failures.push(
+    "Supabase client não pode usar o broker de autenticação do Lovable em builds de entrega",
+  );
 }
 if (packageJson.dependencies?.["@lovable.dev/cloud-auth-js"]) {
-  failures.push("package.json não pode conter @lovable.dev/cloud-auth-js como dependência de runtime");
+  failures.push(
+    "package.json não pode conter @lovable.dev/cloud-auth-js como dependência de runtime",
+  );
 }
-if (authRoute.includes('lovable.auth') || authRoute.includes('@lovable.dev/cloud-auth-js')) {
+if (authRoute.includes("lovable.auth") || authRoute.includes("@lovable.dev/cloud-auth-js")) {
   failures.push("auth.tsx não pode depender do Lovable para autenticação");
 }
 const nativeAuth = read("src/lib/native-auth.ts");
@@ -2226,14 +2578,14 @@ requireIncludes("src/lib/native-auth.ts", [
   'import { Browser } from "@capacitor/browser";',
   'export const ORDYS_NATIVE_AUTH_REDIRECT_URI = "app.ordys.academy://auth/callback";',
   'App.addListener("appUrlOpen"',
-  'App.getLaunchUrl()',
-  'supabase.auth.exchangeCodeForSession(code)',
-  'supabase.auth.setSession(',
-  'skipBrowserRedirect: true',
-  'await Browser.open({ url: data.url });',
-  'let nativeAuthInitPromise: Promise<void> | null = null;',
-  'initializeNativeAuthOnce().catch(async (error: unknown) =>',
-  'await handle.remove()',
+  "App.getLaunchUrl()",
+  "supabase.auth.exchangeCodeForSession(code)",
+  "supabase.auth.setSession(",
+  "skipBrowserRedirect: true",
+  "await Browser.open({ url: data.url });",
+  "let nativeAuthInitPromise: Promise<void> | null = null;",
+  "initializeNativeAuthOnce().catch(async (error: unknown) =>",
+  "await handle.remove()",
 ]);
 requireIncludes("src/lib/native-auth.ts", [
   'parsed.protocol !== "app.ordys.academy:"',
@@ -2266,18 +2618,18 @@ requireIncludes("src/lib/ordys-assistant-client.ts", [
   'import { Capacitor } from "@capacitor/core";',
   "O Assistente Ordys não respondeu pelo serviço seguro.",
   "function readFunctionResult(data: unknown, error: unknown)",
-  "if (error || !data || typeof data !== \"object\") return null;",
+  'if (error || !data || typeof data !== "object") return null;',
   "if (Capacitor.isNativePlatform()) throw nativeAssistantFailure();",
 ]);
 requireIncludes("src/lib/native-auth.ts", [
   'queryParams: { prompt: "select_account" }',
-  'skipBrowserRedirect: true',
+  "skipBrowserRedirect: true",
 ]);
 requireIncludes("src/lib/ordys-assistant-client.ts", [
-  'export async function generateOrdysQuiz(input: {',
+  "export async function generateOrdysQuiz(input: {",
   'supabase.functions.invoke("ordys-assistant", {',
   'body: { action: "quiz", ...input }',
-  'O serviço não retornou a quantidade de questões solicitada.',
+  "O serviço não retornou a quantidade de questões solicitada.",
 ]);
 requireIncludes("src/routes/simulado.tsx", [
   'import { generateOrdysQuiz, type OrdysQuizQuestion } from "@/lib/ordys-assistant-client";',
@@ -2309,21 +2661,23 @@ requireIncludes("supabase/functions/ordys-video-transcribe/index.ts", [
   "ORDYS_PLUS_LOCK_MESSAGE",
 ]);
 if (existsSync("src/lib/quiz.functions.ts")) {
-  failures.push("A implementação web antiga de simulados não pode manter um provedor de IA separado");
+  failures.push(
+    "A implementação web antiga de simulados não pode manter um provedor de IA separado",
+  );
 }
 requireIncludes("src/lib/ordys-assistant-client.ts", [
   "ORDYS_PLUS_AI_ENABLED",
   'if (attachment.kind !== "video" || !attachment.dataUrl)',
-  'if (!ORDYS_PLUS_AI_ENABLED)',
+  "if (!ORDYS_PLUS_AI_ENABLED)",
   "isOrdysVideoAudioTranscriptionSupported(attachment)",
   "videoNotesBlock",
   "não infira falas ou sons",
 ]);
 requireIncludes("src/lib/ordys-video-transcription.ts", [
-  'const SUPPORTED_VIDEO_AUDIO_FORMATS: Record<string, string> = {',
+  "const SUPPORTED_VIDEO_AUDIO_FORMATS: Record<string, string> = {",
   '"video/mp4": "mp4"',
   '"video/webm": "webm"',
-  'return actualExtension === expectedExtension;',
+  "return actualExtension === expectedExtension;",
 ]);
 requireIncludes("tests/ordys-video-transcription.test.ts", [
   "Ordys video audio-transcription format gate",
@@ -2350,7 +2704,7 @@ requireIncludes("supabase/functions/ordys-assistant/index.ts", [
   "async function generateQuizForUser(request: Request, userId: string, body: Record<string, unknown>)",
   'await enforceUsageLimit(request, userId, "quiz_generate", 12, 36);',
   'if (action === "quiz") {',
-  'return await generateQuizForUser(request, user.id, body);',
+  "return await generateQuizForUser(request, user.id, body);",
   "new Set(options).size !== 4",
   "!options.includes(correctAnswer)",
 ]);
@@ -2405,22 +2759,29 @@ requireIncludes("mobile/entry.tsx", [
   'toast.error(detail.message ?? "Não foi possível concluir o acesso com Google.")',
 ]);
 requireIncludes("src/routes/auth.tsx", [
-  'startGoogleSignIn,',
+  "startGoogleSignIn,",
   'await startGoogleSignIn(authRedirect("/"));',
   'if (detail.purpose === "recovery")',
-  'Recuperação cancelada. Você pode solicitar um novo link.',
-  'Não foi possível concluir a recuperação. Solicite um novo link.',
+  "Recuperação cancelada. Você pode solicitar um novo link.",
+  "Não foi possível concluir a recuperação. Solicite um novo link.",
 ]);
-if (!read(".github/workflows/build-ordys-android.yml").includes('android:scheme="app.ordys.academy"')) {
+if (
+  !read(".github/workflows/build-ordys-android.yml").includes('android:scheme="app.ordys.academy"')
+) {
   failures.push("workflow Android deve registrar o deep link nativo de autenticação");
 }
-if (!packageJson.dependencies?.["@capacitor/app"] || packageJson.dependencies["@capacitor/app"] !== "8.1.2") {
+if (
+  !packageJson.dependencies?.["@capacitor/app"] ||
+  packageJson.dependencies["@capacitor/app"] !== "8.1.2"
+) {
   failures.push("package.json deve fixar @capacitor/app em 8.1.2");
 }
-if (!packageJson.dependencies?.["@capacitor/browser"] || packageJson.dependencies["@capacitor/browser"] !== "8.0.5") {
+if (
+  !packageJson.dependencies?.["@capacitor/browser"] ||
+  packageJson.dependencies["@capacitor/browser"] !== "8.0.5"
+) {
   failures.push("package.json deve fixar @capacitor/browser em 8.0.5");
 }
-
 
 const runtimeDependencies = packageJson.dependencies ?? {};
 if (runtimeDependencies.zod !== "4.6.7") {
@@ -2455,7 +2816,9 @@ requireIncludes("capacitor.config.ts", [
   "allowMixedContent: false",
 ]);
 if (capacitor.includes("bundledWebRuntime")) {
-  failures.push("capacitor.config.ts não deve usar bundledWebRuntime, opção removida no Capacitor 7+");
+  failures.push(
+    "capacitor.config.ts não deve usar bundledWebRuntime, opção removida no Capacitor 7+",
+  );
 }
 if (/server\s*:\s*\{[\s\S]*url\s*:/i.test(capacitor)) {
   failures.push("capacitor.config.ts não pode configurar server.url para a versão de produção");
@@ -2463,7 +2826,9 @@ if (/server\s*:\s*\{[\s\S]*url\s*:/i.test(capacitor)) {
 
 const workflowDirectory = ".github/workflows";
 try {
-  const workflowFiles = readdirSync(workflowDirectory).filter((name) => name.endsWith(".yml") || name.endsWith(".yaml"));
+  const workflowFiles = readdirSync(workflowDirectory).filter(
+    (name) => name.endsWith(".yml") || name.endsWith(".yaml"),
+  );
   const obsoleteWorkflowNames = new Set([
     "build-ordys-apk.yml",
     "build-ordys-apk-v2.yml",
@@ -2486,7 +2851,10 @@ try {
     }
   }
 } catch (error) {
-  failures.push("Não foi possível verificar o conjunto de workflows do repositório: " + (error instanceof Error ? error.message : String(error)));
+  failures.push(
+    "Não foi possível verificar o conjunto de workflows do repositório: " +
+      (error instanceof Error ? error.message : String(error)),
+  );
 }
 
 const verifyWebWorkflow = read(".github/workflows/verify-ordys.yml");
@@ -2530,7 +2898,7 @@ requireIncludes("scripts/build-ordys-codespace.sh", [
   'KEY_ALIAS="${ORDYS_KEY_ALIAS:-}"',
   'KEY_PASSWORD="${ORDYS_KEY_PASSWORD:-}"',
   'EXPECTED_CERT="${ORDYS_EXPECTED_CERT_SHA256:-}"',
-  'unset ORDYS_UPLOAD_KEYSTORE_B64 ORDYS_STORE_PASSWORD ORDYS_KEY_ALIAS ORDYS_KEY_PASSWORD ORDYS_EXPECTED_CERT_SHA256',
+  "unset ORDYS_UPLOAD_KEYSTORE_B64 ORDYS_STORE_PASSWORD ORDYS_KEY_ALIAS ORDYS_KEY_PASSWORD ORDYS_EXPECTED_CERT_SHA256",
   'ORDYS_STORE_PASSWORD="$STORE_PASSWORD" \\',
   'ORDYS_KEY_ALIAS="$KEY_ALIAS" \\',
   'ORDYS_KEY_PASSWORD="$KEY_PASSWORD" \\',
@@ -2565,8 +2933,8 @@ requireIncludes("scripts/build-ordys-codespace.sh", [
   "ordys-academy-release.apk",
 ]);
 requireIncludes("scripts/build-ordys-codespace.sh", [
-  'VITE_ORDYS_DISABLE_NATIVE_NOTIFICATIONS=1 npx vite build --config vite.mobile.config.ts',
-  'VITE_ORDYS_DISABLE_NATIVE_NOTIFICATIONS=0 npx vite build --config vite.mobile.config.ts',
+  "VITE_ORDYS_DISABLE_NATIVE_NOTIFICATIONS=1 npx vite build --config vite.mobile.config.ts",
+  "VITE_ORDYS_DISABLE_NATIVE_NOTIFICATIONS=0 npx vite build --config vite.mobile.config.ts",
   "test -d node_modules/@capacitor/local-notifications",
   "python3 scripts/configure-ordys-notification-manifest.py sideload android/app/src/main/AndroidManifest.xml",
   "python3 scripts/configure-ordys-notification-manifest.py play android/app/src/main/AndroidManifest.xml",
@@ -2594,11 +2962,20 @@ requireIncludes("scripts/extract-android-cert-sha256.awk", [
   "length(fingerprint) != 64",
 ]);
 for (const [path, source] of [
-  ["scripts/create-android-release-keystore.sh", read("scripts/create-android-release-keystore.sh")],
-  ["scripts/configure-android-release-signing.sh", read("scripts/configure-android-release-signing.sh")],
+  [
+    "scripts/create-android-release-keystore.sh",
+    read("scripts/create-android-release-keystore.sh"),
+  ],
+  [
+    "scripts/configure-android-release-signing.sh",
+    read("scripts/configure-android-release-signing.sh"),
+  ],
   ["scripts/build-ordys-codespace.sh", read("scripts/build-ordys-codespace.sh")],
   [".github/workflows/build-ordys-android.yml", read(".github/workflows/build-ordys-android.yml")],
-  [".github/workflows/build-ordys-android-sideload.yml", read(".github/workflows/build-ordys-android-sideload.yml")],
+  [
+    ".github/workflows/build-ordys-android-sideload.yml",
+    read(".github/workflows/build-ordys-android-sideload.yml"),
+  ],
 ]) {
   if (!source.includes("extract-android-cert-sha256.awk")) {
     failures.push(path + " deve usar o parser centralizado do fingerprint SHA-256");
@@ -2622,24 +2999,26 @@ const fingerprintFixture = [
 ].join("\n");
 const expectedFingerprint = "a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90";
 try {
-  const actualFingerprint = execFileSync(
-    "awk",
-    ["-f", "scripts/extract-android-cert-sha256.awk"],
-    { input: fingerprintFixture, encoding: "utf8" },
-  ).trim();
+  const actualFingerprint = execFileSync("awk", ["-f", "scripts/extract-android-cert-sha256.awk"], {
+    input: fingerprintFixture,
+    encoding: "utf8",
+  }).trim();
   if (actualFingerprint !== expectedFingerprint) {
     failures.push("Parser de fingerprint SHA-256 retornou um valor incorreto");
   }
 } catch (error) {
-  failures.push("Parser de fingerprint SHA-256 falhou no caso válido: " + (error instanceof Error ? error.message : String(error)));
+  failures.push(
+    "Parser de fingerprint SHA-256 falhou no caso válido: " +
+      (error instanceof Error ? error.message : String(error)),
+  );
 }
 
 try {
-  execFileSync(
-    "awk",
-    ["-f", "scripts/extract-android-cert-sha256.awk"],
-    { input: "Certificate fingerprints:\nSHA1: 11:22:33:44\nSignature algorithm name: SHA256withRSA\n", encoding: "utf8" },
-  );
+  execFileSync("awk", ["-f", "scripts/extract-android-cert-sha256.awk"], {
+    input:
+      "Certificate fingerprints:\nSHA1: 11:22:33:44\nSignature algorithm name: SHA256withRSA\n",
+    encoding: "utf8",
+  });
   failures.push("Parser de fingerprint deve falhar quando o SHA-256 estiver ausente");
 } catch {
   // Expected: missing fingerprints must fail closed.
@@ -2727,26 +3106,42 @@ requireFile("tests/google-auth-timeout.test.ts");
 requireFile("tests/ordys-billing-webhook-body-limit.test.ts");
 const directApkWorkflow = read(".github/workflows/build-ordys-android-sideload.yml");
 const directApkStepStart = directApkWorkflow.indexOf("      - name: Build release APK");
-const directApkStepEnd = directApkWorkflow.indexOf("      - name: Verify final distribution artifacts", directApkStepStart);
+const directApkStepEnd = directApkWorkflow.indexOf(
+  "      - name: Verify final distribution artifacts",
+  directApkStepStart,
+);
 if (directApkStepStart < 0 || directApkStepEnd <= directApkStepStart) {
-  failures.push("Workflow de APK direto deve ter uma etapa de build Gradle identificável e delimitada.");
+  failures.push(
+    "Workflow de APK direto deve ter uma etapa de build Gradle identificável e delimitada.",
+  );
 } else {
   const directApkStep = directApkWorkflow.slice(directApkStepStart, directApkStepEnd);
   for (const secret of ["ORDYS_STORE_PASSWORD", "ORDYS_KEY_ALIAS", "ORDYS_KEY_PASSWORD"]) {
     if (!directApkStep.includes(`${secret}: \${{ secrets.${secret} }}`)) {
-      failures.push(`Build do APK direto deve repassar ${secret} ao processo Gradle na própria etapa.`);
+      failures.push(
+        `Build do APK direto deve repassar ${secret} ao processo Gradle na própria etapa.`,
+      );
     }
   }
 }
 const sideloadWorkflowSource = read(".github/workflows/build-ordys-android-sideload.yml");
-if (sideloadWorkflowSource.includes("bundleRelease") || sideloadWorkflowSource.includes("app-release.aab")) {
+if (
+  sideloadWorkflowSource.includes("bundleRelease") ||
+  sideloadWorkflowSource.includes("app-release.aab")
+) {
   failures.push("O workflow de instalação direta não pode publicar AAB para Google Play.");
 }
 if (androidWorkflow.includes("rm -rf node_modules/@capacitor/local-notifications")) {
-  failures.push("O workflow combinado não pode remover o plugin nativo antes de construir o AAB Play.");
+  failures.push(
+    "O workflow combinado não pode remover o plugin nativo antes de construir o AAB Play.",
+  );
 }
-const apkBuildIndex = androidWorkflow.indexOf("./gradlew --no-daemon -Pandroid.injected.testOnly=false assembleRelease");
-const playClientIndex = androidWorkflow.indexOf("Build Google Play client with native notifications enabled");
+const apkBuildIndex = androidWorkflow.indexOf(
+  "./gradlew --no-daemon -Pandroid.injected.testOnly=false assembleRelease",
+);
+const playClientIndex = androidWorkflow.indexOf(
+  "Build Google Play client with native notifications enabled",
+);
 const playAabIndex = androidWorkflow.indexOf("./gradlew --no-daemon bundleRelease");
 if (apkBuildIndex < 0 || playClientIndex <= apkBuildIndex || playAabIndex <= playClientIndex) {
   failures.push("O APK direto deve ser construído antes da recompilação do cliente Play e do AAB.");
@@ -2772,19 +3167,20 @@ for (const [workflowPath, workflowSource] of [
   }
 }
 
-if (!/uses:\s*actions\/checkout@v7\.0\.1[\s\S]*?persist-credentials:\s*false/.test(verifyWebWorkflow)) {
+if (
+  !/uses:\s*actions\/checkout@v7\.0\.1[\s\S]*?persist-credentials:\s*false/.test(verifyWebWorkflow)
+) {
   failures.push("verify-ordys.yml deve usar checkout v7.0.1 com credenciais não persistidas");
 }
-if (!/uses:\s*actions\/checkout@v7\.0\.1[\s\S]*?persist-credentials:\s*false/.test(androidWorkflow)) {
+if (
+  !/uses:\s*actions\/checkout@v7\.0\.1[\s\S]*?persist-credentials:\s*false/.test(androidWorkflow)
+) {
   failures.push("workflow Android deve usar checkout v7.0.1 com credenciais não persistidas");
 }
 
 const frozenBunInstall = "bun install --frozen-lockfile --ignore-scripts";
 requireFile("bun.lock");
-requireIncludes("bunfig.toml", [
-  'linker = "hoisted"',
-  "minimumReleaseAge = 86400",
-]);
+requireIncludes("bunfig.toml", ['linker = "hoisted"', "minimumReleaseAge = 86400"]);
 if (packageJson.packageManager !== "bun@1.4.4") {
   failures.push("package.json deve fixar o gerenciador Bun em 1.4.4");
 }
@@ -2808,7 +3204,9 @@ for (const [name, version] of [
   ["source-map-js", "1.2.2"],
 ]) {
   if (packageJson.overrides?.[name] !== version) {
-    failures.push(`package.json deve fixar ${name} em ${version} para corrigir advisories conhecidos`);
+    failures.push(
+      `package.json deve fixar ${name} em ${version} para corrigir advisories conhecidos`,
+    );
   }
 }
 
@@ -2820,10 +3218,14 @@ const dependencyBuildSources = [
 ];
 for (const [path, source] of dependencyBuildSources) {
   if (!source.includes(frozenBunInstall)) {
-    failures.push(`${path} deve instalar a partir de bun.lock com --frozen-lockfile e --ignore-scripts`);
+    failures.push(
+      `${path} deve instalar a partir de bun.lock com --frozen-lockfile e --ignore-scripts`,
+    );
   }
   if (!source.includes("npm run verify:deps")) {
-    failures.push(`${path} deve executar a auditoria IOC da árvore instalada antes dos lifecycle scripts`);
+    failures.push(
+      `${path} deve executar a auditoria IOC da árvore instalada antes dos lifecycle scripts`,
+    );
   }
   if (!source.includes("npm rebuild --foreground-scripts")) {
     failures.push(`${path} deve executar lifecycle scripts somente após a auditoria IOC`);
@@ -2831,7 +3233,12 @@ for (const [path, source] of dependencyBuildSources) {
   const installIndex = source.indexOf(frozenBunInstall);
   const iocIndex = source.indexOf("npm run verify:deps");
   const rebuildIndex = source.indexOf("npm rebuild --foreground-scripts");
-  if (installIndex < 0 || iocIndex < 0 || rebuildIndex < 0 || !(installIndex < iocIndex && iocIndex < rebuildIndex)) {
+  if (
+    installIndex < 0 ||
+    iocIndex < 0 ||
+    rebuildIndex < 0 ||
+    !(installIndex < iocIndex && iocIndex < rebuildIndex)
+  ) {
     failures.push(`${path} deve instalar, auditar IOCs e só depois executar lifecycle scripts`);
   }
   if (!source.includes("bun audit --prod --audit-level=high")) {
@@ -2840,25 +3247,32 @@ for (const [path, source] of dependencyBuildSources) {
 }
 
 for (const [path, source] of dependencyBuildSources.slice(0, 3)) {
-  if (!source.includes("uses: oven-sh/setup-bun@v2.2.0") || !source.includes("bun-version-file: package.json")) {
+  if (
+    !source.includes("uses: oven-sh/setup-bun@v2.2.0") ||
+    !source.includes("bun-version-file: package.json")
+  ) {
     failures.push(`${path} deve instalar a versão Bun declarada em package.json`);
   }
 }
 if (!codespaceBuild.includes('npm install --global --no-audit --no-fund "bun@$BUN_VERSION"')) {
-  failures.push("Codespaces deve instalar Bun pela versão declarada em package.json quando necessário");
+  failures.push(
+    "Codespaces deve instalar Bun pela versão declarada em package.json quando necessário",
+  );
 }
 if (!codespaceBuild.includes('if [ "$(bun --version)" != "$BUN_VERSION" ]; then')) {
-  failures.push("Codespaces deve confirmar que a versão instalada de Bun corresponde a packageManager");
+  failures.push(
+    "Codespaces deve confirmar que a versão instalada de Bun corresponde a packageManager",
+  );
 }
 
 const productionSecretsSetup = read("scripts/configure-production-secrets.sh");
 requireIncludes("scripts/configure-production-secrets.sh", [
   'readonly REPO="igniteprosperety-collab/ordys-academy.app"',
   'readonly PROJECT_ID="yqljcoukgpqdoxiispyn"',
-  'gh auth status --hostname github.com',
+  "gh auth status --hostname github.com",
   "gh api \"repos/$REPO\" --jq '.permissions.admin'",
-  'https://api.supabase.com/v1/projects/$PROJECT_ID',
-  'https://api.supabase.com/v1/projects/$PROJECT_ID/config/auth',
+  "https://api.supabase.com/v1/projects/$PROJECT_ID",
+  "https://api.supabase.com/v1/projects/$PROJECT_ID/config/auth",
   "Grant the fine-grained token permission auth_config_read for this project (OAuth integrations use the auth:read scope)",
   "Auth configuration read permission verified; no Auth settings were changed.",
   "remove_existing_web_origin=false",
@@ -2871,7 +3285,7 @@ requireIncludes("scripts/configure-production-secrets.sh", [
   'if [[ -n "$ORDYS_PUBLIC_APP_URL" ]]; then',
   'gh secret set ORDYS_PUBLIC_APP_URL --repo "$REPO"',
   "web_origin_configured=false",
-  'web_origin_configured=true',
+  "web_origin_configured=true",
   'if [[ "$web_origin_configured" == "true" ]]; then',
 ]);
 if (/^\s*set\s+-[^\n]*x/m.test(productionSecretsSetup)) {
@@ -2887,9 +3301,9 @@ requireIncludes("scripts/configure-android-release-signing.sh", [
   'STORE_PASSWORD="${ORDYS_STORE_PASSWORD:-}"',
   'KEY_ALIAS="${ORDYS_KEY_ALIAS:-}"',
   'KEY_PASSWORD="${ORDYS_KEY_PASSWORD:-}"',
-  'unset ORDYS_KEYSTORE_PATH ORDYS_STORE_PASSWORD ORDYS_KEY_ALIAS ORDYS_KEY_PASSWORD',
+  "unset ORDYS_KEYSTORE_PATH ORDYS_STORE_PASSWORD ORDYS_KEY_ALIAS ORDYS_KEY_PASSWORD",
   'readonly REPO="igniteprosperety-collab/ordys-academy.app"',
-  'gh auth status --hostname github.com',
+  "gh auth status --hostname github.com",
   "gh repo view \"$REPO\" --json nameWithOwner --jq '.nameWithOwner'",
   "gh api \"repos/$REPO\" --jq '.permissions.admin'",
   'if [[ "$actual_repo" != "$REPO" ]]; then',
@@ -2901,41 +3315,59 @@ requireIncludes("scripts/configure-android-release-signing.sh", [
   'gh secret set ORDYS_EXPECTED_CERT_SHA256 --repo "$REPO"',
 ]);
 if (/gh repo view --json nameWithOwner -q/.test(androidSigningSetup)) {
-  failures.push("Helper de assinatura Android não pode enviar secrets ao repositório corrente sem validar o destino oficial.");
+  failures.push(
+    "Helper de assinatura Android não pode enviar secrets ao repositório corrente sem validar o destino oficial.",
+  );
 }
-if (/echo\s+["'].*(?:ORDYS_STORE_PASSWORD|ORDYS_KEY_PASSWORD|ORDYS_UPLOAD_KEYSTORE_B64)/.test(androidSigningSetup)) {
+if (
+  /echo\s+["'].*(?:ORDYS_STORE_PASSWORD|ORDYS_KEY_PASSWORD|ORDYS_UPLOAD_KEYSTORE_B64)/.test(
+    androidSigningSetup,
+  )
+) {
   failures.push("Helper de assinatura Android não pode imprimir senhas nem conteúdo do keystore.");
 }
 try {
   execFileSync("bash", ["-n", "scripts/configure-android-release-signing.sh"], { stdio: "pipe" });
 } catch (error) {
-  failures.push("Helper de assinatura Android contém sintaxe Bash inválida: " + (error instanceof Error ? error.message : String(error)));
+  failures.push(
+    "Helper de assinatura Android contém sintaxe Bash inválida: " +
+      (error instanceof Error ? error.message : String(error)),
+  );
 }
 
 const authConfigStart = productionSecretsSetup.indexOf("if ! auth_config=");
 if (authConfigStart >= 0) {
   const authConfigLines = productionSecretsSetup.slice(authConfigStart).split("\n");
   const headerLine = authConfigLines.find((line) => line.includes("printf 'header = "));
-  const curlLine = authConfigLines.find((line) => line.includes("curl --config - --fail --silent --show-error"));
+  const curlLine = authConfigLines.find((line) =>
+    line.includes("curl --config - --fail --silent --show-error"),
+  );
   const backslash = String.fromCharCode(92);
-  const headerBackslashes = headerLine ? [...headerLine].filter((character) => character === backslash).length : 0;
+  const headerBackslashes = headerLine
+    ? [...headerLine].filter((character) => character === backslash).length
+    : 0;
   if (!headerLine || headerBackslashes !== 1) {
     failures.push("Helper Supabase deve escrever um único newline no curl config de Auth");
   }
   if (!curlLine || !curlLine.trimEnd().endsWith(backslash)) {
-    failures.push("Chamada curl da configuração Auth precisa continuar corretamente para a URL do projeto");
+    failures.push(
+      "Chamada curl da configuração Auth precisa continuar corretamente para a URL do projeto",
+    );
   }
 }
 
 try {
   execFileSync("bash", ["-n", "scripts/configure-production-secrets.sh"], { stdio: "pipe" });
 } catch (error) {
-  failures.push("Helper de secrets de produção contém sintaxe Bash inválida: " + (error instanceof Error ? error.message : String(error)));
+  failures.push(
+    "Helper de secrets de produção contém sintaxe Bash inválida: " +
+      (error instanceof Error ? error.message : String(error)),
+  );
 }
 
 const deployWorkflow = read(".github/workflows/deploy-ordys-assistant.yml");
 requireIncludes(".github/workflows/deploy-ordys-assistant.yml", [
-  'ORDYS_PUBLIC_APP_URL: ${{ secrets.ORDYS_PUBLIC_APP_URL }}',
+  "ORDYS_PUBLIC_APP_URL: ${{ secrets.ORDYS_PUBLIC_APP_URL }}",
   'supabase --yes secrets set "ORDYS_PUBLIC_APP_URL=$ORDYS_PUBLIC_APP_URL"',
   "persist-credentials: false",
   "uses: actions/checkout@v7.0.1",
@@ -2975,7 +3407,7 @@ requireIncludes(".github/workflows/build-ordys-android.yml", [
   'android:dataExtractionRules="@xml/data_extraction_rules"',
   '<exclude domain="root" path="." />',
   'android.permission.SCHEDULE_EXACT_ALARM" tools:node="remove"',
-  'Signer #1 certificate SHA-256 digest:',
+  "Signer #1 certificate SHA-256 digest:",
   'test "$APK_CERT" = "$KEY_CERT"',
   'AAB_CERT="$(awk -f scripts/extract-android-cert-sha256.awk /tmp/ordys-aab-cert.txt)"',
   'test "$AAB_CERT" = "$KEY_CERT"',
@@ -2984,10 +3416,14 @@ requireIncludes(".github/workflows/build-ordys-android.yml", [
 ]);
 const androidTriggerBlock = androidWorkflow.split("\njobs:")[0];
 if (!androidTriggerBlock.includes("workflow_dispatch:")) {
-  failures.push("workflow Android deve permanecer manual para preservar a cota de compilação gratuita");
+  failures.push(
+    "workflow Android deve permanecer manual para preservar a cota de compilação gratuita",
+  );
 }
 if (/^\s{2}(push|pull_request):/m.test(androidTriggerBlock)) {
-  failures.push("workflow Android não deve consumir Actions automaticamente em pushes ou pull requests");
+  failures.push(
+    "workflow Android não deve consumir Actions automaticamente em pushes ou pull requests",
+  );
 }
 
 if (!/runs-on:\s*ubuntu-24\.04/.test(androidWorkflow)) {
@@ -3003,7 +3439,9 @@ if (androidWorkflow.includes("app = re.search(r'<application\\\\b[^>]*>', s)")) 
   failures.push("Workflow Android contém um regex de <application> com barra invertida duplicada");
 }
 if (!androidWorkflow.includes("re.finditer(r'<activity\\b[\\s\\S]*?</activity>', s)")) {
-  failures.push("Workflow Android deve usar matcher válido para encontrar a activity de lançamento");
+  failures.push(
+    "Workflow Android deve usar matcher válido para encontrar a activity de lançamento",
+  );
 }
 if (androidWorkflow.includes("re.finditer(r'<activity\\\\b")) {
   failures.push("Workflow Android contém regex duplicada ao localizar a activity de lançamento");
@@ -3028,7 +3466,11 @@ if (!verifyWebWorkflow.includes("Mobile client build")) {
 if (!verifyWebWorkflow.includes("npx vite build --config vite.mobile.config.ts")) {
   failures.push("verify-ordys.yml deve executar o build do cliente mobile");
 }
-if (!androidWorkflow.includes("Unit tests") || !androidWorkflow.includes("Lint") || !androidWorkflow.includes("Production web build")) {
+if (
+  !androidWorkflow.includes("Unit tests") ||
+  !androidWorkflow.includes("Lint") ||
+  !androidWorkflow.includes("Production web build")
+) {
   failures.push("workflow Android deve funcionar como gate único de qualidade do main");
 }
 
@@ -3057,23 +3499,33 @@ if (transcriptionFunction.includes("gpt-4o-transcribe")) {
 
 const serverEntry = read("src/server.ts");
 if (
-  !serverEntry.includes('const isProduction = process.env.NODE_ENV === "production" || import.meta.env.PROD;') &&
-  !serverEntry.includes('const isProduction = process.env["NODE_ENV"] === "production" || import.meta.env.PROD;')
+  !serverEntry.includes(
+    'const isProduction = process.env.NODE_ENV === "production" || import.meta.env.PROD;',
+  ) &&
+  !serverEntry.includes(
+    'const isProduction = process.env["NODE_ENV"] === "production" || import.meta.env.PROD;',
+  )
 ) {
-  failures.push("server.ts deve determinar o ambiente de produção por NODE_ENV ou import.meta.env.PROD.");
+  failures.push(
+    "server.ts deve determinar o ambiente de produção por NODE_ENV ou import.meta.env.PROD.",
+  );
 }
 requireIncludes("src/server.ts", [
-  'if (isProduction) {',
+  "if (isProduction) {",
   'headers.set("X-Frame-Options", "DENY");',
   'headers.set("X-Permitted-Cross-Domain-Policies", "none")',
   'headers.set("Cache-Control", "no-store")',
   'headers.set("Cross-Origin-Opener-Policy", "same-origin-allow-popups")',
-  'return applySecurityHeaders(new Response(renderErrorPage(), {',
+  "return applySecurityHeaders(new Response(renderErrorPage(), {",
 ]);
 
 const trackedEnv = (() => {
   try {
-    return execFileSync("git", ["ls-files", "--error-unmatch", ".env"], { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+    return execFileSync("git", ["ls-files", "--error-unmatch", ".env"], {
+      stdio: ["ignore", "pipe", "ignore"],
+    })
+      .toString()
+      .trim();
   } catch {
     return "";
   }
@@ -3126,8 +3578,6 @@ for (const path of appButtonFiles) {
   }
 }
 
-
-
 requireFile("supabase/functions/_shared/ai-content-report.ts");
 requireIncludes(".github/workflows/validate-github-workflows.yml", [
   "pull_request:",
@@ -3144,17 +3594,17 @@ requireFile("tests/ai-content-report.test.ts");
 
 requireFile("docs/AI-CONTENT-REPORTING.md");
 requireIncludes("supabase/functions/_shared/ai-content-report.ts", [
-  'contentChars: 20_000',
-  'detailsChars: 600',
+  "contentChars: 20_000",
+  "detailsChars: 600",
   '"personal_data"',
   "parseAiContentReport",
 ]);
 requireIncludes("supabase/functions/ordys-ai-report/index.ts", [
   '"/auth/v1/user"',
   '"/rest/v1/rpc/insert_ai_content_report"',
-  'AI_CONTENT_REPORT_LIMITS.requestBytes',
+  "AI_CONTENT_REPORT_LIMITS.requestBytes",
   'return response({ status: "received" });',
-  'Authorization: authorization',
+  "Authorization: authorization",
 ]);
 requireIncludes("supabase/migrations/20261031030000_ai_content_reports.sql", [
   "CREATE TABLE public.ai_content_reports",
@@ -3172,23 +3622,14 @@ requireIncludes("src/components/ordys/ai-content-report-button.tsx", [
   "O restante da conversa e seus anexos não serão incluídos no relato.",
   "Enviar relato",
 ]);
-requireIncludes("src/routes/assistente.tsx", [
-  'AiContentReportButton source="assistant"',
-]);
-requireIncludes("src/routes/simulado.tsx", [
-  'label="Sinalizar questão"',
-  'source="quiz"',
-]);
+requireIncludes("src/routes/assistente.tsx", ['AiContentReportButton source="assistant"']);
+requireIncludes("src/routes/simulado.tsx", ['label="Sinalizar questão"', 'source="quiz"']);
 requireIncludes("src/routes/privacidade.tsx", [
   "Sinalizar conteúdo",
   "Somente o conteúdo de IA selecionado",
   "Os relatos de conteúdo de IA também são excluídos quando a conta correspondente é excluída.",
 ]);
-requireIncludes("supabase/config.toml", [
-  "[functions.ordys-ai-report]",
-  "verify_jwt = true",
-]);
-
+requireIncludes("supabase/config.toml", ["[functions.ordys-ai-report]", "verify_jwt = true"]);
 
 const billingMigration = "supabase/migrations/20261031010000_ordys_plus_billing_foundation.sql";
 requireFile(billingMigration);
@@ -3259,7 +3700,7 @@ requireIncludes("supabase/functions/ordys-billing-checkout/index.ts", [
   "externalReference",
   "provider_checkout_id",
   "checkoutAttemptDisposition(",
-  "disposition === \"cancel_remote\"",
+  'disposition === "cancel_remote"',
   "checkout_cancellation_processing",
   "status=in.(creating,pending,linked)",
   "providerRequestStarted = true",
@@ -3299,7 +3740,8 @@ if (
   );
 }
 
-const durableWebhookMigration = "supabase/migrations/20261105060000_ordys_block_checkout_with_unreconciled_webhooks.sql";
+const durableWebhookMigration =
+  "supabase/migrations/20261105060000_ordys_block_checkout_with_unreconciled_webhooks.sql";
 requireIncludes(durableWebhookMigration, read(durableWebhookMigration), [
   "CREATE OR REPLACE FUNCTION public.ordys_receive_asaas_billing_webhook(p_event JSONB)",
   "CREATE OR REPLACE FUNCTION public.ordys_process_asaas_billing_webhook(p_event_id TEXT)",
@@ -3346,8 +3788,14 @@ requireIncludes("supabase/migrations/20261029232950_ordys_billing_schema_status.
 ]);
 
 const deleteAccountFunction = read("supabase/functions/ordys-delete-account/index.ts");
-if (deleteAccountFunction.includes('JSON.stringify({ status: "cancelled", updated_at: new Date().toISOString() })')) {
-  failures.push("Exclusão de conta não pode marcar checkout como cancelado antes do webhook do Asaas");
+if (
+  deleteAccountFunction.includes(
+    'JSON.stringify({ status: "cancelled", updated_at: new Date().toISOString() })',
+  )
+) {
+  failures.push(
+    "Exclusão de conta não pode marcar checkout como cancelado antes do webhook do Asaas",
+  );
 }
 requireIncludes("tests/ordys-billing-shared.test.ts", [
   "calculates the exact age before and on the birthday",
@@ -3412,9 +3860,9 @@ requireIncludes("supabase/functions/ordys-assistant/index.ts", [
   'import { isOrdysPlusEligible } from "../_shared/ordys-billing.ts";',
   "const plusEligible = ORDYS_PLUS_AI_ENABLED",
   'if (action === "quiz") {',
-  'if (!plusEligible) {',
+  "if (!plusEligible) {",
   'return response({ status: "failed", error: ORDYS_PLUS_LOCK_MESSAGE }, 402);',
-  'return await generateQuizForUser(request, user.id, body);',
+  "return await generateQuizForUser(request, user.id, body);",
   'if (mode !== "assist" && !plusEligible)',
   "const [hourlyLimit, dailyLimit] = plusEligible",
 ]);
@@ -3436,9 +3884,9 @@ requireIncludes("src/routes/perfil.tsx", [
   "await context.clone().json()",
   "setBillingError(await billingErrorMessage(error",
   "toast.error(await billingErrorMessage(error",
-  "billingOverview?.subscription?.status === \"suspended\"",
+  'billingOverview?.subscription?.status === "suspended"',
   "Cobranças futuras interrompidas. A suspensão do acesso por estorno ou contestação permanece até análise.",
-  "const accessUntil = typeof data?.accessUntil === \"string\" ? Date.parse(data.accessUntil) : 0;",
+  'const accessUntil = typeof data?.accessUntil === "string" ? Date.parse(data.accessUntil) : 0;',
   "Não há um período pago com acesso ativo.",
   "Quem já possui um período pago mantém o acesso até a data final",
   "Cobrança recorrente no cartão, processada pelo Asaas.",
@@ -3460,14 +3908,19 @@ function readSqlFunction(name) {
   const end = billingMigrationSource.indexOf("$;", start);
   return end < 0 ? "" : billingMigrationSource.slice(start, end);
 }
-for (const functionName of ["get_my_ordys_billing_status()", "is_ordys_plus_eligible(p_user_id UUID)"]) {
+for (const functionName of [
+  "get_my_ordys_billing_status()",
+  "is_ordys_plus_eligible(p_user_id UUID)",
+]) {
   if (readSqlFunction(functionName).includes("billing_enabled")) {
     failures.push(`${functionName}: pausar novas contratações não pode retirar acesso já pago`);
   }
 }
 const billingStatusSource = read("supabase/functions/ordys-billing-status/index.ts");
 if (billingStatusSource.includes("const hasAccess = billingEnabled &&")) {
-  failures.push("Status da assinatura não pode atrelar acesso pago à disponibilidade de novas contratações");
+  failures.push(
+    "Status da assinatura não pode atrelar acesso pago à disponibilidade de novas contratações",
+  );
 }
 
 const sensitiveManualWorkflows = [
@@ -3485,7 +3938,9 @@ for (const [path, jobName] of sensitiveManualWorkflows) {
     jobStart,
   );
   if (jobStart < 0 || mainOnlyGuard < jobStart || runsOn < 0 || mainOnlyGuard > runsOn) {
-    failures.push(`${path}: job ${jobName} deve ser restrito ao repositório oficial e à branch main antes de executar com secrets`);
+    failures.push(
+      `${path}: job ${jobName} deve ser restrito ao repositório oficial e à branch main antes de executar com secrets`,
+    );
   }
 }
 
@@ -3506,32 +3961,48 @@ if (
   managedCloudGuardPosition > productionSecretsCheckPosition ||
   managedCloudGuardPosition > productionSupabaseLinkPosition ||
   !productionPreflightWorkflow.includes('"$configured_project_id" == "yqljcoukgpqdoxiispyn"') ||
-  !productionPreflightWorkflow.includes("Supabase CLI/Management API preflight is not a supported route")
+  !productionPreflightWorkflow.includes(
+    "Supabase CLI/Management API preflight is not a supported route",
+  )
 ) {
-  failures.push("Preflight de produção deve rejeitar o Supabase CLI para o Lovable Cloud antes de validar secrets ou tentar conectar o banco gerenciado");
+  failures.push(
+    "Preflight de produção deve rejeitar o Supabase CLI para o Lovable Cloud antes de validar secrets ou tentar conectar o banco gerenciado",
+  );
 }
 
 const billingDeployWorkflow = read(".github/workflows/deploy-ordys-assistant.yml");
 const backupInputPosition = billingDeployWorkflow.indexOf("production_backup_verified:");
-const backupGatePosition = billingDeployWorkflow.indexOf("Require verified off-platform production backup before deployment");
+const backupGatePosition = billingDeployWorkflow.indexOf(
+  "Require verified off-platform production backup before deployment",
+);
 const firstRemoteWritePosition = billingDeployWorkflow.indexOf("supabase --yes secrets set");
 const firstMigrationPushPosition = billingDeployWorkflow.indexOf("supabase --yes db push --linked");
 if (
   backupInputPosition < 0 ||
-  !billingDeployWorkflow.slice(backupInputPosition, backupInputPosition + 500).includes("default: false") ||
+  !billingDeployWorkflow
+    .slice(backupInputPosition, backupInputPosition + 500)
+    .includes("default: false") ||
   backupGatePosition < 0 ||
   firstRemoteWritePosition < 0 ||
   firstMigrationPushPosition < 0 ||
-  !(backupInputPosition < backupGatePosition &&
+  !(
+    backupInputPosition < backupGatePosition &&
     backupGatePosition < firstRemoteWritePosition &&
-    backupGatePosition < firstMigrationPushPosition) ||
-  !billingDeployWorkflow.includes("PRODUCTION_BACKUP_VERIFIED: ${{ inputs.production_backup_verified }}") ||
+    backupGatePosition < firstMigrationPushPosition
+  ) ||
+  !billingDeployWorkflow.includes(
+    "PRODUCTION_BACKUP_VERIFIED: ${{ inputs.production_backup_verified }}",
+  ) ||
   !billingDeployWorkflow.includes('if [[ "${PRODUCTION_BACKUP_VERIFIED:-false}" != "true" ]]')
 ) {
-  failures.push("Deploy de produção deve exigir atestado explícito de backup externo verificado, com padrão false, antes de alterar secrets ou aplicar migrations");
+  failures.push(
+    "Deploy de produção deve exigir atestado explícito de backup externo verificado, com padrão false, antes de alterar secrets ou aplicar migrations",
+  );
 }
 
-const billingValidationEnd = billingDeployWorkflow.indexOf("Validate ORDYS Billing Return Edge Function");
+const billingValidationEnd = billingDeployWorkflow.indexOf(
+  "Validate ORDYS Billing Return Edge Function",
+);
 const migrationPreflight = billingDeployWorkflow.indexOf("Preflight Supabase migration state");
 const migrationPush = billingDeployWorkflow.indexOf("supabase --yes db push --linked");
 if (
@@ -3541,30 +4012,42 @@ if (
   billingValidationEnd > migrationPreflight ||
   billingValidationEnd > migrationPush
 ) {
-  failures.push("As Edge Functions de cobrança devem ser validadas antes do preflight e da aplicação de migrations");
+  failures.push(
+    "As Edge Functions de cobrança devem ser validadas antes do preflight e da aplicação de migrations",
+  );
 }
 
-const billingSchemaGate = billingDeployWorkflow.indexOf("Verify Ordys billing schema before deploying billing Edge Functions");
+const billingSchemaGate = billingDeployWorkflow.indexOf(
+  "Verify Ordys billing schema before deploying billing Edge Functions",
+);
 if (
   billingSchemaGate < 0 ||
   migrationPush < 0 ||
   billingSchemaGate < migrationPush ||
   !billingDeployWorkflow.includes("id: billing_schema") ||
-  !billingDeployWorkflow.includes("billing_migration_version=\"20261031010000\"") ||
+  !billingDeployWorkflow.includes('billing_migration_version="20261031010000"') ||
   !billingDeployWorkflow.includes("'$2 ~ version { found=1 } END { exit !found }'") ||
   !billingDeployWorkflow.includes("ready=false")
 ) {
-  failures.push("As funções de cobrança devem permanecer bloqueadas até a migration financeira constar no banco remoto");
+  failures.push(
+    "As funções de cobrança devem permanecer bloqueadas até a migration financeira constar no banco remoto",
+  );
 }
 
-const deleteAccountDeployStart = billingDeployWorkflow.indexOf("- name: Deploy Ordys Delete Account Edge Function");
+const deleteAccountDeployStart = billingDeployWorkflow.indexOf(
+  "- name: Deploy Ordys Delete Account Edge Function",
+);
 const deleteAccountDeployEnd = billingDeployWorkflow.indexOf(
   "- name: Deploy ORDYS Billing Checkout Edge Function",
   deleteAccountDeployStart + 1,
 );
-const deleteAccountDeployStep = deleteAccountDeployStart < 0
-  ? ""
-  : billingDeployWorkflow.slice(deleteAccountDeployStart, deleteAccountDeployEnd < 0 ? undefined : deleteAccountDeployEnd);
+const deleteAccountDeployStep =
+  deleteAccountDeployStart < 0
+    ? ""
+    : billingDeployWorkflow.slice(
+        deleteAccountDeployStart,
+        deleteAccountDeployEnd < 0 ? undefined : deleteAccountDeployEnd,
+      );
 if (
   deleteAccountDeployStart < 0 ||
   !deleteAccountDeployStep.includes("steps.config.outputs.configured == 'true'") ||
@@ -3582,30 +4065,45 @@ for (const stepName of [
 ]) {
   const stepStart = billingDeployWorkflow.indexOf(`- name: ${stepName}`);
   const nextStep = billingDeployWorkflow.indexOf("\n      - name:", stepStart + 1);
-  const stepSource = stepStart < 0
-    ? ""
-    : billingDeployWorkflow.slice(stepStart, nextStep < 0 ? undefined : nextStep);
+  const stepSource =
+    stepStart < 0
+      ? ""
+      : billingDeployWorkflow.slice(stepStart, nextStep < 0 ? undefined : nextStep);
   if (
     stepStart < 0 ||
     stepStart < billingSchemaGate ||
-    !stepSource.includes("steps.config.outputs.configured == 'true' && steps.billing_schema.outputs.ready == 'true'")
+    !stepSource.includes(
+      "steps.config.outputs.configured == 'true' && steps.billing_schema.outputs.ready == 'true'",
+    )
   ) {
-    failures.push(`A etapa "${stepName}" precisa exigir a confirmação da migration financeira remota`);
+    failures.push(
+      `A etapa "${stepName}" precisa exigir a confirmação da migration financeira remota`,
+    );
   }
 }
 
 const billingManageSource = read("supabase/functions/ordys-billing-manage/index.ts");
 if (billingManageSource.includes("assertBillingEnabled")) {
-  failures.push("Cancelamento de assinatura deve continuar disponível mesmo com o faturamento global desligado");
+  failures.push(
+    "Cancelamento de assinatura deve continuar disponível mesmo com o faturamento global desligado",
+  );
 }
 
 const billingCheckoutSource = read("supabase/functions/ordys-billing-checkout/index.ts");
 if (
-  !billingCheckoutSource.includes("&status=in.(pending,active,past_due,suspended,cancelled)&order=created_at.desc") ||
-  billingCheckoutSource.includes("status=in.(pending,active,past_due,suspended,cancelled)&order=created_at.desc&limit=5") ||
-  !billingCheckoutSource.includes('row.status === "pending" || row.status === "active" || row.status === "past_due" || row.status === "suspended"')
+  !billingCheckoutSource.includes(
+    "&status=in.(pending,active,past_due,suspended,cancelled)&order=created_at.desc",
+  ) ||
+  billingCheckoutSource.includes(
+    "status=in.(pending,active,past_due,suspended,cancelled)&order=created_at.desc&limit=5",
+  ) ||
+  !billingCheckoutSource.includes(
+    'row.status === "pending" || row.status === "active" || row.status === "past_due" || row.status === "suspended"',
+  )
 ) {
-  failures.push("A contratação deve bloquear assinaturas ativas, pendentes, atrasadas ou suspensas e preservar períodos pagos após cancelamento");
+  failures.push(
+    "A contratação deve bloquear assinaturas ativas, pendentes, atrasadas ou suspensas e preservar períodos pagos após cancelamento",
+  );
 }
 
 requireIncludes("supabase/migrations/20261031010000_ordys_plus_billing_foundation.sql", [
@@ -3615,8 +4113,14 @@ requireIncludes("supabase/migrations/20261031010000_ordys_plus_billing_foundatio
   "'PAYMENT_CREDIT_CARD_CAPTURE_REFUSED'",
   "'PAYMENT_REPROVED_BY_RISK_ANALYSIS'",
 ]);
-if (!billingMigrationSource.includes("A delayed negative event for a payment already confirmed must not")) {
-  failures.push("A migration financeira deve ignorar eventos negativos atrasados quando o mesmo pagamento já foi confirmado.");
+if (
+  !billingMigrationSource.includes(
+    "A delayed negative event for a payment already confirmed must not",
+  )
+) {
+  failures.push(
+    "A migration financeira deve ignorar eventos negativos atrasados quando o mesmo pagamento já foi confirmado.",
+  );
 }
 
 if (failures.length) {
@@ -3626,7 +4130,6 @@ if (failures.length) {
 }
 
 console.log("Verificação estática do ORDYS concluída com sucesso.");
-
 
 // Keep Asaas billing invariants isolated from unrelated application checks.
 await import("./verify-ordys-billing-static.mjs");

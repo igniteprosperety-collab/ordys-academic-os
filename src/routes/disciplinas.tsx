@@ -4,7 +4,15 @@ import { Archive, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Shell } from "@/components/ordys/shell";
 import { Bar, Chip, Dot, Panel, PanelHeader, PageTitle, Stat } from "@/components/ordys/primitives";
-import { Button, ConfirmDialog, Field, Modal, Select, TextArea, TextInput } from "@/components/ordys/form";
+import {
+  Button,
+  ConfirmDialog,
+  Field,
+  Modal,
+  Select,
+  TextArea,
+  TextInput,
+} from "@/components/ordys/form";
 import { ColorSelector } from "@/components/ordys/color-selector";
 import {
   SUBJECT_COLORS,
@@ -24,7 +32,14 @@ import {
   type Subject,
   type Topic,
 } from "@/lib/ordys-db";
-import { attendanceStatusLabel, dateKey, formatDateTime, formatDay, weekdayLong, weekdayShort } from "@/lib/ordys-engine";
+import {
+  attendanceStatusLabel,
+  dateKey,
+  formatDateTime,
+  formatDay,
+  weekdayLong,
+  weekdayShort,
+} from "@/lib/ordys-engine";
 
 export const Route = createFileRoute("/disciplinas")({
   head: () => ({
@@ -94,10 +109,18 @@ function Disciplinas() {
   const { data: profile } = useProfile();
   const { insert, update, remove } = useOrdysMutations();
 
-  const [subjectModal, setSubjectModal] = useState<{ open: boolean; editing?: Subject }>({ open: false });
+  const [subjectModal, setSubjectModal] = useState<{ open: boolean; editing?: Subject }>({
+    open: false,
+  });
   const [form, setForm] = useState<SubjectForm>(emptySubject);
   const [topicModal, setTopicModal] = useState<{ open: boolean; editing?: Topic }>({ open: false });
-  const [topicForm, setTopicForm] = useState({ title: "", status: "nao_estudado", mastery: "0", notes: "", next_review: "" });
+  const [topicForm, setTopicForm] = useState({
+    title: "",
+    status: "nao_estudado",
+    mastery: "0",
+    notes: "",
+    next_review: "",
+  });
   const [gradeForm, setGradeForm] = useState({ title: "", score: "", max_score: "", weight: "1" });
   const [subjectToDelete, setSubjectToDelete] = useState<Subject | null>(null);
   const [deleteSubjectBusy, setDeleteSubjectBusy] = useState(false);
@@ -162,7 +185,8 @@ function Disciplinas() {
     const weeklyHours = form.weekly_hours ? Number(form.weekly_hours) : null;
     const gradeGoal = form.grade_goal ? Number(form.grade_goal) : null;
     if (
-      (weeklyHours !== null && (!Number.isFinite(weeklyHours) || weeklyHours < 0 || weeklyHours > 168)) ||
+      (weeklyHours !== null &&
+        (!Number.isFinite(weeklyHours) || weeklyHours < 0 || weeklyHours > 168)) ||
       (gradeGoal !== null && (!Number.isFinite(gradeGoal) || gradeGoal < 0 || gradeGoal > scale))
     ) {
       toast.error("Revise as configurações da disciplina.");
@@ -244,7 +268,10 @@ function Disciplinas() {
       mastery,
       notes: topicForm.notes || null,
       next_review: topicForm.next_review || null,
-      last_review: topicForm.status === "estudado" || topicForm.status === "dominado" ? dateKey(new Date()) : null,
+      last_review:
+        topicForm.status === "estudado" || topicForm.status === "dominado"
+          ? dateKey(new Date())
+          : null,
     };
     try {
       if (topicModal.editing) await update("topics", topicModal.editing.id, payload);
@@ -294,7 +321,9 @@ function Disciplinas() {
     if (!selected) return;
     try {
       const today = dateKey(new Date());
-      const existing = attendance.find((record) => record.subject_id === selected.id && record.class_date === today);
+      const existing = attendance.find(
+        (record) => record.subject_id === selected.id && record.class_date === today,
+      );
       if (existing) {
         await update("attendance_records", existing.id, { status });
       } else {
@@ -304,13 +333,23 @@ function Disciplinas() {
           status,
         });
       }
-      toast.success(status === "presente" ? "Presença registrada" : status === "justificada" ? "Falta justificada registrada" : "Falta registrada");
+      toast.success(
+        status === "presente"
+          ? "Presença registrada"
+          : status === "justificada"
+            ? "Falta justificada registrada"
+            : "Falta registrada",
+      );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Não foi possível registrar a frequência.");
     }
   }
 
-  async function removeRecord(table: "topics" | "grades" | "attendance_records", id: string, label: string) {
+  async function removeRecord(
+    table: "topics" | "grades" | "attendance_records",
+    id: string,
+    label: string,
+  ) {
     try {
       await remove(table, id);
       toast.success(label);
@@ -343,7 +382,8 @@ function Disciplinas() {
             {showArchived ? "Nenhuma disciplina arquivada." : "Você ainda não criou disciplinas."}
           </p>
           <p className="mt-1 text-[12px] text-muted-foreground">
-            Crie a primeira disciplina para liberar agenda, tarefas, provas, notas e plano de estudos.
+            Crie a primeira disciplina para liberar agenda, tarefas, provas, notas e plano de
+            estudos.
           </p>
           {!showArchived ? (
             <Button className="mx-auto mt-4" onClick={openCreate}>
@@ -357,7 +397,8 @@ function Disciplinas() {
         <>
           <div className="mt-5 flex flex-wrap gap-2">
             {list.map((x) => (
-              <button type="button"
+              <button
+                type="button"
                 key={x.id}
                 onClick={() => setSelectedId(x.id)}
                 className={`flex min-h-11 items-center gap-2 rounded-lg border px-3 py-1.5 text-[12.5px] transition-colors ${
@@ -378,7 +419,11 @@ function Disciplinas() {
                 <Stat
                   label="Média atual"
                   value={average === null ? "—" : fmtNumber(average)}
-                  sub={selected.grade_goal ? `meta ${fmtNumber(Number(selected.grade_goal))}` : "sem meta"}
+                  sub={
+                    selected.grade_goal
+                      ? `meta ${fmtNumber(Number(selected.grade_goal))}`
+                      : "sem meta"
+                  }
                   accent="primary"
                 />
                 <Stat
@@ -392,14 +437,20 @@ function Disciplinas() {
                   value={
                     subjectSchedules.length
                       ? subjectSchedules
-                          .map((s) => `${weekdayShort[s.weekday] ?? ""} ${s.start_time.slice(0, 5)}`)
+                          .map(
+                            (s) => `${weekdayShort[s.weekday] ?? ""} ${s.start_time.slice(0, 5)}`,
+                          )
                           .slice(0, 2)
                           .join(" · ")
                       : "—"
                   }
                   sub={selected.room ?? "sem sala"}
                 />
-                <Stat label="Professor" value={selected.teacher ?? "—"} sub={selected.term ?? "sem período"} />
+                <Stat
+                  label="Professor"
+                  value={selected.teacher ?? "—"}
+                  sub={selected.term ?? "sem período"}
+                />
               </div>
 
               <div className="mt-3 flex flex-wrap gap-2">
@@ -411,26 +462,30 @@ function Disciplinas() {
                   onClick={async () => {
                     try {
                       await update("subjects", selected.id, { archived: !selected.archived });
-                      toast.success(selected.archived ? "Disciplina desarquivada" : "Disciplina arquivada");
+                      toast.success(
+                        selected.archived ? "Disciplina desarquivada" : "Disciplina arquivada",
+                      );
                     } catch (err) {
-                      toast.error(err instanceof Error ? err.message : "Não foi possível alterar o arquivamento.");
+                      toast.error(
+                        err instanceof Error
+                          ? err.message
+                          : "Não foi possível alterar o arquivamento.",
+                      );
                     }
                   }}
                 >
                   <Archive className="size-[13px]" strokeWidth={1.7} />
                   {selected.archived ? "Desarquivar" : "Arquivar"}
                 </Button>
-                <Button
-                  variant="danger"
-                  onClick={() => setSubjectToDelete(selected)}
-                >
+                <Button variant="danger" onClick={() => setSubjectToDelete(selected)}>
                   <Trash2 className="size-[13px]" strokeWidth={1.7} /> Excluir
                 </Button>
               </div>
 
               <div className="mt-5 flex gap-1 overflow-x-auto border-b border-border">
                 {tabs.map((t) => (
-                  <button type="button"
+                  <button
+                    type="button"
                     key={t}
                     onClick={() => setTab(t)}
                     className={`-mb-px min-h-11 shrink-0 border-b px-3 py-2 text-[12.5px] transition-colors ${
@@ -454,7 +509,13 @@ function Disciplinas() {
                         <Button
                           variant="ghost"
                           onClick={() => {
-                            setTopicForm({ title: "", status: "nao_estudado", mastery: "0", notes: "", next_review: "" });
+                            setTopicForm({
+                              title: "",
+                              status: "nao_estudado",
+                              mastery: "0",
+                              notes: "",
+                              next_review: "",
+                            });
                             setTopicModal({ open: true });
                           }}
                         >
@@ -467,11 +528,20 @@ function Disciplinas() {
                         topics.map((t) => (
                           <div key={t.id} className="px-5 py-3">
                             <div className="mb-1.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5 text-[12.5px]">
-                              <span className="min-w-0 flex-1 basis-[10rem] break-words font-medium">{t.title}</span>
-                              <Chip>{TOPIC_STATUS.find((s) => s.key === t.status)?.label ?? t.status}</Chip>
-                              {t.next_review ? <Chip tone="gold">revisar {t.next_review}</Chip> : null}
-                              <span className="num ml-auto shrink-0 text-[11px] text-muted-foreground">{t.mastery}%</span>
-                              <button type="button"
+                              <span className="min-w-0 flex-1 basis-[10rem] break-words font-medium">
+                                {t.title}
+                              </span>
+                              <Chip>
+                                {TOPIC_STATUS.find((s) => s.key === t.status)?.label ?? t.status}
+                              </Chip>
+                              {t.next_review ? (
+                                <Chip tone="gold">revisar {t.next_review}</Chip>
+                              ) : null}
+                              <span className="num ml-auto shrink-0 text-[11px] text-muted-foreground">
+                                {t.mastery}%
+                              </span>
+                              <button
+                                type="button"
                                 className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground sm:size-8 hover:bg-secondary hover:text-foreground"
                                 onClick={() => {
                                   setTopicForm({
@@ -486,9 +556,12 @@ function Disciplinas() {
                               >
                                 <Pencil className="size-[13px]" strokeWidth={1.7} />
                               </button>
-                              <button type="button"
+                              <button
+                                type="button"
                                 className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground sm:size-8 hover:bg-secondary hover:text-destructive"
-                                onClick={() => void removeRecord("topics", t.id, "Conteúdo excluído")}
+                                onClick={() =>
+                                  void removeRecord("topics", t.id, "Conteúdo excluído")
+                                }
                               >
                                 <Trash2 className="size-[13px]" strokeWidth={1.7} />
                               </button>
@@ -501,8 +574,8 @@ function Disciplinas() {
                         ))
                       ) : (
                         <p className="px-5 py-6 text-[12px] text-muted-foreground">
-                          Cadastre os conteúdos da disciplina — eles alimentam o plano de estudos, revisões e
-                          simulados.
+                          Cadastre os conteúdos da disciplina — eles alimentam o plano de estudos,
+                          revisões e simulados.
                         </p>
                       )}
                     </div>
@@ -517,10 +590,15 @@ function Disciplinas() {
                         tasks
                           .filter((t) => t.subject_id === selected.id)
                           .map((t) => (
-                            <div key={t.id} className="flex min-w-0 flex-col gap-1.5 px-5 py-2.5 sm:flex-row sm:items-center sm:gap-3">
+                            <div
+                              key={t.id}
+                              className="flex min-w-0 flex-col gap-1.5 px-5 py-2.5 sm:flex-row sm:items-center sm:gap-3"
+                            >
                               <span
                                 className={`size-3.5 shrink-0 rounded-[4px] border ${
-                                  t.status === "concluida" ? "border-success bg-success/30" : "border-border-strong"
+                                  t.status === "concluida"
+                                    ? "border-success bg-success/30"
+                                    : "border-border-strong"
                                 }`}
                               />
                               <p className="min-w-0 flex-1 truncate text-[12.5px]">{t.title}</p>
@@ -530,7 +608,9 @@ function Disciplinas() {
                             </div>
                           ))
                       ) : (
-                        <p className="px-5 py-6 text-[12px] text-muted-foreground">Nenhuma tarefa.</p>
+                        <p className="px-5 py-6 text-[12px] text-muted-foreground">
+                          Nenhuma tarefa.
+                        </p>
                       )}
                     </div>
                   </Panel>
@@ -546,14 +626,18 @@ function Disciplinas() {
                           .map((e) => (
                             <div key={e.id} className="px-5 py-3">
                               <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5 text-[12.5px]">
-                                <span className="min-w-0 flex-1 basis-[10rem] break-words font-medium">{e.title}</span>
+                                <span className="min-w-0 flex-1 basis-[10rem] break-words font-medium">
+                                  {e.title}
+                                </span>
                                 {e.weight ? <Chip tone="gold">{e.weight}</Chip> : null}
                                 <span className="num ml-auto text-[11px] text-muted-foreground">
                                   {formatDateTime(e.exam_at)}
                                 </span>
                               </div>
                               {e.content ? (
-                                <p className="mt-1 text-[11.5px] text-muted-foreground">{e.content}</p>
+                                <p className="mt-1 text-[11.5px] text-muted-foreground">
+                                  {e.content}
+                                </p>
                               ) : null}
                             </div>
                           ))
@@ -575,13 +659,19 @@ function Disciplinas() {
                           grades
                             .filter((g) => g.subject_id === selected.id)
                             .map((g) => (
-                              <div key={g.id} className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-5 py-2.5 text-[12.5px]">
-                                <span className="min-w-0 flex-1 basis-[10rem] truncate">{g.title}</span>
+                              <div
+                                key={g.id}
+                                className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-5 py-2.5 text-[12.5px]"
+                              >
+                                <span className="min-w-0 flex-1 basis-[10rem] truncate">
+                                  {g.title}
+                                </span>
                                 <Chip>peso {Number(g.weight)}</Chip>
                                 <span className="num font-semibold">
                                   {fmtNumber(Number(g.score))} / {fmtNumber(Number(g.max_score), 0)}
                                 </span>
-                                <button type="button"
+                                <button
+                                  type="button"
                                   className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-destructive sm:size-8"
                                   onClick={() => void removeRecord("grades", g.id, "Nota excluída")}
                                 >
@@ -590,7 +680,9 @@ function Disciplinas() {
                               </div>
                             ))
                         ) : (
-                          <p className="px-5 py-6 text-[12px] text-muted-foreground">Nenhuma nota ainda.</p>
+                          <p className="px-5 py-6 text-[12px] text-muted-foreground">
+                            Nenhuma nota ainda.
+                          </p>
                         )}
                       </div>
                     </Panel>
@@ -607,20 +699,26 @@ function Disciplinas() {
                           <Field label="Nota">
                             <TextInput
                               value={gradeForm.score}
-                              onChange={(e) => setGradeForm({ ...gradeForm, score: e.target.value })}
+                              onChange={(e) =>
+                                setGradeForm({ ...gradeForm, score: e.target.value })
+                              }
                             />
                           </Field>
                           <Field label="Máx.">
                             <TextInput
                               placeholder={String(scale)}
                               value={gradeForm.max_score}
-                              onChange={(e) => setGradeForm({ ...gradeForm, max_score: e.target.value })}
+                              onChange={(e) =>
+                                setGradeForm({ ...gradeForm, max_score: e.target.value })
+                              }
                             />
                           </Field>
                           <Field label="Peso">
                             <TextInput
                               value={gradeForm.weight}
-                              onChange={(e) => setGradeForm({ ...gradeForm, weight: e.target.value })}
+                              onChange={(e) =>
+                                setGradeForm({ ...gradeForm, weight: e.target.value })
+                              }
                             />
                           </Field>
                         </div>
@@ -635,7 +733,10 @@ function Disciplinas() {
                 {tab === "Frequência" ? (
                   <div className="grid gap-4 lg:grid-cols-[1fr_300px]">
                     <Panel>
-                      <PanelHeader title="Registros de aula" hint={`${attendance.filter((a) => a.subject_id === selected.id).length} aulas`} />
+                      <PanelHeader
+                        title="Registros de aula"
+                        hint={`${attendance.filter((a) => a.subject_id === selected.id).length} aulas`}
+                      />
                       <div className="border-t border-border">
                         {attendance.filter((a) => a.subject_id === selected.id).length ? (
                           attendance
@@ -643,12 +744,29 @@ function Disciplinas() {
                             .slice()
                             .reverse()
                             .map((a) => (
-                              <div key={a.id} className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-5 py-2.5 text-[12.5px]">
-                                <span className="num flex-1">{formatDay(`${a.class_date}T12:00:00`)}</span>
-                                <Chip className="shrink-0" tone={a.status === "falta" ? "danger" : "primary"}>{attendanceStatusLabel(a.status)}</Chip>
-                                <button type="button"
+                              <div
+                                key={a.id}
+                                className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-5 py-2.5 text-[12.5px]"
+                              >
+                                <span className="num flex-1">
+                                  {formatDay(`${a.class_date}T12:00:00`)}
+                                </span>
+                                <Chip
+                                  className="shrink-0"
+                                  tone={a.status === "falta" ? "danger" : "primary"}
+                                >
+                                  {attendanceStatusLabel(a.status)}
+                                </Chip>
+                                <button
+                                  type="button"
                                   className="text-muted-foreground hover:text-destructive"
-                                  onClick={() => void removeRecord("attendance_records", a.id, "Registro de frequência excluído")}
+                                  onClick={() =>
+                                    void removeRecord(
+                                      "attendance_records",
+                                      a.id,
+                                      "Registro de frequência excluído",
+                                    )
+                                  }
                                 >
                                   <Trash2 className="size-[13px]" strokeWidth={1.7} />
                                 </button>
@@ -689,16 +807,28 @@ function Disciplinas() {
       >
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Nome" className="sm:col-span-2">
-            <TextInput value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            <TextInput
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
           </Field>
           <Field label="Professor">
-            <TextInput value={form.teacher} onChange={(e) => setForm({ ...form, teacher: e.target.value })} />
+            <TextInput
+              value={form.teacher}
+              onChange={(e) => setForm({ ...form, teacher: e.target.value })}
+            />
           </Field>
           <Field label="Sala">
-            <TextInput value={form.room} onChange={(e) => setForm({ ...form, room: e.target.value })} />
+            <TextInput
+              value={form.room}
+              onChange={(e) => setForm({ ...form, room: e.target.value })}
+            />
           </Field>
           <Field label="Semestre / bimestre">
-            <TextInput value={form.term} onChange={(e) => setForm({ ...form, term: e.target.value })} />
+            <TextInput
+              value={form.term}
+              onChange={(e) => setForm({ ...form, term: e.target.value })}
+            />
           </Field>
           <Field label="Carga horária semanal">
             <TextInput
@@ -707,18 +837,31 @@ function Disciplinas() {
             />
           </Field>
           <Field label="Meta de nota">
-            <TextInput value={form.grade_goal} onChange={(e) => setForm({ ...form, grade_goal: e.target.value })} />
+            <TextInput
+              value={form.grade_goal}
+              onChange={(e) => setForm({ ...form, grade_goal: e.target.value })}
+            />
           </Field>
-          <Field label="Cor da disciplina" className="sm:col-span-2" hint="Usada em cartões, horários, eventos e indicadores">
+          <Field
+            label="Cor da disciplina"
+            className="sm:col-span-2"
+            hint="Usada em cartões, horários, eventos e indicadores"
+          >
             <ColorSelector value={form.color} onChange={(color) => setForm({ ...form, color })} />
           </Field>
           {subjectModal.editing &&
           schedules.filter((item) => item.subject_id === subjectModal.editing?.id).length > 1 ? (
             <p className="sm:col-span-2 rounded-lg border border-border bg-secondary/30 px-3 py-2 text-[10.5px] leading-relaxed text-muted-foreground">
-              Horários adicionais desta disciplina são preservados ao editar. Este formulário altera apenas o primeiro horário.
+              Horários adicionais desta disciplina são preservados ao editar. Este formulário altera
+              apenas o primeiro horário.
             </p>
-          ) : null}\n          <Field label="Dia da aula">
-            <Select value={form.weekday} onChange={(e) => setForm({ ...form, weekday: e.target.value })}>
+          ) : null}
+          \n{" "}
+          <Field label="Dia da aula">
+            <Select
+              value={form.weekday}
+              onChange={(e) => setForm({ ...form, weekday: e.target.value })}
+            >
               {weekdayLong.map((w, i) => (
                 <option key={w} value={i}>
                   {w}
@@ -761,10 +904,16 @@ function Disciplinas() {
       >
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Conteúdo" className="sm:col-span-2">
-            <TextInput value={topicForm.title} onChange={(e) => setTopicForm({ ...topicForm, title: e.target.value })} />
+            <TextInput
+              value={topicForm.title}
+              onChange={(e) => setTopicForm({ ...topicForm, title: e.target.value })}
+            />
           </Field>
           <Field label="Status">
-            <Select value={topicForm.status} onChange={(e) => setTopicForm({ ...topicForm, status: e.target.value })}>
+            <Select
+              value={topicForm.status}
+              onChange={(e) => setTopicForm({ ...topicForm, status: e.target.value })}
+            >
               {TOPIC_STATUS.map((s) => (
                 <option key={s.key} value={s.key}>
                   {s.label}
@@ -789,7 +938,10 @@ function Disciplinas() {
             />
           </Field>
           <Field label="Anotações" className="sm:col-span-2">
-            <TextArea value={topicForm.notes} onChange={(e) => setTopicForm({ ...topicForm, notes: e.target.value })} />
+            <TextArea
+              value={topicForm.notes}
+              onChange={(e) => setTopicForm({ ...topicForm, notes: e.target.value })}
+            />
           </Field>
         </div>
         <div className="mt-5 flex justify-end gap-2">
@@ -803,7 +955,11 @@ function Disciplinas() {
       </Modal>
       <ConfirmDialog
         open={subjectToDelete !== null}
-        title={subjectToDelete ? `Excluir a disciplina "${subjectToDelete.name}"?` : "Excluir disciplina?"}
+        title={
+          subjectToDelete
+            ? `Excluir a disciplina "${subjectToDelete.name}"?`
+            : "Excluir disciplina?"
+        }
         description="Esta ação também remove conteúdos, horários, notas e registros de frequência vinculados à disciplina."
         confirmLabel="Excluir disciplina"
         confirmVariant="danger"

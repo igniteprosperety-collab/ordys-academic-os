@@ -3,15 +3,45 @@ import { SUBJECT_COLORS } from "@/lib/ordys-db";
 import { cn } from "@/lib/utils";
 
 const colorNames = [
-  "Grafite", "Ardósia", "Aço", "Azul real", "Azul celeste", "Cobalto",
-  "Índigo", "Roxo", "Violeta", "Magenta", "Rosa", "Rosé",
-  "Vermelho", "Coral", "Laranja", "Âmbar", "Dourado", "Amarelo",
-  "Lima", "Verde", "Esmeralda", "Verde-azulado", "Ciano", "Petróleo",
+  "Grafite",
+  "Ardósia",
+  "Aço",
+  "Azul real",
+  "Azul celeste",
+  "Cobalto",
+  "Índigo",
+  "Roxo",
+  "Violeta",
+  "Magenta",
+  "Rosa",
+  "Rosé",
+  "Vermelho",
+  "Coral",
+  "Laranja",
+  "Âmbar",
+  "Dourado",
+  "Amarelo",
+  "Lima",
+  "Verde",
+  "Esmeralda",
+  "Verde-azulado",
+  "Ciano",
+  "Petróleo",
 ];
 
-export function ColorSelector({ value, onChange }: { value: string; onChange: (color: string) => void }) {
+export function ColorSelector({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (color: string) => void;
+}) {
   return (
-    <div className="grid grid-cols-6 gap-2 sm:grid-cols-8" role="radiogroup" aria-label="Cor da disciplina">
+    <div
+      className="grid grid-cols-6 gap-2 sm:grid-cols-8"
+      role="radiogroup"
+      aria-label="Cor da disciplina"
+    >
       {SUBJECT_COLORS.map((color, index) => {
         const selected = value === color;
         const name = colorNames[index] ?? `Cor ${index + 1}`;
@@ -30,7 +60,9 @@ export function ColorSelector({ value, onChange }: { value: string; onChange: (c
             )}
             style={{ backgroundColor: color }}
           >
-            {selected ? <Check className="size-4 text-primary-foreground drop-shadow" strokeWidth={3} /> : null}
+            {selected ? (
+              <Check className="size-4 text-primary-foreground drop-shadow" strokeWidth={3} />
+            ) : null}
           </button>
         );
       })}
