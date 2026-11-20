@@ -91,10 +91,10 @@ Isso prova que a cadeia SQL é executável em uma base limpa e que as regras tes
 1. Tratamento do bloqueio temporário na exclusão de conta: erro original de conciliação/cancelamento é preservado se a tentativa de liberar o lease falhar.
 2. Correção do cliente do Assistente: remoção do fallback web para `/api/ordys-assistant`, rota que não existe na árvore pública; chamadas mantidas na Edge Function autenticada e mensagens HTTP específicas preservadas.
 3. A tela de exclusão passou a preservar a mensagem específica retornada pela Edge Function, sem perder os estados de exclusão inconclusiva ou parcial.
-2. Teste de regressão para o cenário de erro primário seguido de falha de liberação.
-3. Workflow de CI permanente com typecheck, testes, lint, build, aplicação local das migrations e pgTAP.
-4. CLI Supabase fixado na versão 3.2.0 e ações de CI fixadas por SHA para evitar consultas variáveis a `latest`.
-5. Notificações nativas passaram a exigir opt-in explícito no espelho público. O Google Play deve ativá-las explicitamente; o APK direto permanece desativado por padrão.
+4. Teste de regressão para o cenário de erro primário seguido de falha de liberação.
+5. Workflow de CI permanente com typecheck, testes, lint, build, aplicação local das migrations e pgTAP.
+6. CLI Supabase fixado na versão 3.2.0 e ações de CI fixadas por SHA para evitar consultas variáveis a `latest`.
+7. Notificações nativas passaram a exigir opt-in explícito no espelho público. O Google Play deve ativá-las explicitamente; o APK direto permanece desativado por padrão.
 
 A correção equivalente de notificações está na PR Draft [#331](https://github.com/igniteprosperety-collab/ordys-academy.app/pull/331) do repositório privado. A correção equivalente do lease de exclusão e o teste estão na branch Draft da PR [#320](https://github.com/igniteprosperety-collab/ordys-academy.app/pull/320). Essas PRs não foram mescladas porque a CI privada ainda não executa etapas.
 
