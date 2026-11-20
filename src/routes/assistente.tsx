@@ -296,7 +296,9 @@ function AssistantPage() {
       return;
     }
     if (!aiAccess?.allowed) {
-      setStatus(aiAccess?.message || "Esta conta ainda não está autorizada a usar os recursos de IA.");
+      setStatus(
+        aiAccess?.message || "Esta conta ainda não está autorizada a usar os recursos de IA.",
+      );
       return;
     }
     const message = (messageOverride ?? input).trim();
@@ -430,12 +432,7 @@ function AssistantPage() {
   }
 
   async function applyConfiguration() {
-    if (
-      !configuration ||
-      applyingConfig ||
-      configuration.questions.length ||
-      aiUnavailable
-    )
+    if (!configuration || applyingConfig || configuration.questions.length || aiUnavailable)
       return;
     setApplyingConfig(true);
     setStatus("Aplicando a configuração no seu ORDYS…");
@@ -531,20 +528,22 @@ function AssistantPage() {
           <section className="mt-6 rounded-xl border border-border bg-surface px-4 py-3 text-[12px]">
             <p className="font-medium">Não foi possível confirmar sua autorização</p>
             <p className="mt-1 leading-5 text-muted-foreground">
-              Verifique sua conexão e tente novamente. Nenhum conteúdo será enviado à IA enquanto a autorização não puder ser confirmada.
+              Verifique sua conexão e tente novamente. Nenhum conteúdo será enviado à IA
+              enquanto a autorização não puder ser confirmada.
             </p>
           </section>
         ) : null}
-        {!isDemo && (
-          !ORDYS_AI_ACCESS_POLICY_READY ||
-          (!authLoading && !aiAccessLoading && !aiAccessError && aiAccess?.allowed !== true)
-        ) ? (
+        {!isDemo &&
+        (!ORDYS_AI_ACCESS_POLICY_READY ||
+          (!authLoading && !aiAccessLoading && !aiAccessError && aiAccess?.allowed !== true)) ? (
           <section className="mt-6 rounded-xl border border-primary/20 bg-primary-soft px-4 py-3 text-[12px]">
             <p className="font-medium">Acesso aos recursos de IA</p>
             <p className="mt-1 leading-5 text-muted-foreground">
               {!ORDYS_AI_ACCESS_POLICY_READY
                 ? ORDYS_AI_ACCESS_POLICY_LOCK_MESSAGE
-                : aiAccess?.message || "Esta conta ainda não possui uma autorização válida para usar IA."}
+                :
+                  aiAccess?.message ||
+                  "Esta conta ainda não possui uma autorização válida para usar IA."}
             </p>
           </section>
         ) : null}
