@@ -29,9 +29,11 @@ import {
   useSubjects,
   useTasks,
   useTopics,
+  type Grade,
   type Subject,
   type SubjectSchedule,
   type Topic,
+  type AttendanceRecord,
 } from "@/lib/ordys-db";
 import {
   attendanceStatusLabel,
@@ -123,6 +125,10 @@ function Disciplinas() {
     next_review: "",
   });
   const [gradeForm, setGradeForm] = useState({ title: "", score: "", max_score: "", weight: "1" });
+  const [editingGrade, setEditingGrade] = useState<Grade | null>(null);
+  const [attendanceModal, setAttendanceModal] = useState<AttendanceRecord | null>(null);
+  const [attendanceEditStatus, setAttendanceEditStatus] = useState("presente");
+  const [attendanceSaving, setAttendanceSaving] = useState(false);
   const [subjectToDelete, setSubjectToDelete] = useState<Subject | null>(null);
   const [deleteSubjectBusy, setDeleteSubjectBusy] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState<{
@@ -409,18 +415,51 @@ function Disciplinas() {
       return;
     }
     try {
-      await insert("grades", {
+      const payload = {
         subject_id: selected.id,
         title: gradeForm.title.trim() || "Avaliação",
         score,
         max_score: maxScore,
         weight,
-        graded_on: dateKey(new Date()),
-      });
+        graded_on: editingGrade?.graded_on ?? dateKey(new Date()),
+      };
+      if (editingGrade) {
+        await update("grades", editingGrade.id, payload);
+        toast.success("Nota atualizada");
+      } else {
+        await insert("grades", payload);
+        toast.success("Nota registrada");
+      }
+      setEditingGrade(null);
       setGradeForm({ title: "", score: "", max_score: "", weight: "1" });
-      toast.success("Nota registrada");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao registrar nota");
+      toast.error(err instanceof Error ? err.message : "Erro ao salvar nota");
+    }
+  }
+
+  function openEditGrade(grade: Grade) {
+    setEditingGrade(grade);
+    setGradeForm({
+      title: grade.title ?? "",
+      score: String(grade.score),
+      max_score: String(grade.max_score),
+      weight: String(grade.weight),
+    });
+  }
+
+  async function saveAttendanceEdit() {
+    if (!attendanceModal) return;
+    setAttendanceSaving(true);
+    try {
+      await update("attendance_records", attendanceModal.id, {
+        status: attendanceEditStatus,
+      });
+      toast.success("Frequência atualizada");
+      setAttendanceModal(null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível atualizar a frequência.");
+    } finally {
+      setAttendanceSaving(false);
     }
   }
 
@@ -845,10 +884,18 @@ function Disciplinas() {
                                 <span className="num font-semibold">
                                   {fmtNumber(Number(g.score))} / {fmtNumber(Number(g.max_score), 0)}
                                 </span>
+                                <Button
+                                  variant="ghost"
+                                  onClick={() => openEditGrade(g)}
+                                  aria-label="Editar nota"
+                                >
+                                  <Pencil className="size-[13px]" strokeWidth={1.8} />
+                                </Button>
                                 <button
                                   type="button"
                                   className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-destructive sm:size-8"
-                                  onClick={() => void removeRecord("grades", g.id, "Nota excluída")}
+                                  onClick={() => removeRecord("grades", g.id, "Nota excluída")}
+                                  aria-label="Excluir nota"
                                 >
                                   <Trash2 className="size-[13px]" strokeWidth={1.7} />
                                 </button>
@@ -862,7 +909,7 @@ function Disciplinas() {
                       </div>
                     </Panel>
                     <Panel className="px-5 py-4">
-                      <p className="text-[12px] font-semibold">Registrar nota</p>
+                      <p className="text-[12px] font-semibold">{editingGrade ? "Editar nota" : "Registrar nota"}</p>
                       <div className="mt-3 grid gap-2.5">
                         <Field label="Avaliação">
                           <TextInput
@@ -897,9 +944,22 @@ function Disciplinas() {
                             />
                           </Field>
                         </div>
-                        <Button onClick={saveGrade} disabled={!gradeForm.score}>
-                          Salvar nota
-                        </Button>
+                        <div className="flex gap-2">
+                          {editingGrade ? (
+                            <Button
+                              variant="ghost"
+                              onClick={() => {
+                                setEditingGrade(null);
+                                setGradeForm({ title: "", score: "", max_score: "", weight: "1" });
+                              }}
+                            >
+                              Cancelar
+                            </Button>
+                          ) : null}
+                          <Button className="flex-1" onClick={saveGrade} disabled={!gradeForm.score}>
+                            {editingGrade ? "Salvar alterações" : "Salvar nota"}
+                          </Button>
+                        </div>
                       </div>
                     </Panel>
                   </div>
@@ -932,16 +992,27 @@ function Disciplinas() {
                                 >
                                   {attendanceStatusLabel(a.status)}
                                 </Chip>
+                                <Button
+                                  variant="ghost"
+                                  onClick={() => {
+                                    setAttendanceModal(a);
+                                    setAttendanceEditStatus(a.status);
+                                  }}
+                                  aria-label="Editar frequência"
+                                >
+                                  <Pencil className="size-[13px]" strokeWidth={1.8} />
+                                </Button>
                                 <button
                                   type="button"
-                                  className="text-muted-foreground hover:text-destructive"
+                                  className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-destructive sm:size-8"
                                   onClick={() =>
-                                    void removeRecord(
+                                    removeRecord(
                                       "attendance_records",
                                       a.id,
                                       "Registro de frequência excluído",
                                     )
                                   }
+                                  aria-label="Excluir registro de frequência"
                                 >
                                   <Trash2 className="size-[13px]" strokeWidth={1.7} />
                                 </button>
@@ -1152,6 +1223,44 @@ function Disciplinas() {
         }}
         onConfirm={() => void confirmDeleteSchedule()}
       />
+      <Modal
+        open={attendanceModal !== null}
+        onClose={() => {
+          if (!attendanceSaving) setAttendanceModal(null);
+        }}
+        title="Corrigir frequência"
+        subtitle={
+          attendanceModal
+            ? formatDay(`${attendanceModal.class_date}T12:00:00`)
+            : "Registro de frequência"
+        }
+        width={420}
+      >
+        <div className="space-y-4">
+          <Field label="Situação da aula">
+            <Select
+              value={attendanceEditStatus}
+              onChange={(event) => setAttendanceEditStatus(event.target.value)}
+            >
+              <option value="presente">Presente</option>
+              <option value="falta">Falta</option>
+              <option value="justificada">Falta justificada</option>
+            </Select>
+          </Field>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button
+              variant="ghost"
+              disabled={attendanceSaving}
+              onClick={() => setAttendanceModal(null)}
+            >
+              Cancelar
+            </Button>
+            <Button disabled={attendanceSaving} onClick={() => void saveAttendanceEdit()}>
+              {attendanceSaving ? "Salvando…" : "Salvar correção"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
       <Modal
         open={topicModal.open}
         onClose={() => setTopicModal({ open: false })}
