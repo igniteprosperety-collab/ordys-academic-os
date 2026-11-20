@@ -1,6 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Pause, Play, RefreshCw, RotateCcw, Sparkles, X } from "lucide-react";
+import {
+  Check,
+  Pause,
+  Pencil,
+  Play,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  Sparkles,
+  Trash2,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Shell } from "@/components/ordys/shell";
 import {
@@ -13,7 +24,15 @@ import {
   Ring,
   Stat,
 } from "@/components/ordys/primitives";
-import { Button, Field, Select, TextArea, TextInput } from "@/components/ordys/form";
+import {
+  Button,
+  ConfirmDialog,
+  Field,
+  Modal,
+  Select,
+  TextArea,
+  TextInput,
+} from "@/components/ordys/form";
 import {
   minutesLabel,
   useAttendance,
@@ -78,6 +97,32 @@ export const Route = createFileRoute("/estudos")({
 
 const groups = [{ items: ["Plano", "Foco", "Revisões", "Check-in"] }];
 
+type PlanSessionDraft = {
+  session_date: string;
+  start_time: string;
+  duration_minutes: string;
+  subject_id: string;
+  reason: string;
+  kind: string;
+};
+
+function soonTimeInput() {
+  const date = new Date(Date.now() + 60 * 60_000);
+  date.setMinutes(Math.ceil(date.getMinutes() / 15) * 15, 0, 0);
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+function emptyPlanSessionDraft(): PlanSessionDraft {
+  return {
+    session_date: dateKey(new Date()),
+    start_time: soonTimeInput(),
+    duration_minutes: "45",
+    subject_id: "",
+    reason: "",
+    kind: "estudo",
+  };
+}
+
 function checkinPlanLabel(value: string | null) {
   return value === "sim"
     ? "Sim, tudo"
@@ -105,6 +150,13 @@ function Estudos() {
   const { data: calendarEvents = [] } = useCalendarEvents();
   const { insert, update, userId, refresh } = useOrdysMutations();
   const [busy, setBusy] = useState(false);
+  const [planModal, setPlanModal] = useState<{ open: boolean; editing?: PlanSession }>({
+    open: false,
+  });
+  const [planDraft, setPlanDraft] = useState<PlanSessionDraft>(emptyPlanSessionDraft);
+  const [planSaving, setPlanSaving] = useState(false);
+  const [sessionToDelete, setSessionToDelete] = useState<PlanSession | null>(null);
+  const [sessionDeleting, setSessionDeleting] = useState(false);
 
   const todayKey = dateKey(new Date());
   const todayCheckin = checkins.find((c) => c.checkin_date === todayKey) ?? null;
@@ -190,6 +242,89 @@ function Estudos() {
     }
   }
 
+  function openCreatePlanSession() {
+    setPlanDraft(emptyPlanSessionDraft());
+    setPlanModal({ open: true });
+  }
+
+  function openEditPlanSession(session: PlanSession) {
+    setPlanDraft({
+      session_date: session.session_date,
+      start_time: session.start_time?.slice(0, 5) ?? "",
+      duration_minutes: String(session.duration_minutes),
+      subject_id: session.subject_id ?? "",
+      reason: session.reason ?? "",
+      kind: session.kind,
+    });
+    setPlanModal({ open: true, editing: session });
+  }
+
+  async function savePlanSession() {
+    const title = planDraft.reason.trim();
+    const duration = Number(planDraft.duration_minutes);
+    if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(planDraft.session_date)) {
+      toast.error("Selecione uma data válida.");
+      return;
+    }
+    const parsedDate = new Date(`${planDraft.session_date}T12:00:00`);
+    if (!Number.isFinite(parsedDate.getTime()) || dateKey(parsedDate) !== planDraft.session_date) {
+      toast.error("Selecione uma data válida.");
+      return;
+    }
+    if (
+      planDraft.start_time &&
+      !/^(?:[01]\\d|2[0-3]):[0-5]\\d$/.test(planDraft.start_time)
+    ) {
+      toast.error("Informe um horário válido.");
+      return;
+    }
+    if (!Number.isInteger(duration) || duration < 5 || duration > 1440) {
+      toast.error("A duração deve ficar entre 5 e 1.440 minutos.");
+      return;
+    }
+
+    setPlanSaving(true);
+    try {
+      const payload = {
+        session_date: planDraft.session_date,
+        start_time: planDraft.start_time || null,
+        duration_minutes: duration,
+        subject_id: planDraft.subject_id || null,
+        reason: title || null,
+        kind: planDraft.kind,
+        status: "planejada",
+        generated: false,
+        priority: planModal.editing?.priority ?? 3,
+      };
+      if (planModal.editing) {
+        await update("plan_sessions", planModal.editing.id, payload);
+        toast.success("Sessão atualizada. Ela foi preservada como sessão manual.");
+      } else {
+        await insert("plan_sessions", payload);
+        toast.success("Sessão adicionada ao plano.");
+      }
+      setPlanModal({ open: false });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível salvar a sessão.");
+    } finally {
+      setPlanSaving(false);
+    }
+  }
+
+  async function confirmDeletePlanSession() {
+    if (!sessionToDelete || sessionDeleting) return;
+    setSessionDeleting(true);
+    try {
+      await remove("plan_sessions", sessionToDelete.id);
+      toast.success("Sessão removida do plano.");
+      setSessionToDelete(null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível remover a sessão.");
+    } finally {
+      setSessionDeleting(false);
+    }
+  }
+
   const subjectName = (id: string | null) =>
     subjects.find((s) => s.id === id)?.name ?? "Estudo geral";
   const subjectColor = (id: string | null) =>
@@ -267,6 +402,11 @@ function Estudos() {
           <PanelHeader
             title="Plano de estudos"
             hint="gerado a partir de provas, tarefas e domínio"
+            action={
+              <Button variant="ghost" onClick={openCreatePlanSession}>
+                <Plus className="size-[13px]" strokeWidth={2} /> Nova sessão
+              </Button>
+            }
           />
           <div className="border-t border-border">
             {planByDay.length ? (
@@ -311,29 +451,49 @@ function Estudos() {
                       >
                         {planStatusLabel(s.status)}
                       </Chip>
-                      <button
-                        type="button"
-                        className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-success sm:size-8"
-                        aria-label="Concluir sessão"
-                        onClick={() =>
-                          run("Sessão concluída", () =>
-                            update("plan_sessions", s.id, { status: "concluida" }),
-                          )
-                        }
-                      >
-                        <Check className="size-[14px]" strokeWidth={1.8} />
-                      </button>
+                      {s.status === "planejada" ? (
+                        <>
+                          <button
+                            type="button"
+                            className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground sm:size-8"
+                            aria-label="Editar sessão"
+                            onClick={() => openEditPlanSession(s)}
+                          >
+                            <Pencil className="size-[13px]" strokeWidth={1.8} />
+                          </button>
+                          <button
+                            type="button"
+                            className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-success sm:size-8"
+                            aria-label="Concluir sessão"
+                            onClick={() =>
+                              run("Sessão concluída", () =>
+                                update("plan_sessions", s.id, { status: "concluida" }),
+                              )
+                            }
+                          >
+                            <Check className="size-[14px]" strokeWidth={1.8} />
+                          </button>
+                          <button
+                            type="button"
+                            className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-destructive sm:size-8"
+                            aria-label="Pular sessão"
+                            onClick={() =>
+                              run("Sessão cancelada", () =>
+                                update("plan_sessions", s.id, { status: "cancelada" }),
+                              )
+                            }
+                          >
+                            <X className="size-[14px]" strokeWidth={1.8} />
+                          </button>
+                        </>
+                      ) : null}
                       <button
                         type="button"
                         className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-destructive sm:size-8"
-                        aria-label="Pular sessão"
-                        onClick={() =>
-                          run("Sessão cancelada", () =>
-                            update("plan_sessions", s.id, { status: "cancelada" }),
-                          )
-                        }
+                        aria-label="Excluir sessão do plano"
+                        onClick={() => setSessionToDelete(s)}
                       >
-                        <X className="size-[14px]" strokeWidth={1.8} />
+                        <Trash2 className="size-[13px]" strokeWidth={1.8} />
                       </button>
                     </div>
                   ))}
@@ -457,6 +617,117 @@ function Estudos() {
         </Panel>
       ) : null}
 
+      <Modal
+        open={planModal.open}
+        onClose={() => {
+          if (!planSaving) setPlanModal({ open: false });
+        }}
+        title={planModal.editing ? "Editar sessão" : "Nova sessão"}
+        subtitle="Sessões editadas ficam manuais e não serão substituídas pelo gerador automático."
+        width={520}
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Disciplina">
+            <Select
+              value={planDraft.subject_id}
+              onChange={(event) =>
+                setPlanDraft((current) => ({ ...current, subject_id: event.target.value }))
+              }
+            >
+              <option value="">Estudo geral</option>
+              {subjects.map((subject) => (
+                <option key={subject.id} value={subject.id}>
+                  {subject.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Tipo">
+            <Select
+              value={planDraft.kind}
+              onChange={(event) =>
+                setPlanDraft((current) => ({ ...current, kind: event.target.value }))
+              }
+            >
+              <option value="estudo">Estudo</option>
+              <option value="revisao">Revisão</option>
+              <option value="exercicios">Exercícios</option>
+              <option value="trabalho">Trabalho</option>
+              <option value="outro">Outro</option>
+            </Select>
+          </Field>
+          <Field label="Data">
+            <TextInput
+              type="date"
+              value={planDraft.session_date}
+              onChange={(event) =>
+                setPlanDraft((current) => ({ ...current, session_date: event.target.value }))
+              }
+            />
+          </Field>
+          <Field label="Horário (opcional)">
+            <TextInput
+              type="time"
+              value={planDraft.start_time}
+              onChange={(event) =>
+                setPlanDraft((current) => ({ ...current, start_time: event.target.value }))
+              }
+            />
+          </Field>
+          <Field label="Duração (minutos)">
+            <TextInput
+              type="number"
+              min={5}
+              max={1440}
+              value={planDraft.duration_minutes}
+              onChange={(event) =>
+                setPlanDraft((current) => ({
+                  ...current,
+                  duration_minutes: event.target.value,
+                }))
+              }
+            />
+          </Field>
+          <Field label="Objetivo da sessão" className="sm:col-span-2">
+            <TextArea
+              maxLength={500}
+              value={planDraft.reason}
+              onChange={(event) =>
+                setPlanDraft((current) => ({ ...current, reason: event.target.value }))
+              }
+              placeholder="Ex.: revisar integrais e resolver 10 exercícios"
+            />
+          </Field>
+        </div>
+        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button
+            variant="ghost"
+            disabled={planSaving}
+            onClick={() => setPlanModal({ open: false })}
+          >
+            Cancelar
+          </Button>
+          <Button disabled={planSaving} onClick={() => void savePlanSession()}>
+            {planSaving ? "Salvando…" : planModal.editing ? "Salvar alterações" : "Adicionar sessão"}
+          </Button>
+        </div>
+      </Modal>
+      <ConfirmDialog
+        open={sessionToDelete !== null}
+        title="Excluir sessão do plano?"
+        description={
+          sessionToDelete
+            ? `A sessão de ${subjectName(sessionToDelete.subject_id)} em ${formatDay(`${sessionToDelete.session_date}T12:00:00`)} será removida.`
+            : ""
+        }
+        confirmLabel="Excluir sessão"
+        loading={sessionDeleting}
+        loadingLabel="Excluindo…"
+        onClose={() => {
+          if (!sessionDeleting) setSessionToDelete(null);
+        }}
+        onConfirm={() => void confirmDeletePlanSession()}
+      />
       {active === "Check-in" ? (
         <CheckinPanel
           subjects={subjects}
