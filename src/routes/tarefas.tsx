@@ -166,11 +166,21 @@ function Tarefas() {
       toast.error("A descrição deve ter no máximo 8.000 caracteres.");
       return;
     }
+    let dueAt: string | null = null;
+    if (form.due_at) {
+      const parsedDueAt = new Date(form.due_at);
+      if (!Number.isFinite(parsedDueAt.getTime())) {
+        toast.error("Informe um prazo válido.");
+        return;
+      }
+      dueAt = parsedDueAt.toISOString();
+    }
+
     const payload = {
       title: form.title.trim(),
       subject_id: form.subject_id || null,
       topic_id: form.topic_id || null,
-      due_at: form.due_at ? new Date(form.due_at).toISOString() : null,
+      due_at: dueAt,
       priority: form.priority,
       estimated_minutes: form.estimated_minutes ? Number(form.estimated_minutes) : null,
       description: form.description.trim() || null,
