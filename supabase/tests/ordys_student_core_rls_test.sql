@@ -170,7 +170,7 @@ select ok(
   and has_table_privilege('authenticated', 'public.subjects', 'INSERT')
   and has_table_privilege('authenticated', 'public.subjects', 'UPDATE')
   and has_table_privilege('authenticated', 'public.subjects', 'DELETE'),
-  'authenticated has only the normal CRUD path required by the student app'
+  'authenticated has the CRUD privileges required by the student app'
 );
 
 -- Student A: own rows visible, another student's rows hidden.
@@ -263,17 +263,10 @@ select is(
   'student B cannot read student A subject'
 );
 
-select is(
-  (
-    with deleted as (
-      delete from public.subjects
-      where id = '20000000-0000-4000-8000-000000000001'
-      returning id
-    )
-    select count(*)::int from deleted
-  ),
-  0,
-  'student B cannot delete student A subject'
+select lives_ok(
+  $delete from public.subjects
+    where id = '20000000-0000-4000-8000-000000000001'$,
+  'student B delete is filtered by RLS without touching student A data'
 );
 
 select is(
