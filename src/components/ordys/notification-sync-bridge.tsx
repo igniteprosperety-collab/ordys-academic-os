@@ -94,26 +94,45 @@ export function NotificationSyncBridge() {
       isNativeAndroid() ||
       typeof window === "undefined" ||
       notificationQuery.isLoading ||
-      notificationQuery.isError
+      notificationQuery.isError ||
+      !("Notification" in window)
     ) {
       return;
     }
-    if (!("Notification" in window)) return;
 
-    const fresh = collectFreshBrowserNotifications(userId, notificationRows);
-    if (Notification.permission !== "granted") return;
-
-    for (const notification of fresh) {
-      try {
-        new Notification(notification.title, {
-          body: notification.body ?? "",
-          tag: `ordys-${notification.id}`,
-        });
-      } catch (error) {
-        console.error("[notifications] browser delivery failed", error);
+    const deliverFreshNotifications = () => {
+      // Do not mark alerts as seen until the browser grants permission.
+      if (Notification.permission !== "granted") return;
+      const fresh = collectFreshBrowserNotifications(userId, notificationRows);
+      for (const notification of fresh) {
+        try {
+          new Notification(notification.title, {
+            body: notification.body ?? "",
+            tag: `ordys-${notification.id}`,
+          });
+        } catch (error) {
+          console.error("[notifications] browser delivery failed", error);
+        }
       }
-    }
-  }, [isDemo, notificationQuery.isError, notificationQuery.isLoading, notificationRows, userId]);
+    };
+
+    deliverFreshNotifications();
+    const interval = window.setInterval(deliverFreshNotifications, 15_000);
+    window.addEventListener("focus", deliverFreshNotifications);
+    document.addEventListener("visibilitychange", deliverFreshNotifications);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", deliverFreshNotifications);
+      document.removeEventListener("visibilitychange", deliverFreshNotifications);
+    };
+  }, [
+    isDemo,
+    notificationQuery.isError,
+    notificationQuery.isLoading,
+    notificationRows,
+    userId,
+  ]);
 
   const signature = JSON.stringify([
     userId,
