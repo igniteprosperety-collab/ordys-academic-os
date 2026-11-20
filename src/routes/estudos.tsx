@@ -527,21 +527,24 @@ function FocusPanel({
   const sessionStarted = startedAt.current !== null;
   const elapsedMinutes = Math.max(0, Math.round((minutes * 60 - left) / 60));
 
-  function persistTimer(status: FocusTimerStatus, remainingSeconds: number, endsAtMs: number | null) {
-    if (!userId || !startedAt.current) return;
-    writeFocusTimerState(userId, {
-      version: 1,
-      userId,
-      minutes,
-      startedAt: startedAt.current,
-      status,
-      endsAtMs,
-      remainingSeconds,
-      subjectId: subjectId || null,
-      topicId: topicId || null,
-      planId: planId || null,
-    });
-  }
+  const persistTimer = useCallback(
+    (status: FocusTimerStatus, remainingSeconds: number, endsAtMs: number | null) => {
+      if (!userId || !startedAt.current) return;
+      writeFocusTimerState(userId, {
+        version: 1,
+        userId,
+        minutes,
+        startedAt: startedAt.current,
+        status,
+        endsAtMs,
+        remainingSeconds,
+        subjectId: subjectId || null,
+        topicId: topicId || null,
+        planId: planId || null,
+      });
+    },
+    [minutes, planId, subjectId, topicId, userId],
+  );
 
   const finish = useCallback(
     async (status: "concluida" | "cancelada") => {
@@ -580,7 +583,7 @@ function FocusPanel({
         setSaving(false);
       }
     },
-    [elapsedMinutes, left, minutes, onSave, planId, saving, subjectId, topicId, userId],
+    [elapsedMinutes, left, minutes, onSave, persistTimer, planId, saving, subjectId, topicId, userId],
   );
 
   useEffect(() => {
