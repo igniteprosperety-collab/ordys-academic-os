@@ -6,6 +6,7 @@ import {
   DEMO_USER_ID,
 } from "@/lib/demo-mode";
 import { supabase } from "@/integrations/supabase/client";
+import { createOrdysDemoDataset } from "@/lib/demo-dataset";
 
 type AnyRow = Record<string, any>;
 type Filter = { kind: "eq" | "neq" | "in" | "gte" | "lte" | "is"; column: string; value: any };
@@ -337,6 +338,26 @@ export const demoSupabase = {
     return new DemoQuery(table);
   },
 };
+
+/**
+ * Loads sample records only into a completely empty local profile.
+ * Existing local work is never overwritten, and nothing is sent to Supabase.
+ */
+export function seedOrdysDemoDataset(): boolean {
+  const profile = ensureProfile();
+  const store = readStore();
+  const hasExistingData = TABLES.some(
+    (table) => table !== "profiles" && table !== "notification_preferences" && (store[table]?.length ?? 0) > 0,
+  );
+  if (hasExistingData) return false;
+
+  const dataset = createOrdysDemoDataset(profile.id, profile.name);
+  for (const [table, rows] of Object.entries(dataset)) {
+    store[table] = rows;
+  }
+  writeStore(store);
+  return true;
+}
 
 export function getOrdysDataClient() {
   return demoSupabase;
