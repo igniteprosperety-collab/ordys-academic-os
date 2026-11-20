@@ -449,7 +449,9 @@ function Tarefas() {
                               type="button"
                               onClick={() => void toggleSubtask(subtask)}
                               aria-label={
-                                subtask.done ? `Reabrir ${subtask.title}` : `Concluir ${subtask.title}`
+                                subtask.done
+                                  ? `Reabrir ${subtask.title}`
+                                  : `Concluir ${subtask.title}`
                               }
                               className={`grid size-8 shrink-0 place-items-center rounded-md border ${
                                 subtask.done
@@ -662,9 +664,7 @@ function Tarefas() {
       <ConfirmDialog
         open={subtaskToDelete !== null}
         title="Remover esta etapa?"
-        description={
-          subtaskToDelete ? `“${subtaskToDelete.title}” será removida da tarefa.` : ""
-        }
+        description={subtaskToDelete ? `“${subtaskToDelete.title}” será removida da tarefa.` : ""}
         confirmLabel="Remover etapa"
         loading={subtaskDeleting}
         loadingLabel="Removendo…"
