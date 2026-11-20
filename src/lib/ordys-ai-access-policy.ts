@@ -23,9 +23,7 @@ export type OrdysAgeAssuranceSource =
 export type OrdysGuardianConsentStatus =
   "granted" | "pending" | "denied" | "revoked" | "expired" | "not_required" | "unknown";
 export type OrdysGuardianConsentSource =
-  | "verified_guardian_portal"
-  | "external_provider_verified"
-  | "unknown";
+  "verified_guardian_portal" | "external_provider_verified" | "unknown";
 
 export type OrdysAiAssuranceRecord = {
   age_band: OrdysAiAgeBand;
