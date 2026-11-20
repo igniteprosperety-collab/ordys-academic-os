@@ -1,4 +1,6 @@
 import { useEffect, useRef } from "react";
+
+const EMPTY_ROWS: never[] = [];
 import { useAuth } from "@/hooks/use-auth";
 import {
   useAttendance,
@@ -41,18 +43,17 @@ export function NotificationSyncBridge() {
     focusQuery,
     prefsQuery,
   ];
-  const ready =
-    readyQueries.every((query) => !query.isLoading && !query.isError) && !!userId;
+  const ready = readyQueries.every((query) => !query.isLoading && !query.isError) && !!userId;
 
   const profile = profileQuery.data ?? null;
-  const subjects = subjectsQuery.data ?? [];
-  const topics = topicsQuery.data ?? [];
-  const tasks = tasksQuery.data ?? [];
-  const exams = examsQuery.data ?? [];
-  const plan = planQuery.data ?? [];
-  const grades = gradesQuery.data ?? [];
-  const attendance = attendanceQuery.data ?? [];
-  const focus = focusQuery.data ?? [];
+  const subjects = subjectsQuery.data ?? EMPTY_ROWS;
+  const topics = topicsQuery.data ?? EMPTY_ROWS;
+  const tasks = tasksQuery.data ?? EMPTY_ROWS;
+  const exams = examsQuery.data ?? EMPTY_ROWS;
+  const plan = planQuery.data ?? EMPTY_ROWS;
+  const grades = gradesQuery.data ?? EMPTY_ROWS;
+  const attendance = attendanceQuery.data ?? EMPTY_ROWS;
+  const focus = focusQuery.data ?? EMPTY_ROWS;
   const prefs = prefsQuery.data ?? null;
 
   const signature = JSON.stringify([
@@ -74,7 +75,13 @@ export function NotificationSyncBridge() {
           prefs.monthly_summary,
         ]
       : null,
-    subjects.map((item) => [item.id, item.name, item.archived, item.grade_goal, item.attendance_goal]),
+    subjects.map((item) => [
+      item.id,
+      item.name,
+      item.archived,
+      item.grade_goal,
+      item.attendance_goal,
+    ]),
     topics.map((item) => [item.id, item.status, item.mastery, item.last_review]),
     tasks.map((item) => [item.id, item.status, item.due_at, item.completed_at]),
     exams.map((item) => [item.id, item.exam_at, item.subject_id, item.content]),
@@ -85,12 +92,7 @@ export function NotificationSyncBridge() {
   ]);
 
   useEffect(() => {
-    if (
-      !ready ||
-      !userId ||
-      lastSyncedSignature.current === signature ||
-      syncInProgress.current
-    ) {
+    if (!ready || !userId || lastSyncedSignature.current === signature || syncInProgress.current) {
       return;
     }
 
