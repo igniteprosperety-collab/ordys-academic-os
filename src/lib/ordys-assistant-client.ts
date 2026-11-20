@@ -1,5 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
-import { edgeFunctionResponseErrorMessage, edgeFunctionUnavailableMessage } from "@/lib/edge-function-errors";
+import {
+  edgeFunctionResponseErrorMessage,
+  edgeFunctionUnavailableMessage,
+} from "@/lib/edge-function-errors";
 import { dateKey } from "@/lib/ordys-engine";
 import type { OrdysAttachment } from "@/lib/ordys-assistant-media";
 import { canUseOrdysAi } from "@/lib/ai-eligibility";
