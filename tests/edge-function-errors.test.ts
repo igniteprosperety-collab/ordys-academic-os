@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { edgeFunctionResponseErrorMessage, edgeFunctionUnavailableMessage } from "../src/lib/edge-function-errors";
+import {
+  edgeFunctionResponseErrorMessage,
+  edgeFunctionUnavailableMessage,
+} from "../src/lib/edge-function-errors";
 
 const messages = {
   assistant:
@@ -66,7 +69,6 @@ describe("edge function infrastructure errors", () => {
     expect(new Set(actual).size).toBe(3);
   });
 });
-
 
 describe("edge function response messages", () => {
   it("preserves a meaningful server error from a non-success HTTP response", async () => {
