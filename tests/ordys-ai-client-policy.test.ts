@@ -1,9 +1,18 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const client = readFileSync(new URL("../src/lib/ordys-assistant-client.ts", import.meta.url), "utf8");
-const page = readFileSync(new URL("../src/routes/assistente.tsx", import.meta.url), "utf8");
-const shared = readFileSync(new URL("../src/lib/ordys-ai-access-shared.ts", import.meta.url), "utf8");
+const client = readFileSync(
+  new URL("../src/lib/ordys-assistant-client.ts", import.meta.url),
+  "utf8",
+);
+const page = readFileSync(
+  new URL("../src/routes/assistente.tsx", import.meta.url),
+  "utf8",
+);
+const shared = readFileSync(
+  new URL("../src/lib/ordys-ai-access-shared.ts", import.meta.url),
+  "utf8",
+);
 
 function functionBody(startMarker: string, endMarker?: string): string {
   const start = client.indexOf(startMarker);
@@ -20,22 +29,37 @@ describe("Ordys AI client policy enforcement", () => {
   });
 
   it.each([
-    ["quiz", "export async function generateOrdysQuiz(", "function readFunctionResult("],
-    ["video transcription", "async function transcribeOrdysVideo(", "export async function askOrdysAssistant("],
-    ["assistant", "export async function askOrdysAssistant(", "export async function pollOrdysResearch("],
-    ["research polling", "export async function pollOrdysResearch(", "export async function cancelOrdysResearch("],
+    [
+      "quiz",
+      "export async function generateOrdysQuiz(",
+      "function readFunctionResult(",
+    ],
+    [
+      "video transcription",
+      "async function transcribeOrdysVideo(",
+      "export async function askOrdysAssistant(",
+    ],
+    [
+      "assistant",
+      "export async function askOrdysAssistant(",
+      "export async function pollOrdysResearch(",
+    ],
+    [
+      "research polling",
+      "export async function pollOrdysResearch(",
+      "export async function cancelOrdysResearch(",
+    ],
     ["configuration", "export async function applyOrdysConfiguration(", undefined],
   ] as const)("checks the trusted policy before starting %s", (_name, start, end) => {
     const body = functionBody(start, end);
     const policyCheck = body.indexOf("assertOrdysAiAccessPolicyReady();");
     expect(policyCheck).toBeGreaterThanOrEqual(0);
-    const firstNetworkOrSessionCall = Math.min(
-      ...["getAccessContext()", "supabase.functions.invoke("]
-        .map((marker) => {
-          const index = body.indexOf(marker);
-          return index < 0 ? Number.POSITIVE_INFINITY : index;
-        }),
-    );
+    const markers = ["getAccessContext()", "supabase.functions.invoke("];
+    const callPositions = markers.map((marker) => {
+      const index = body.indexOf(marker);
+      return index < 0 ? Number.POSITIVE_INFINITY : index;
+    });
+    const firstNetworkOrSessionCall = Math.min(...callPositions);
     expect(policyCheck).toBeLessThan(firstNetworkOrSessionCall);
   });
 
