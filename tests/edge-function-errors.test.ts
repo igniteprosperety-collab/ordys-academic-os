@@ -97,6 +97,8 @@ describe("edge function response messages", () => {
         context: new Response("not-json", { status: 503 }),
       }),
     ).resolves.toBeNull();
-    await expect(edgeFunctionResponseErrorMessage(new Error("ordinary failure"))).resolves.toBeNull();
+    await expect(
+      edgeFunctionResponseErrorMessage(new Error("ordinary failure")),
+    ).resolves.toBeNull();
   });
 });
