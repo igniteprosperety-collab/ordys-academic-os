@@ -1,12 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 
-const EMPTY_ROWS: never[] = [];
-
-function notificationClockBucket() {
-  const now = new Date();
-  const timeWindow = now.getHours() >= 20 ? "after20" : now.getHours() >= 19 ? "after19" : "before19";
-  return `${dateKey(now)}:${timeWindow}`;
-}
 import { useAuth } from "@/hooks/use-auth";
 import {
   useAttendance,
@@ -21,6 +14,15 @@ import {
   useTopics,
 } from "@/lib/ordys-db";
 import { dateKey, syncNotifications } from "@/lib/ordys-engine";
+
+const EMPTY_ROWS: never[] = [];
+
+function notificationClockBucket() {
+  const now = new Date();
+  const timeWindow =
+    now.getHours() >= 20 ? "after20" : now.getHours() >= 19 ? "after19" : "before19";
+  return `${dateKey(now)}:${timeWindow}`;
+}
 
 export function NotificationSyncBridge() {
   const { userId } = useAuth();
