@@ -143,7 +143,7 @@ function Agenda() {
     setEventDraft({
       title: event.title,
       startsAt: toLocalDateTimeInput(event.starts_at),
-      endsAt: toLocalDateTimeInput(event.ends_at),
+      endsAt: event.ends_at ? toLocalDateTimeInput(event.ends_at) : "",
       kind: event.kind || "compromisso",
       location: event.location ?? "",
       subjectId: event.subject_id ?? "",
