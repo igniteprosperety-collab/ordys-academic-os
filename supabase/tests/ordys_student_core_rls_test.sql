@@ -264,8 +264,7 @@ select is(
 );
 
 select lives_ok(
-  $delete from public.subjects
-    where id = '20000000-0000-4000-8000-000000000001'$,
+  'delete from public.subjects where id = ''20000000-0000-4000-8000-000000000001''',
   'student B delete is filtered by RLS without touching student A data'
 );
 
