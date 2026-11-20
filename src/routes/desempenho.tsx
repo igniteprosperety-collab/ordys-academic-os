@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import {
   CartesianGrid,
   Line,
@@ -38,6 +38,7 @@ import {
   useProfile,
   useSubjects,
   useTasks,
+  type Goal,
 } from "@/lib/ordys-db";
 import {
   addDays,
