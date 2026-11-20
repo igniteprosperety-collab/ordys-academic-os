@@ -495,7 +495,9 @@ export async function syncNativeAcademicNotifications() {
             {
               id: stableId(NOTIFICATION_IDS.event, `${event.id}:10m`),
               title: `${event.title} — em 10 minutos`,
-              body: event.location ?? (event.kind === "compromisso" ? "Seu compromisso está começando." : event.kind),
+              body:
+                event.location ??
+                (event.kind === "compromisso" ? "Seu compromisso está começando." : event.kind),
               at: reminder,
             },
           ];
