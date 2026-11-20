@@ -50,6 +50,7 @@ import {
   useTasks,
   useTopics,
   type PlanSession,
+  type Review,
 } from "@/lib/ordys-db";
 import {
   addDays,
@@ -153,6 +154,13 @@ function Estudos() {
   const [planSaving, setPlanSaving] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<PlanSession | null>(null);
   const [sessionDeleting, setSessionDeleting] = useState(false);
+  const [reviewModal, setReviewModal] = useState<{ open: boolean; editing?: Review }>({
+    open: false,
+  });
+  const [reviewDraft, setReviewDraft] = useState({ due_on: dateKey(new Date()), reason: "" });
+  const [reviewSaving, setReviewSaving] = useState(false);
+  const [reviewToDelete, setReviewToDelete] = useState<Review | null>(null);
+  const [reviewDeleting, setReviewDeleting] = useState(false);
 
   const todayKey = dateKey(new Date());
   const todayCheckin = checkins.find((c) => c.checkin_date === todayKey) ?? null;
@@ -308,6 +316,60 @@ function Estudos() {
       toast.error(error instanceof Error ? error.message : "Não foi possível salvar a sessão.");
     } finally {
       setPlanSaving(false);
+    }
+  }
+
+  function openEditReview(review: Review) {
+    setReviewDraft({
+      due_on: review.due_on,
+      reason: review.reason ?? "",
+    });
+    setReviewModal({ open: true, editing: review });
+  }
+
+  async function saveReview() {
+    const dueDate = new Date(`${reviewDraft.due_on}T12:00:00`);
+    if (
+      !/^\\d{4}-\\d{2}-\\d{2}$/.test(reviewDraft.due_on) ||
+      !Number.isFinite(dueDate.getTime()) ||
+      dateKey(dueDate) !== reviewDraft.due_on
+    ) {
+      toast.error("Selecione uma data válida para a revisão.");
+      return;
+    }
+    if (reviewDraft.reason.trim().length > 500) {
+      toast.error("O motivo deve ter no máximo 500 caracteres.");
+      return;
+    }
+    if (!reviewModal.editing) return;
+
+    setReviewSaving(true);
+    try {
+      await update("reviews", reviewModal.editing.id, {
+        due_on: reviewDraft.due_on,
+        reason: reviewDraft.reason.trim() || null,
+        source: "manual",
+      });
+      setReviewModal({ open: false });
+      toast.success("Revisão atualizada.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível atualizar a revisão.");
+    } finally {
+      setReviewSaving(false);
+    }
+  }
+
+  async function confirmDeleteReview() {
+    if (!reviewToDelete || reviewDeleting) return;
+    setReviewDeleting(true);
+    try {
+      await remove("reviews", reviewToDelete.id);
+      setReviewToDelete(null);
+      toast.success("Revisão excluída.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível excluir a revisão.");
+    } finally {
+      setReviewDeleting(false);
     }
   }
 
@@ -573,6 +635,22 @@ function Estudos() {
                       </Chip>
                       <button
                         type="button"
+                        className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground sm:size-8"
+                        aria-label="Editar revisão"
+                        onClick={() => openEditReview(r)}
+                      >
+                        <Pencil className="size-[13px]" strokeWidth={1.8} />
+                      </button>
+                      <button
+                        type="button"
+                        className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-destructive sm:size-8"
+                        aria-label="Excluir revisão"
+                        onClick={() => setReviewToDelete(r)}
+                      >
+                        <Trash2 className="size-[13px]" strokeWidth={1.8} />
+                      </button>
+                      <button
+                        type="button"
                         className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-success sm:size-8"
                         aria-label="Concluir revisão"
                         disabled={busy}
@@ -617,6 +695,65 @@ function Estudos() {
         </Panel>
       ) : null}
 
+      <Modal
+        open={reviewModal.open}
+        onClose={() => {
+          if (!reviewSaving) setReviewModal({ open: false });
+        }}
+        title="Editar revisão"
+        subtitle="Ajuste a data e o motivo deste lembrete de estudo."
+        width={440}
+      >
+        <div className="space-y-3">
+          <Field label="Data da revisão">
+            <TextInput
+              type="date"
+              value={reviewDraft.due_on}
+              onChange={(event) =>
+                setReviewDraft((current) => ({ ...current, due_on: event.target.value }))
+              }
+            />
+          </Field>
+          <Field label="Motivo">
+            <TextArea
+              maxLength={500}
+              value={reviewDraft.reason}
+              onChange={(event) =>
+                setReviewDraft((current) => ({ ...current, reason: event.target.value }))
+              }
+              placeholder="O que precisa ser revisto?"
+            />
+          </Field>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button
+              variant="ghost"
+              disabled={reviewSaving}
+              onClick={() => setReviewModal({ open: false })}
+            >
+              Cancelar
+            </Button>
+            <Button disabled={reviewSaving} onClick={() => void saveReview()}>
+              {reviewSaving ? "Salvando…" : "Salvar revisão"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+      <ConfirmDialog
+        open={reviewToDelete !== null}
+        title="Excluir revisão?"
+        description={
+          reviewToDelete
+            ? `A revisão de “${reviewToDelete.reason ?? "conteúdo"}” será removida da sua lista.`
+            : ""
+        }
+        confirmLabel="Excluir revisão"
+        loading={reviewDeleting}
+        loadingLabel="Excluindo…"
+        onClose={() => {
+          if (!reviewDeleting) setReviewToDelete(null);
+        }}
+        onConfirm={() => void confirmDeleteReview()}
+      />
       <Modal
         open={planModal.open}
         onClose={() => {
