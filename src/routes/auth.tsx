@@ -27,17 +27,24 @@ import {
 type AuthMode = "login" | "signup";
 
 function authRedirect(path: string) {
-  const configured = import.meta.env["VITE_PUBLIC_APP_URL"]?.trim().replace(/\/$/, "");
-  const base = configured || (typeof window !== "undefined" ? window.location.origin : "");
+  const configured = import.meta.env["VITE_PUBLIC_APP_URL"]
+    ?.trim()
+    .replace(/\/$/, "");
+  const base =
+    configured || (typeof window !== "undefined" ? window.location.origin : "");
   return `${base}${path}`;
 }
 
 function readableAuthError(message: string) {
   const text = message.toLowerCase();
-  if (text.includes("invalid login credentials")) return "E-mail ou senha incorretos.";
-  if (text.includes("email not confirmed")) return "Confirme seu e-mail antes de entrar.";
-  if (text.includes("user already registered")) return "Este e-mail já está cadastrado.";
-  if (text.includes("password should be at least")) return "Use uma senha mais forte.";
+  if (text.includes("invalid login credentials"))
+    return "E-mail ou senha incorretos.";
+  if (text.includes("email not confirmed"))
+    return "Confirme seu e-mail antes de entrar.";
+  if (text.includes("user already registered"))
+    return "Este e-mail já está cadastrado.";
+  if (text.includes("password should be at least"))
+    return "Use uma senha mais forte.";
   if (text.includes("email address not authorized")) {
     return "O envio de confirmação de e-mail está restrito na configuração atual do projeto.";
   }
@@ -47,7 +54,8 @@ function readableAuthError(message: string) {
   if (text.includes("smtp") || text.includes("email sending")) {
     return "O serviço de e-mail do projeto não conseguiu enviar a mensagem de confirmação agora.";
   }
-  if (text.includes("network")) return "Não foi possível conectar. Verifique sua internet.";
+  if (text.includes("network"))
+    return "Não foi possível conectar. Verifique sua internet.";
   return "Não foi possível concluir essa ação agora.";
 }
 
@@ -129,11 +137,14 @@ function AuthPage() {
           return;
         }
         if (detail.status === "cancelled") {
-          toast.message("Recuperação cancelada. Você pode solicitar um novo link.");
+          toast.message(
+            "Recuperação cancelada. Você pode solicitar um novo link.",
+          );
           return;
         }
         toast.error(
-          detail.message ?? "Não foi possível concluir a recuperação. Solicite um novo link.",
+          detail.message ??
+            "Não foi possível concluir a recuperação. Solicite um novo link.",
         );
         return;
       }
@@ -144,11 +155,15 @@ function AuthPage() {
       }
 
       if (detail.status === "cancelled") {
-        toast.message("Acesso com Google cancelado. Você pode tentar novamente.");
+        toast.message(
+          "Acesso com Google cancelado. Você pode tentar novamente.",
+        );
         return;
       }
 
-      toast.error(detail.message ?? "Não foi possível concluir o acesso com Google.");
+      toast.error(
+        detail.message ?? "Não foi possível concluir o acesso com Google.",
+      );
     };
 
     window.addEventListener(NATIVE_AUTH_EVENT, onNativeAuth);
@@ -178,7 +193,10 @@ function AuthPage() {
     }
 
     if (authCooldownUntil > Date.now()) {
-      const seconds = Math.max(1, Math.ceil((authCooldownUntil - Date.now()) / 1000));
+      const seconds = Math.max(
+        1,
+        Math.ceil((authCooldownUntil - Date.now()) / 1000),
+      );
       toast.error(`Aguarde ${seconds}s antes de tentar novamente.`);
       return;
     }
@@ -253,10 +271,11 @@ function AuthPage() {
         const outcome = await resolveSignupSessionOutcome(
           data.user.email_confirmed_at,
           async () => {
-            const { error: signInError } = await supabase.auth.signInWithPassword({
-              email: cleanEmail,
-              password,
-            });
+            const { error: signInError } =
+              await supabase.auth.signInWithPassword({
+                email: cleanEmail,
+                password,
+              });
             return { error: signInError };
           },
         );
@@ -275,7 +294,9 @@ function AuthPage() {
           setEmail(cleanEmail);
           setPassword("");
           setFullName("");
-          toast.message("Sua conta já está confirmada. Entre com seu e-mail e senha.");
+          toast.message(
+            "Sua conta já está confirmada. Entre com seu e-mail e senha.",
+          );
           return;
         }
 
@@ -292,12 +313,18 @@ function AuthPage() {
         }
       }
 
-      toast.success("Conta criada. Confira seu e-mail para confirmar o cadastro.");
+      toast.success(
+        "Conta criada. Confira seu e-mail para confirmar o cadastro.",
+      );
       setConfirmationEmail(cleanEmail);
       setMode("login");
       clearAuthForm();
     } catch (error) {
-      toast.error(readableAuthError(error instanceof Error ? error.message : String(error)));
+      toast.error(
+        readableAuthError(
+          error instanceof Error ? error.message : String(error),
+        ),
+      );
     } finally {
       setBusy(false);
     }
@@ -335,7 +362,11 @@ function AuthPage() {
       return;
     } catch (error) {
       if (!Capacitor.isNativePlatform()) {
-        toast.error(readableAuthError(error instanceof Error ? error.message : String(error)));
+        toast.error(
+          readableAuthError(
+            error instanceof Error ? error.message : String(error),
+          ),
+        );
       }
       if (googleTimeoutRef.current !== null) {
         window.clearTimeout(googleTimeoutRef.current);
@@ -354,7 +385,11 @@ function AuthPage() {
         toast.success(`Modo sem conta · ${active?.name ?? "perfil"}`);
         navigate({ to: "/", replace: true });
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Não foi possível abrir o perfil.");
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Não foi possível abrir o perfil.",
+        );
       }
       return;
     }
@@ -373,13 +408,19 @@ function AuthPage() {
       setLocalProfiles(getLocalProfiles());
       setSelectedLocalProfileId(getActiveLocalProfile()?.id ?? "");
       startDemoMode();
-      toast.success("Perfil local criado. Seu progresso ficará salvo neste dispositivo.");
+      toast.success(
+        "Perfil local criado. Seu progresso ficará salvo neste dispositivo.",
+      );
       navigate({ to: "/", replace: true });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Não foi possível criar o perfil.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível criar o perfil.",
+      );
     }
   }
- 
+
   function createSampleDemoProfile() {
     try {
       const name = localName.trim() || "Demonstração ORDYS";
@@ -395,7 +436,11 @@ function AuthPage() {
       );
       navigate({ to: "/", replace: true });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Não foi possível abrir a demonstração.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível abrir a demonstração.",
+      );
     }
   }
 
@@ -483,7 +528,9 @@ function AuthPage() {
           <div className="mt-3">
             <Field
               label="Senha"
-              hint={mode === "signup" ? "Use pelo menos 8 caracteres." : undefined}
+              hint={
+                mode === "signup" ? "Use pelo menos 8 caracteres." : undefined
+              }
             >
               <div className="relative">
                 <Lock className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -493,7 +540,9 @@ function AuthPage() {
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="Sua senha"
                   className="pr-10 pl-9"
-                  autoComplete={mode === "login" ? "current-password" : "new-password"}
+                  autoComplete={
+                    mode === "login" ? "current-password" : "new-password"
+                  }
                   disabled={busy}
                   onKeyDown={(event) => {
                     if (event.key === "Enter") void submitAuth();
@@ -505,7 +554,11 @@ function AuthPage() {
                   className="absolute top-1/2 right-2 grid size-11 -translate-y-1/2 place-items-center rounded-md text-muted-foreground hover:text-foreground sm:size-8"
                   aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
                 >
-                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  {showPassword ? (
+                    <EyeOff className="size-4" />
+                  ) : (
+                    <Eye className="size-4" />
+                  )}
                 </button>
               </div>
             </Field>
@@ -515,8 +568,8 @@ function AuthPage() {
             <div className="mt-3 rounded-lg border border-border bg-secondary/40 px-3 py-3">
               <p className="text-[11.5px] font-medium">Confirmação pendente</p>
               <p className="mt-1 text-[10.5px] leading-relaxed text-muted-foreground">
-                Verifique também Spam, Promoções e Lixeira. Se a mensagem não aparecer, você pode
-                solicitar outro e-mail.
+                Verifique também Spam, Promoções e Lixeira. Se a mensagem não
+                aparecer, você pode solicitar outro e-mail.
               </p>
               <Button
                 type="button"
@@ -539,7 +592,9 @@ function AuthPage() {
                     toast.success("Novo e-mail de confirmação enviado.");
                   } catch (error) {
                     toast.error(
-                      readableAuthError(error instanceof Error ? error.message : String(error)),
+                      readableAuthError(
+                        error instanceof Error ? error.message : String(error),
+                      ),
                     );
                   } finally {
                     setBusy(false);
@@ -551,8 +606,17 @@ function AuthPage() {
             </div>
           ) : null}
 
-          <Button type="button" className="mt-4 w-full py-2.5" onClick={submitAuth} disabled={busy}>
-            {busy ? "Processando…" : mode === "login" ? "Entrar" : "Criar conta"}
+          <Button
+            type="button"
+            className="mt-4 w-full py-2.5"
+            onClick={submitAuth}
+            disabled={busy}
+          >
+            {busy
+              ? "Processando…"
+              : mode === "login"
+                ? "Entrar"
+                : "Criar conta"}
           </Button>
 
           {mode === "login" ? (
@@ -570,7 +634,12 @@ function AuthPage() {
             <span className="h-px flex-1 bg-border" />
           </div>
 
-          <Button type="button" onClick={google} disabled={busy} className="w-full py-2.5">
+          <Button
+            type="button"
+            onClick={google}
+            disabled={busy}
+            className="w-full py-2.5"
+          >
             {googleBusy ? "Abrindo Google…" : "Continuar com Google"}
           </Button>
 
@@ -595,7 +664,9 @@ function AuthPage() {
               <select
                 className="mt-2 min-h-11 w-full rounded-md border border-border bg-background px-2 text-[12px] text-foreground outline-none focus:border-primary sm:h-9"
                 value={selectedLocalProfileId}
-                onChange={(event) => setSelectedLocalProfileId(event.target.value)}
+                onChange={(event) =>
+                  setSelectedLocalProfileId(event.target.value)
+                }
                 aria-label="Selecionar perfil local"
               >
                 {localProfiles.map((profile) => (
@@ -627,17 +698,23 @@ function AuthPage() {
           ) : null}
 
           <div className="mt-4 flex justify-center gap-4 text-[10.5px] text-muted-foreground/70">
-            <Link to="/privacidade" className="hover:text-foreground hover:underline">
+            <Link
+              to="/privacidade"
+              className="hover:text-foreground hover:underline"
+            >
               Política de Privacidade
             </Link>
-            <Link to="/excluir-conta" className="hover:text-foreground hover:underline">
+            <Link
+              to="/excluir-conta"
+              className="hover:text-foreground hover:underline"
+            >
               Excluir conta
             </Link>
           </div>
 
           <p className="mt-4 text-center text-[10.5px] leading-relaxed text-muted-foreground/70">
-            Com uma conta, o ORDYS pode guardar e sincronizar seus dados. No modo sem conta, o
-            progresso fica apenas neste aparelho.
+            Com uma conta, o ORDYS pode guardar e sincronizar seus dados. No
+            modo sem conta, o progresso fica apenas neste aparelho.
           </p>
         </div>
 
@@ -645,7 +722,8 @@ function AuthPage() {
           <div className="mt-3 panel px-5 py-5 ordys-motion-enter">
             <p className="text-[13px] font-semibold">Acessar sem conta</p>
             <p className="mt-1 text-[11.5px] leading-relaxed text-muted-foreground">
-              Crie um perfil vazio ou abra uma demonstração com dados fictícios. Nada será enviado ao banco online.
+              Crie um perfil vazio ou abra uma demonstração com dados fictícios.
+              Nada será enviado ao banco online.
             </p>
             <div className="mt-4">
               <Field label="Nome">
@@ -661,13 +739,25 @@ function AuthPage() {
               </Field>
             </div>
             <div className="mt-4 flex flex-col gap-2">
-              <Button type="button" onClick={createLocalProfile} disabled={!localName.trim()}>
+              <Button
+                type="button"
+                onClick={createLocalProfile}
+                disabled={!localName.trim()}
+              >
                 Criar perfil vazio
               </Button>
-              <Button type="button" variant="ghost" onClick={createSampleDemoProfile}>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={createSampleDemoProfile}
+              >
                 Abrir demonstração pronta
               </Button>
-              <Button type="button" variant="ghost" onClick={() => setShowLocalSetup(false)}>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setShowLocalSetup(false)}
+              >
                 Cancelar
               </Button>
             </div>
