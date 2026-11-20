@@ -24,13 +24,14 @@ CREATE TABLE IF NOT EXISTS public.ordys_ai_access_assurance (
   guardian_consent_at TIMESTAMPTZ,
   guardian_consent_expires_at TIMESTAMPTZ,
   guardian_consent_policy_version TEXT,
+  age_evidence_reference TEXT CHECK (age_evidence_reference IS NULL OR char_length(btrim(age_evidence_reference)) BETWEEN 1 AND 200),
+  guardian_evidence_reference TEXT CHECK (guardian_evidence_reference IS NULL OR char_length(btrim(guardian_evidence_reference)) BETWEEN 1 AND 200),
   ai_safety_policy_version TEXT,
-  evidence_reference TEXT CHECK (evidence_reference IS NULL OR char_length(evidence_reference) <= 200),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   CHECK (
     age_assurance_status NOT IN ('verified', 'supervised')
-    OR (age_assurance_source <> 'unknown' AND age_assurance_verified_at IS NOT NULL AND age_assurance_expires_at IS NOT NULL)
+    OR (age_assurance_source <> 'unknown' AND age_assurance_verified_at IS NOT NULL AND age_assurance_expires_at IS NOT NULL AND age_evidence_reference IS NOT NULL)
   ),
   CHECK (
     guardian_consent_status <> 'granted'
@@ -41,6 +42,7 @@ CREATE TABLE IF NOT EXISTS public.ordys_ai_access_assurance (
       AND guardian_consent_at IS NOT NULL
       AND guardian_consent_expires_at IS NOT NULL
       AND guardian_consent_policy_version IS NOT NULL
+      AND guardian_evidence_reference IS NOT NULL
     )
   )
 );
@@ -54,6 +56,6 @@ COMMENT ON TABLE public.ordys_ai_access_assurance IS
   'Server-only age assurance and guardian-consent evidence used to decide Ordys OpenAI access per account.';
 
 COMMENT ON COLUMN public.ordys_ai_access_assurance.evidence_reference IS
-  'Opaque provider/operator reference only. Never store an ID image, document number, or raw provider payload here.';
+  'Opaque provider/operator reference only. Store no ID image, document number, raw provider payload, or direct contact data.';
 
 COMMIT;
