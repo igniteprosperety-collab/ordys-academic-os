@@ -25,3 +25,19 @@ export function edgeFunctionUnavailableMessage(
     ? messages[feature]
     : null;
 }
+
+
+export async function edgeFunctionResponseErrorMessage(error: unknown): Promise<string | null> {
+  if (!error || typeof error !== "object") return null;
+  const context = (error as { context?: unknown }).context;
+  if (!(context instanceof Response)) return null;
+
+  try {
+    const payload = (await context.clone().json().catch(() => null)) as { error?: unknown } | null;
+    return typeof payload?.error === "string" && payload.error.trim()
+      ? payload.error.trim().slice(0, 500)
+      : null;
+  } catch {
+    return null;
+  }
+}
