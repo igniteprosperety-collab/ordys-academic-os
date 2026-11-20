@@ -50,6 +50,8 @@ export type OrdysAiAssuranceRecord = {
   guardian_consent_at: string | null;
   guardian_consent_expires_at: string | null;
   guardian_consent_policy_version: string | null;
+  age_evidence_reference: string | null;
+  guardian_evidence_reference: string | null;
   ai_safety_policy_version: string | null;
 };
 
@@ -93,8 +95,13 @@ function isFutureTimestamp(value: string | null, nowMs: number): boolean {
   return Number.isFinite(timestamp) && timestamp > nowMs;
 }
 
+function hasEvidenceReference(value: string | null): boolean {
+  return typeof value === "string" && value.trim().length > 0 && value.length <= 200;
+}
+
 function hasCurrentAgeAssurance(record: OrdysAiAssuranceRecord, nowMs: number): boolean {
   return (
+    hasEvidenceReference(record.age_evidence_reference) &&
     (record.age_assurance_status === "verified" || record.age_assurance_status === "supervised") &&
     TRUSTED_AGE_SOURCES.has(record.age_assurance_source) &&
     isValidTimestamp(record.age_assurance_verified_at, nowMs) &&
@@ -110,7 +117,8 @@ function hasCurrentGuardianConsent(record: OrdysAiAssuranceRecord, nowMs: number
     record.guardian_relationship_verified === true &&
     isValidTimestamp(record.guardian_consent_at, nowMs) &&
     isFutureTimestamp(record.guardian_consent_expires_at, nowMs) &&
-    record.guardian_consent_policy_version === ORDYS_AI_GUARDIAN_CONSENT_POLICY_VERSION
+    record.guardian_consent_policy_version === ORDYS_AI_GUARDIAN_CONSENT_POLICY_VERSION &&
+    hasEvidenceReference(record.guardian_evidence_reference)
   );
 }
 
