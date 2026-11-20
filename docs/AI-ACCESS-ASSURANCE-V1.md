@@ -11,7 +11,7 @@ When enabled, the authenticated server endpoint `ordys-assistant` action `access
 ## Account states
 
 - **Adult:** age band 18+, a current verified age-assurance status, trusted source, validity timestamps, current policy version, and opaque evidence reference.
-- **Minor 14–17:** a current age-band signal plus a separate, explicit, current, revocable AI consent from a verified legal guardian; guardian identity and relationship must both be verified; the consent must be tied to the exact policy version.
+- **Minor 14–17:** a current age-band signal plus a separate, explicit, current, revocable AI consent from a verified legal guardian; guardian identity and relationship must both be verified; the consent must be tied to the exact policy version. A provider range crossing the 14-year minimum (for example 13–15) is unknown and remains blocked; it cannot be rounded up to 14–15.
 - **Unknown, declared-only, expired, pending, denied, revoked, inconsistent, or unverifiable:** only the OpenAI calls for that account are blocked. The student core and local/non-AI functions remain available.
 - **Under 14:** not enabled in this initial AI integration.
 
@@ -24,7 +24,7 @@ A profile birth date, timezone, self-attestation, local-storage flag, client-sup
 Use the current Play Age Signals two-step flow: `requestAgeSignalsAccess()`, then `checkAgeSignals()`. For SDK 0.0.4+, read `ageRangeSource`, age bounds and significant-change status; do not rely on deprecated `userStatus`.
 
 - `TIER_A`: self-declared. Not accepted as age assurance for OpenAI access.
-- `TIER_B`: parent/guardian-managed age range. Maps only to `supervised`; it still requires a separate verified guardian consent for the specific AI data flow.
+- `TIER_B`: parent/guardian-managed age range. Maps only to `supervised`; it still requires a separate verified guardian consent for the specific AI data flow. If the supplied bounds span 13–15, the age band remains unknown because the signal cannot prove that the account holder is at least 14.
 - `TIER_C`: estimated/assessed age. Not accepted as verified age evidence in this V1 policy.
 - `TIER_D`: verified via ID check. Maps to verified age evidence after Play Integrity is verified server-side.
 - Missing/unshared signals remain unknown and blocked.
