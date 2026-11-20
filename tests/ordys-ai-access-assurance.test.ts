@@ -120,8 +120,8 @@ describe("Ordys server-owned AI access assurance", () => {
             guardian_consent_at: current,
             guardian_consent_expires_at: future,
             guardian_consent_policy_version: ORDYS_AI_GUARDIAN_CONSENT_POLICY_VERSION,
-          guardian_evidence_reference: "guardian-evidence-reference",
-        }),
+            guardian_evidence_reference: "guardian-evidence-reference",
+          }),
           now,
         ).allowed,
       ).toBe(false);
