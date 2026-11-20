@@ -754,7 +754,9 @@ function Disciplinas() {
                   {subjectSchedules.length ? (
                     subjectSchedules
                       .slice()
-                      .sort((a, b) => a.weekday - b.weekday || a.start_time.localeCompare(b.start_time))
+                      .sort(
+                        (a, b) => a.weekday - b.weekday || a.start_time.localeCompare(b.start_time),
+                      )
                       .map((schedule) => (
                         <div
                           key={schedule.id}
