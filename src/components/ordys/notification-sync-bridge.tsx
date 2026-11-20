@@ -44,6 +44,10 @@ export function NotificationSyncBridge() {
   const prefsQuery = useNotificationPrefs();
   const lastSyncedSignature = useRef<string | null>(null);
   const syncInProgress = useRef(false);
+  const pendingSync = useRef<{
+    signature: string;
+    input: Parameters<typeof syncNotifications>[0];
+  } | null>(null);
   const [clockBucket, setClockBucket] = useState(notificationClockBucket);
 
   useEffect(() => {
@@ -119,12 +123,9 @@ export function NotificationSyncBridge() {
   ]);
 
   useEffect(() => {
-    if (!ready || !userId || lastSyncedSignature.current === signature || syncInProgress.current) {
-      return;
-    }
+    if (!ready || !userId || lastSyncedSignature.current === signature) return;
 
-    syncInProgress.current = true;
-    void syncNotifications({
+    const input = {
       userId,
       subjects,
       topics,
@@ -137,21 +138,43 @@ export function NotificationSyncBridge() {
       focus,
       profile,
       prefs,
-    })
-      .then(() => {
-        lastSyncedSignature.current = signature;
+    };
+
+    if (syncInProgress.current) {
+      pendingSync.current = { signature, input };
+      return;
+    }
+
+    syncInProgress.current = true;
+
+    const runSync = async (
+      nextSignature: string,
+      nextInput: Parameters<typeof syncNotifications>[0],
+    ): Promise<void> => {
+      try {
+        await syncNotifications(nextInput);
+        lastSyncedSignature.current = nextSignature;
         if (isNativeAndroid()) {
-          void syncNativeAcademicNotifications().catch((error) => {
+          try {
+            await syncNativeAcademicNotifications();
+          } catch (error) {
             console.error("[notifications] Android schedule refresh failed", error);
-          });
+          }
         }
-      })
-      .catch((error) => {
+      } catch (error) {
         console.error("[notifications] automatic sync failed", error);
-      })
-      .finally(() => {
+      }
+
+      const queued = pendingSync.current;
+      pendingSync.current = null;
+      if (queued && queued.signature !== lastSyncedSignature.current) {
+        await runSync(queued.signature, queued.input);
+      } else {
         syncInProgress.current = false;
-      });
+      }
+    };
+
+    void runSync(signature, input);
   }, [
     attendance,
     events,
