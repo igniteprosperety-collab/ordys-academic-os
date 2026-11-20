@@ -1623,20 +1623,28 @@ function Agenda() {
                           {formatDateTime(e.starts_at)}
                         </span>
                       </button>
-                      <Button
-                        variant="ghost"
-                        onClick={() => openEditEvent(e)}
-                        aria-label={`Editar ${e.title}`}
-                      >
-                        <Pencil className="size-[13px]" strokeWidth={1.8} />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        onClick={() => setEventToDelete(e)}
-                        aria-label={`Excluir ${e.title}`}
-                      >
-                        <Trash2 className="size-[13px]" strokeWidth={1.8} />
-                      </Button>
+                      {e.source === "manual" ? (
+                        <>
+                          <Button
+                            variant="ghost"
+                            onClick={() => openEditEvent(e)}
+                            aria-label={`Editar ${e.title}`}
+                          >
+                            <Pencil className="size-[13px]" strokeWidth={1.8} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            onClick={() => setEventToDelete(e)}
+                            aria-label={`Excluir ${e.title}`}
+                          >
+                            <Trash2 className="size-[13px]" strokeWidth={1.8} />
+                          </Button>
+                        </>
+                      ) : (
+                        <Chip className="shrink-0" tone="muted">
+                          Somente leitura
+                        </Chip>
+                      )}
                     </div>
                   ))
                 ) : (
