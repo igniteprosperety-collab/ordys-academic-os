@@ -94,7 +94,6 @@ export async function cancelOrdysBillingBeforeAccountDeletion(
     throw new Error("Não foi possível obter o bloqueio de exclusão da conta. Nenhum dado foi apagado.");
   }
 
-  let completed = false;
   try {
     const [attemptResult, subscriptionResult] = await Promise.all([
       dependencies.serviceRest(
@@ -333,18 +332,29 @@ export async function cancelOrdysBillingBeforeAccountDeletion(
       );
     }
 
-    completed = true;
     return processingToken;
-  } finally {
-    if (!completed) {
-      const releaseStatus = await dependencies.serviceRest("rpc/ordys_release_account_deletion_processing", {
-        method: "POST",
-        body: JSON.stringify({ p_user_id: userId, p_processing_token: processingToken }),
-      });
+  } catch (error) {
+    // Preserve the original cancellation/reconciliation error. A failed
+    // release must not replace it; the durable reservation remains fail-closed.
+    try {
+      const releaseStatus = await dependencies.serviceRest(
+        "rpc/ordys_release_account_deletion_processing",
+        {
+          method: "POST",
+          body: JSON.stringify({ p_user_id: userId, p_processing_token: processingToken }),
+        },
+      );
       if (releaseStatus !== "released") {
-        throw new Error("Não foi possível liberar o bloqueio temporário de exclusão. A reserva permanece protegida.");
+        console.error(
+          "Não foi possível liberar o bloqueio temporário de exclusão. A reserva permanece protegida.",
+        );
       }
+    } catch {
+      console.error(
+        "Não foi possível liberar o bloqueio temporário de exclusão. A reserva permanece protegida.",
+      );
     }
+    throw error;
   }
 }
 
