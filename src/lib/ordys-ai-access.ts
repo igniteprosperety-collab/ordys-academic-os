@@ -81,18 +81,27 @@ export async function getOrdysAiAccessStatus(): Promise<OrdysAiAccessStatus> {
   }
 
   const access = rawAccess as Record<string, unknown>;
-  const allowed = access["allowed"] === true;
-  const tier =
-    access["tier"] === "adult" || access["tier"] === "minor_protected"
-      ? access["tier"]
-      : "blocked";
+  const rawAllowed = access["allowed"] === true;
   const reason = typeof access["reason"] === "string" ? access["reason"] : "assurance_missing";
+  const adultDecision =
+    rawAllowed && access["tier"] === "adult" && reason === "verified_adult";
+  const minorDecision =
+    rawAllowed &&
+    access["tier"] === "minor_protected" &&
+    reason === "verified_guardian_consent";
+  const allowed = adultDecision || minorDecision;
+  const tier: OrdysAiAccessTier = adultDecision
+    ? "adult"
+    : minorDecision
+      ? "minor_protected"
+      : "blocked";
+  const safeReason = allowed ? reason : rawAllowed ? "assurance_missing" : reason;
 
   return {
-    allowed: allowed && tier !== "blocked",
+    allowed,
     tier,
-    reason,
-    message: allowed ? "" : accessMessage(reason),
+    reason: safeReason,
+    message: allowed ? "" : accessMessage(safeReason),
   };
 }
 
