@@ -26,7 +26,8 @@ export function QuickCapture() {
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
   const { data: subjects = [] } = useSubjects();
-  const { data: profile } = useProfile();
+  const profileQuery = useProfile();
+  const profile = profileQuery.data ?? null;
   const { data: topics = [] } = useTopics(subjectId || null);
   const gradeScale = Number(profile?.grade_scale_max ?? 10);
   const { insert } = useOrdysMutations();
@@ -68,6 +69,10 @@ export function QuickCapture() {
       return;
     }
     if (kind === "nota") {
+      if (profileQuery.isLoading) {
+        toast.error("Aguarde o carregamento da sua escala de notas.");
+        return;
+      }
       if (numericValue === null) {
         toast.error("Informe a nota obtida.");
         return;
@@ -249,7 +254,11 @@ export function QuickCapture() {
           </Button>
           <Button
             onClick={save}
-            disabled={busy || ((kind === "tarefa" || kind === "evento") && !title.trim())}
+            disabled={
+              busy ||
+              (kind === "nota" && profileQuery.isLoading) ||
+              ((kind === "tarefa" || kind === "evento") && !title.trim())
+            }
           >
             Salvar
           </Button>
