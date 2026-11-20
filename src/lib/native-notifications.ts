@@ -71,7 +71,7 @@ function nextOccurrenceDate(base: Date, weekday: number, time: string): Date | n
   return date;
 }
 
-function isWithinQuietHours(date: Date, start: string, end: string) {
+export function isWithinQuietHours(date: Date, start: string, end: string) {
   const current = date.getHours() * 60 + date.getMinutes();
   const startTime = parseTimeOfDay(start);
   const endTime = parseTimeOfDay(end);
