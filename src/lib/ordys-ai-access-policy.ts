@@ -95,7 +95,7 @@ function isFutureTimestamp(value: string | null, nowMs: number): boolean {
 
 function hasCurrentAgeAssurance(record: OrdysAiAssuranceRecord, nowMs: number): boolean {
   return (
-    record.age_assurance_status === "verified" &&
+    (record.age_assurance_status === "verified" || record.age_assurance_status === "supervised") &&
     TRUSTED_AGE_SOURCES.has(record.age_assurance_source) &&
     isValidTimestamp(record.age_assurance_verified_at, nowMs) &&
     isFutureTimestamp(record.age_assurance_expires_at, nowMs)
@@ -150,6 +150,9 @@ export function evaluateOrdysAiAccess(
   }
 
   if (record.age_band === "18_plus") {
+    if (record.age_assurance_status !== "verified") {
+      return { allowed: false, tier: "blocked", reason: "age_assurance_invalid" };
+    }
     return { allowed: true, tier: "adult", reason: "verified_adult" };
   }
 
