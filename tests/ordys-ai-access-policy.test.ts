@@ -12,6 +12,8 @@ describe("Ordys trusted AI release gate", () => {
     expect(ORDYS_AGE_ASSURANCE_VERIFIED).toBe(false);
     expect(ORDYS_GUARDIAN_CONSENT_POLICY_VERIFIED).toBe(false);
     expect(ORDYS_AI_ACCESS_POLICY_READY).toBe(false);
-    await expect(assertOrdysAiAccessPolicyReady()).rejects.toThrow(ORDYS_AI_ACCESS_POLICY_LOCK_MESSAGE);
+    await expect(assertOrdysAiAccessPolicyReady()).rejects.toThrow(
+      ORDYS_AI_ACCESS_POLICY_LOCK_MESSAGE,
+    );
   });
 });
