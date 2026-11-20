@@ -121,6 +121,13 @@ Procedimento:
 
 Um snapshot interno de 13/11/2026 registrava 18 migrations no ledger remoto contra 35 arquivos na origem privada daquela data. Esse número é histórico, não um retrato confirmado de 20/11; precisa ser lido novamente antes de qualquer decisão.
 
+**Comparação estática das origens Git em 20/11/2026 (não é leitura do banco remoto):** o espelho público tem 46 migrations; a origem privada tem 35. Todos os 35 caminhos compartilhados têm conteúdo idêntico por blob SHA, não há migrations exclusivas da origem privada e não há arquivos com o mesmo nome e conteúdo divergente. As 11 migrations exclusivas do espelho público são de billing/Asaas:
+- `20261103010000` a `20261103030000` (serialização de exclusão, confirmação de suspensão e proteção da exclusão de dados);
+- `20261105010000` a `20261105060000` (reconciliação, replay e bloqueio de eventos de billing);
+- `20261111010000` e `20261112010000` (replay de webhook e worker Asaas).
+
+Como billing/Asaas está fora do escopo da V1, não portar automaticamente essas 11 migrations à origem privada nem apagá-las do espelho. O ledger e o schema remoto continuam **não verificados**.
+
 **Não fazer:** reset remoto, aplicar 46 migrations em lote, editar ledger por suposição, executar migrations financeiras em produção ou remover o trigger de confirmação de e-mail antes de comprovar entrega normal de Gmail com Auto-confirm desativado.
 
 ### Gate 3 — autenticação e persistência ponta a ponta
