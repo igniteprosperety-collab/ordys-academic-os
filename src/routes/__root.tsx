@@ -9,6 +9,8 @@ import {
   type ErrorComponentProps,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
+import { RealtimeSyncBridge } from "@/components/ordys/realtime-sync-bridge";
+import { NotificationSyncBridge } from "@/components/ordys/notification-sync-bridge";
 
 import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
@@ -174,6 +176,8 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+      <RealtimeSyncBridge />
+      <NotificationSyncBridge />
       <Outlet />
       <Toaster position="bottom-right" theme="dark" />
     </QueryClientProvider>
