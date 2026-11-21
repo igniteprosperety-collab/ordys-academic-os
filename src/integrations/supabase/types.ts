@@ -626,6 +626,7 @@ export type Database = {
           },
         ];
       };
+      profiles: {
         Row: {
           attendance_target: number;
           birth_date: string | null;
