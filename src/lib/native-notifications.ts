@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { dateKey, ordysWeekdayToJsDay, parseTimeOfDay } from "@/lib/ordys-engine";
 import { nativeNotificationsEnabledForBuild } from "@/lib/native-notifications-config";
 import { buildCalendarEventReminders } from "@/lib/calendar-event-reminders";
+import { createSerialTaskQueue } from "@/lib/async-task-queue";
 
 // Native reminders are enabled only in distribution profiles that explicitly opt in.
 // The direct-install APK v1 disables this feature; Google Play keeps it available.
@@ -182,7 +183,13 @@ type NativeNotificationPrefs = {
   quiet_end?: string | null;
 };
 
-export async function syncNativeAcademicNotifications() {
+const enqueueNativeNotificationSync = createSerialTaskQueue();
+
+export function syncNativeAcademicNotifications(): Promise<void> {
+  return enqueueNativeNotificationSync(syncNativeAcademicNotificationsNow);
+}
+
+async function syncNativeAcademicNotificationsNow() {
   if (NATIVE_NOTIFICATIONS_DISABLED) return;
   if (!isNativeAndroid()) return;
   const notificationsApi = await getLocalNotifications();
