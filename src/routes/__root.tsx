@@ -9,10 +9,13 @@ import {
   type ErrorComponentProps,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
+import { App } from "@capacitor/app";
+import { Capacitor } from "@capacitor/core";
 
 import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { setupNativeNotifications } from "@/lib/native-notifications";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import {
   initializeNativeAuth,
@@ -170,6 +173,77 @@ function RootComponent() {
     });
     return () => data.subscription.unsubscribe();
   }, [router, queryClient]);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    let disposed = false;
+    let syncInFlight = false;
+    let syncAgain = false;
+    let appStateListener: { remove: () => Promise<void> } | null = null;
+
+    const syncNotifications = () => {
+      if (disposed) return;
+      if (syncInFlight) {
+        syncAgain = true;
+        return;
+      }
+
+      syncInFlight = true;
+      void (async () => {
+        do {
+          syncAgain = false;
+          try {
+            await setupNativeNotifications();
+          } catch (error) {
+            console.error("Native academic notification sync failed:", error);
+          }
+        } while (syncAgain && !disposed);
+      })().finally(() => {
+        syncInFlight = false;
+      });
+    };
+
+    const { data } = supabase.auth.onAuthStateChange((event) => {
+      if (
+        event !== "SIGNED_IN" &&
+        event !== "SIGNED_OUT" &&
+        event !== "TOKEN_REFRESHED" &&
+        event !== "USER_UPDATED"
+      ) {
+        return;
+      }
+      // Defer Supabase work until its auth callback has released the auth lock.
+      window.setTimeout(syncNotifications, 0);
+    });
+
+    void supabase.auth
+      .getSession()
+      .then(() => syncNotifications())
+      .catch((error) => {
+        console.error("Native notification session check failed:", error);
+      });
+
+    void App.addListener("appStateChange", ({ isActive }) => {
+      if (isActive) syncNotifications();
+    })
+      .then((listener) => {
+        if (disposed) {
+          void listener.remove();
+        } else {
+          appStateListener = listener;
+        }
+      })
+      .catch((error) => {
+        console.error("Native app-state listener initialization failed:", error);
+      });
+
+    return () => {
+      disposed = true;
+      data.subscription.unsubscribe();
+      if (appStateListener) void appStateListener.remove();
+    };
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
