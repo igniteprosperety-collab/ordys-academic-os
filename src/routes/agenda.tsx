@@ -3,7 +3,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Shell } from "@/components/ordys/shell";
 import { Chip, Dot, Panel, PanelHeader, PageTitle, Stat } from "@/components/ordys/primitives";
-import { Button, Field, Modal, Select, TextInput } from "@/components/ordys/form";
+import { Button, ConfirmDialog, Field, Modal, Select, TextInput } from "@/components/ordys/form";
 import {
   subjectAttendance,
   subjectAverage,
@@ -97,9 +97,10 @@ function Agenda() {
   const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
   const [subjectSection, setSubjectSection] = useState<SubjectSection>("resumo");
   const [eventModalOpen, setEventModalOpen] = useState(false);
+  const [eventToDelete, setEventToDelete] = useState<string | null>(null);
   const [savingEvent, setSavingEvent] = useState(false);
   const [eventForm, setEventForm] = useState(createDefaultEventForm);
-  const { insert } = useOrdysMutations();
+  const { insert, remove } = useOrdysMutations();
 
   const { data: subjects = [] } = useSubjects();
   const { data: schedules = [] } = useSchedules();
@@ -304,6 +305,17 @@ function Agenda() {
       toast.error(error instanceof Error ? error.message : "Não foi possível salvar o evento.");
     } finally {
       setSavingEvent(false);
+    }
+  }
+
+  async function deleteManualEvent() {
+    if (!eventToDelete) return;
+    try {
+      await remove("calendar_events", eventToDelete);
+      setEventToDelete(null);
+      toast.success("Evento removido da agenda.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível remover o evento.");
     }
   }
 
@@ -1535,25 +1547,38 @@ function Agenda() {
               <div className="border-t border-border">
                 {events.length ? (
                   events.map((e) => (
-                    <button
+                    <div
                       key={e.id}
-                      type="button"
-                      onClick={() =>
-                        e.subject_id ? openSubject(e.subject_id) : openAgendaDate(e.starts_at)
-                      }
-                      className="ordys-pressable flex w-full items-center gap-3 px-5 py-2.5 text-left hover:bg-surface"
+                      className="flex min-w-0 items-center gap-2 border-b border-border px-3 py-1.5 last:border-0 sm:px-5"
                     >
-                      <Dot color={color(e.subject_id, "var(--muted-foreground)")} />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-[12.5px] font-medium">{e.title}</p>
-                        <p className="truncate text-[11px] text-muted-foreground">
-                          {e.location ?? e.kind}
-                        </p>
-                      </div>
-                      <span className="num shrink-0 text-[11px] text-muted-foreground">
-                        {formatDateTime(e.starts_at)}
-                      </span>
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          e.subject_id ? openSubject(e.subject_id) : openAgendaDate(e.starts_at)
+                        }
+                        className="ordys-pressable flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-surface"
+                      >
+                        <Dot color={color(e.subject_id, "var(--muted-foreground)")} />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-[12.5px] font-medium">{e.title}</p>
+                          <p className="truncate text-[11px] text-muted-foreground">
+                            {e.location ?? e.kind}
+                          </p>
+                        </div>
+                        <span className="num shrink-0 text-[11px] text-muted-foreground">
+                          {formatDateTime(e.starts_at)}
+                        </span>
+                      </button>
+                      {e.source === "ordys" ? (
+                        <Button
+                          variant="ghost"
+                          onClick={() => setEventToDelete(e.id)}
+                          aria-label={`Excluir evento ${e.title}`}
+                        >
+                          Excluir
+                        </Button>
+                      ) : null}
+                    </div>
                   ))
                 ) : (
                   <p className="px-5 py-6 text-[12px] text-muted-foreground">
@@ -1565,6 +1590,13 @@ function Agenda() {
           ) : null}
         </>
       )}
+      <ConfirmDialog
+        open={eventToDelete !== null}
+        title="Remover evento?"
+        description="Este evento será removido da sua agenda. Essa ação não pode ser desfeita."
+        onClose={() => setEventToDelete(null)}
+        onConfirm={() => void deleteManualEvent()}
+      />
       <Modal
         open={eventModalOpen}
         onClose={() => {
