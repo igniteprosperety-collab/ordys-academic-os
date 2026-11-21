@@ -2,6 +2,11 @@ import { Capacitor } from "@capacitor/core";
 import { supabase } from "@/integrations/supabase/client";
 import { dateKey, ordysWeekdayToJsDay, parseTimeOfDay } from "@/lib/ordys-engine";
 import { nativeNotificationsEnabledForBuild } from "@/lib/native-notifications-config";
+import { buildCalendarEventReminders } from "@/lib/calendar-event-reminders";
+import { createSerialTaskQueue } from "@/lib/async-task-queue";
+import { buildGoalProgressReminders } from "@/lib/goal-progress-reminders";
+import { buildOverdueTaskReminder } from "@/lib/overdue-task-reminders";
+import { buildDailySummaryReminder } from "@/lib/daily-summary-reminder";
 
 // Native reminders are enabled only in distribution profiles that explicitly opt in.
 // The direct-install APK v1 disables this feature; Google Play keeps it available.
@@ -29,6 +34,9 @@ const NOTIFICATION_IDS = {
   study: 300000,
   class: 400000,
   summary: 500000,
+  event: 600000,
+  goal: 700000,
+  overdue: 800000,
 };
 const NOTIFICATION_PREFIXES = Object.values(NOTIFICATION_IDS);
 
@@ -180,7 +188,13 @@ type NativeNotificationPrefs = {
   quiet_end?: string | null;
 };
 
-export async function syncNativeAcademicNotifications() {
+const enqueueNativeNotificationSync = createSerialTaskQueue();
+
+export function syncNativeAcademicNotifications(): Promise<void> {
+  return enqueueNativeNotificationSync(syncNativeAcademicNotificationsNow);
+}
+
+async function syncNativeAcademicNotificationsNow() {
   if (NATIVE_NOTIFICATIONS_DISABLED) return;
   if (!isNativeAndroid()) return;
   const notificationsApi = await getLocalNotifications();
@@ -190,7 +204,15 @@ export async function syncNativeAcademicNotifications() {
 
   const { data: sessionData } = await supabase.auth.getSession();
   const userId = sessionData.session?.user.id;
-  if (!userId) return;
+  if (!userId) {
+    // Do not leave a previous account's academic details visible after sign-out.
+    const pending = await notificationsApi.getPending();
+    const staleIds = pending.notifications
+      .map((notification) => notification.id)
+      .filter((id) => NOTIFICATION_PREFIXES.some((prefix) => id >= prefix && id < prefix + 90000));
+    await cancelNativeNotifications(staleIds);
+    return;
+  }
 
   const [
     prefsResult,
@@ -200,6 +222,11 @@ export async function syncNativeAcademicNotifications() {
     schedulesResult,
     focusResult,
     subjectsResult,
+    calendarEventsResult,
+    goalsResult,
+    gradesResult,
+    attendanceResult,
+    profileResult,
   ] = await Promise.all([
     supabase.from("notification_preferences").select("*").eq("user_id", userId).maybeSingle(),
     supabase
@@ -237,6 +264,27 @@ export async function syncNativeAcademicNotifications() {
       .order("started_at", { ascending: false })
       .limit(120),
     supabase.from("subjects").select("id,name").eq("user_id", userId),
+    supabase
+      .from("calendar_events")
+      .select("id,title,starts_at,location,kind")
+      .eq("user_id", userId)
+      .gte("starts_at", new Date().toISOString())
+      .order("starts_at")
+      .limit(120),
+    supabase
+      .from("goals")
+      .select("id,title,metric,target,period,subject_id,active")
+      .eq("user_id", userId)
+      .eq("active", true),
+    supabase
+      .from("grades")
+      .select("subject_id,score,max_score,weight,graded_on")
+      .eq("user_id", userId),
+    supabase
+      .from("attendance_records")
+      .select("subject_id,status,class_date")
+      .eq("user_id", userId),
+    supabase.from("profiles").select("grade_scale_max").eq("id", userId).maybeSingle(),
   ]);
 
   const queryErrors = [
@@ -247,6 +295,11 @@ export async function syncNativeAcademicNotifications() {
     schedulesResult.error,
     focusResult.error,
     subjectsResult.error,
+    calendarEventsResult.error,
+    goalsResult.error,
+    gradesResult.error,
+    attendanceResult.error,
+    profileResult.error,
   ].filter(Boolean);
 
   // Never delete already scheduled reminders when a transient data query fails.
@@ -262,6 +315,11 @@ export async function syncNativeAcademicNotifications() {
   const schedules = schedulesResult.data;
   const focus = focusResult.data;
   const subjects = subjectsResult.data;
+  const calendarEvents = calendarEventsResult.data;
+  const goals = goalsResult.data;
+  const grades = gradesResult.data;
+  const attendance = attendanceResult.data;
+  const gradeScale = Number(profileResult.data?.grade_scale_max ?? 10);
 
   const prefixes = NOTIFICATION_PREFIXES;
   const pending = await notificationsApi.getPending();
@@ -281,6 +339,9 @@ export async function syncNativeAcademicNotifications() {
   const now = Date.now();
   const horizon = new Date();
   horizon.setDate(horizon.getDate() + 14);
+  // Monthly summaries need a wider window than event reminders and study sessions.
+  const monthlyHorizon = new Date();
+  monthlyHorizon.setDate(monthlyHorizon.getDate() + 40);
   const quietStart = prefs?.quiet_start ?? "22:00:00";
   const quietEnd = prefs?.quiet_end ?? "07:00:00";
   const nowDate = new Date();
@@ -318,21 +379,17 @@ export async function syncNativeAcademicNotifications() {
     ...(prefs?.daily_summary === false
       ? []
       : (() => {
-          const at = new Date(dayStart);
-          at.setHours(20, 0, 0, 0);
-          if (
-            at.getTime() <= now ||
-            at.getTime() > horizon.getTime() ||
-            isWithinQuietHours(at, quietStart, quietEnd)
-          )
-            return [];
-          const summary = summarizeRange(dayStart, nextDay);
+          const reminder = buildDailySummaryReminder({
+            now: new Date(now),
+            summary: summarizeRange(dayStart, nextDay),
+            quietStart,
+            quietEnd,
+          });
+          if (!reminder) return [];
           return [
             {
-              id: stableId(NOTIFICATION_IDS.summary, `summary-day:${dateKey(dayStart)}`),
-              title: "Resumo diário",
-              body: `Hoje: ${summary.studiedMinutes} min de estudo, ${summary.completedTasks} tarefa(s) concluída(s) e ${summary.completedPlan} sessão(ões) do plano concluída(s).`,
-              at,
+              ...reminder,
+              id: stableId(NOTIFICATION_IDS.summary, `summary-day:${dateKey(reminder.at)}`),
             },
           ];
         })()),
@@ -365,7 +422,10 @@ export async function syncNativeAcademicNotifications() {
             at = new Date(nowDate.getFullYear(), nowDate.getMonth() + 2, 0);
             at.setHours(19, 0, 0, 0);
           }
-          if (at.getTime() > horizon.getTime() || isWithinQuietHours(at, quietStart, quietEnd))
+          if (
+            at.getTime() > monthlyHorizon.getTime() ||
+            isWithinQuietHours(at, quietStart, quietEnd)
+          )
             return [];
           const summaryMonthStart = new Date(at.getFullYear(), at.getMonth(), 1);
           return [
@@ -446,6 +506,16 @@ export async function syncNativeAcademicNotifications() {
               !isWithinQuietHours(at, quietStart, quietEnd),
           );
         })),
+    ...(prefs?.overdue === false
+      ? []
+      : (() => {
+          const reminder = buildOverdueTaskReminder(tasks ?? [], {
+            now: new Date(now),
+            quietStart,
+            quietEnd,
+          });
+          return reminder ? [reminder] : [];
+        })()),
     ...(prefs?.study_sessions === false
       ? []
       : (plan ?? []).flatMap((session) => {
@@ -508,6 +578,20 @@ export async function syncNativeAcademicNotifications() {
             cursor = new Date(occurrence.getTime() + 24 * 60 * 60 * 1000);
           }
           return out;
+        })),
+    ...buildCalendarEventReminders(calendarEvents ?? [], {
+      now: new Date(now),
+      horizon,
+      quietStart,
+      quietEnd,
+    }),
+    ...(prefs?.goals === false
+      ? []
+      : buildGoalProgressReminders(goals ?? [], grades ?? [], attendance ?? [], {
+          now: new Date(now),
+          scale: gradeScale,
+          quietStart,
+          quietEnd,
         })),
   ];
 
