@@ -8,8 +8,8 @@ describe("calendar iCalendar export", () => {
         {
           id: "event-1",
           title: "Consulta",
-          starts_at: "2026-11-21T12:30:00.000Z",
-          ends_at: "2026-11-21T13:30:00.000Z",
+          starts_at: "2026-11-21T15:30:00+03:00",
+          ends_at: "2026-11-21T16:30:00+03:00",
           location: "Sala 3",
           kind: "compromisso",
         },
