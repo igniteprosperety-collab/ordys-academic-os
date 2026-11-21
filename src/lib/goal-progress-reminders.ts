@@ -204,11 +204,13 @@ export function buildGoalProgressReminders(
       String(options.now.getDate()).padStart(2, "0"),
     ].join("-");
 
-    return [{
-      id: stableGoalNotificationId(`${goal.id}:${goal.period}:${dayKey}`),
-      title: "Meta acadêmica abaixo do alvo",
-      body: `${goal.title}: ${valueLabel} de ${targetLabel}. Confira seu progresso no ORDYS.`,
-      at: reminderAt,
-    }];
+    return [
+      {
+        id: stableGoalNotificationId(`${goal.id}:${goal.period}:${dayKey}`),
+        title: "Meta acadêmica abaixo do alvo",
+        body: `${goal.title}: ${valueLabel} de ${targetLabel}. Confira seu progresso no ORDYS.`,
+        at: reminderAt,
+      },
+    ];
   });
 }
