@@ -23,7 +23,7 @@ export function focusTimerStorageKey(userId: string): string {
 
 function isValidSnapshot(value: unknown, userId: string): value is FocusTimerSnapshot {
   if (!value || typeof value !== "object") return false;
-  const item = value as Record<string, unknown>;
+  const item = value as Partial<FocusTimerSnapshot> & Record<string, unknown>;
   if (
     item.version !== 1 ||
     item.userId !== userId ||
