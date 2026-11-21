@@ -2517,6 +2517,7 @@ requireIncludes("src/lib/native-notifications.ts", [
   "const scheduled = await scheduleNativeNotification(notification);",
   "if (scheduled) {",
   "schedulingFailed = true;",
+  "      } else {\n        schedulingFailed = true;\n      }",
   "if (schedulingFailed) return;",
 ]);
 
