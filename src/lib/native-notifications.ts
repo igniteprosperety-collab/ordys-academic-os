@@ -1,10 +1,14 @@
 import { Capacitor } from "@capacitor/core";
 import { supabase } from "@/integrations/supabase/client";
 import { dateKey, ordysWeekdayToJsDay, parseTimeOfDay } from "@/lib/ordys-engine";
-import { nativeNotificationsEnabledForBuild } from "@/lib/native-notifications-config";
+import { nextMonthlySummaryAt } from "@/lib/notification-schedule";
+import {
+  hasNativeNotificationSyncErrors,
+  nativeNotificationsEnabledForBuild,
+} from "@/lib/native-notifications-config";
 
 // Native reminders are enabled only in distribution profiles that explicitly opt in.
-// The direct-install APK v1 disables this feature; Google Play keeps it available.
+// Both the direct-install APK and Google Play AAB support opt-in, inexact reminders.
 export const nativeNotificationsDisabled = !nativeNotificationsEnabledForBuild(
   import.meta.env["VITE_ORDYS_ENABLE_NATIVE_NOTIFICATIONS"],
   import.meta.env["VITE_ORDYS_DISABLE_NATIVE_NOTIFICATIONS"],
@@ -29,8 +33,13 @@ const NOTIFICATION_IDS = {
   study: 300000,
   class: 400000,
   summary: 500000,
+  event: 600000,
+  focusTimer: 700000,
 };
-const NOTIFICATION_PREFIXES = Object.values(NOTIFICATION_IDS);
+// Focus timer alarms are account-scoped and managed by the timer, not by academic reminder sync.
+const NOTIFICATION_PREFIXES = Object.entries(NOTIFICATION_IDS)
+  .filter(([key]) => key !== "focusTimer")
+  .map(([, value]) => value);
 
 function stableId(prefix: number, value: string) {
   let hash = 0;
@@ -66,7 +75,7 @@ function nextOccurrenceDate(base: Date, weekday: number, time: string): Date | n
   return date;
 }
 
-function isWithinQuietHours(date: Date, start: string, end: string) {
+export function isWithinQuietHours(date: Date, start: string, end: string) {
   const current = date.getHours() * 60 + date.getMinutes();
   const startTime = parseTimeOfDay(start);
   const endTime = parseTimeOfDay(end);
@@ -124,6 +133,7 @@ export async function scheduleNativeNotification(params: {
   title: string;
   body: string;
   at: Date;
+  displayDetails?: boolean;
 }) {
   if (NATIVE_NOTIFICATIONS_DISABLED) return false;
   if (
@@ -141,8 +151,10 @@ export async function scheduleNativeNotification(params: {
     notifications: [
       {
         id: params.id,
-        title: params.title,
-        body: params.body,
+        title: params.displayDetails ? params.title : "ORDYS",
+        body: params.displayDetails
+          ? params.body
+          : "Você tem um lembrete acadêmico. Abra o ORDYS para ver os detalhes.",
         // Exactness belongs to LocalNotificationSchema, not its Schedule.
         // Keep reminders inexact to avoid exact-alarm access on Android.
         isExactNotification: false,
@@ -157,12 +169,40 @@ export async function scheduleNativeNotification(params: {
   return true;
 }
 
+export async function scheduleNativeFocusTimerAlarm(userId: string, endsAtMs: number) {
+  if (!userId) return false;
+  return scheduleNativeNotification({
+    id: stableId(NOTIFICATION_IDS.focusTimer, userId),
+    title: "Tempo de foco concluído",
+    body: "Sua sessão de estudo terminou. Registre seu progresso no ORDYS.",
+    at: new Date(endsAtMs),
+    displayDetails: true,
+  });
+}
+
+export async function cancelNativeFocusTimerAlarm(userId: string) {
+  if (!userId) return;
+  await cancelNativeNotifications([stableId(NOTIFICATION_IDS.focusTimer, userId)]);
+}
+
 export async function cancelNativeNotifications(ids: number[]) {
   if (NATIVE_NOTIFICATIONS_DISABLED) return;
   if (!isNativeAndroid() || !ids.length) return;
   const notifications = await getLocalNotifications();
   if (!notifications) return;
   await notifications.cancel({ notifications: ids.map((id) => ({ id })) });
+}
+
+export async function cancelAllOrdysNativeNotifications() {
+  if (NATIVE_NOTIFICATIONS_DISABLED || !isNativeAndroid()) return;
+  const notifications = await getLocalNotifications();
+  if (!notifications) return;
+  const pending = await notifications.getPending();
+  const prefixes = Object.values(NOTIFICATION_IDS);
+  const ids = pending.notifications
+    .map((notification) => notification.id)
+    .filter((id) => prefixes.some((prefix) => id >= prefix && id < prefix + 90000));
+  await cancelNativeNotifications(ids);
 }
 
 type NativeNotificationPrefs = {
@@ -192,13 +232,22 @@ export async function syncNativeAcademicNotifications() {
   const userId = sessionData.session?.user.id;
   if (!userId) return;
 
+  const syncNow = new Date();
+  const summaryDayStart = new Date(syncNow);
+  summaryDayStart.setHours(0, 0, 0, 0);
+  const summaryNextDay = new Date(summaryDayStart);
+  summaryNextDay.setDate(summaryNextDay.getDate() + 1);
+
   const [
     prefsResult,
     examsResult,
     tasksResult,
+    completedTasksResult,
     planResult,
+    completedPlanResult,
     schedulesResult,
     focusResult,
+    eventsResult,
     subjectsResult,
   ] = await Promise.all([
     supabase.from("notification_preferences").select("*").eq("user_id", userId).maybeSingle(),
@@ -206,22 +255,37 @@ export async function syncNativeAcademicNotifications() {
       .from("exams")
       .select("id,subject_id,title,content,exam_at")
       .eq("user_id", userId)
+      .gte("exam_at", syncNow.toISOString())
       .order("exam_at")
-      .limit(30),
+      .limit(50),
     supabase
       .from("tasks")
-      .select("id,subject_id,title,status,due_at,completed_at")
+      .select("id,subject_id,title,status,due_at")
       .eq("user_id", userId)
+      .gte("due_at", syncNow.toISOString())
       .order("due_at")
-      .limit(50),
+      .limit(100),
+    supabase
+      .from("tasks")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("status", "concluida")
+      .gte("completed_at", summaryDayStart.toISOString())
+      .lt("completed_at", summaryNextDay.toISOString()),
     supabase
       .from("plan_sessions")
       .select("id,subject_id,status,session_date,start_time,duration_minutes")
       .eq("user_id", userId)
-      .gte("session_date", dateKey(new Date()))
+      .gte("session_date", dateKey(syncNow))
       .order("session_date")
       .order("start_time")
       .limit(120),
+    supabase
+      .from("plan_sessions")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("status", "concluida")
+      .eq("session_date", dateKey(syncNow)),
     supabase
       .from("subject_schedules")
       .select("id,subject_id,weekday,start_time")
@@ -234,8 +298,17 @@ export async function syncNativeAcademicNotifications() {
       .select("id,status,started_at,actual_minutes,planned_minutes")
       .eq("user_id", userId)
       .eq("status", "concluida")
+      .gte("started_at", summaryDayStart.toISOString())
+      .lt("started_at", summaryNextDay.toISOString())
       .order("started_at", { ascending: false })
-      .limit(120),
+      .limit(500),
+    supabase
+      .from("calendar_events")
+      .select("id,title,kind,location,starts_at")
+      .eq("user_id", userId)
+      .gte("starts_at", syncNow.toISOString())
+      .order("starts_at")
+      .limit(100),
     supabase.from("subjects").select("id,name").eq("user_id", userId),
   ]);
 
@@ -243,14 +316,17 @@ export async function syncNativeAcademicNotifications() {
     prefsResult.error,
     examsResult.error,
     tasksResult.error,
+    completedTasksResult.error,
     planResult.error,
+    completedPlanResult.error,
     schedulesResult.error,
     focusResult.error,
+    eventsResult.error,
     subjectsResult.error,
-  ].filter(Boolean);
+  ];
 
   // Never delete already scheduled reminders when a transient data query fails.
-  if (queryErrors.length) {
+  if (hasNativeNotificationSyncErrors(queryErrors)) {
     console.error("[notifications] sync aborted because a data query failed");
     return;
   }
@@ -261,6 +337,7 @@ export async function syncNativeAcademicNotifications() {
   const plan = planResult.data;
   const schedules = schedulesResult.data;
   const focus = focusResult.data;
+  const events = eventsResult.data ?? [];
   const subjects = subjectsResult.data;
 
   const prefixes = NOTIFICATION_PREFIXES;
@@ -278,16 +355,14 @@ export async function syncNativeAcademicNotifications() {
 
   const subjectName = (id: string | null) =>
     subjects?.find((s) => s.id === id)?.name ?? "Disciplina";
-  const now = Date.now();
-  const horizon = new Date();
+  const now = syncNow.getTime();
+  const horizon = new Date(syncNow);
   horizon.setDate(horizon.getDate() + 14);
   const quietStart = prefs?.quiet_start ?? "22:00:00";
   const quietEnd = prefs?.quiet_end ?? "07:00:00";
-  const nowDate = new Date();
-  const dayStart = new Date(nowDate);
-  dayStart.setHours(0, 0, 0, 0);
-  const nextDay = new Date(dayStart);
-  nextDay.setDate(nextDay.getDate() + 1);
+  const nowDate = syncNow;
+  const dayStart = summaryDayStart;
+  const nextDay = summaryNextDay;
   const startOfWeek = (date: Date) => {
     const value = new Date(date);
     value.setHours(0, 0, 0, 0);
@@ -301,16 +376,11 @@ export async function syncNativeAcademicNotifications() {
         return value >= from.getTime() && value < to.getTime();
       })
       .reduce((sum, item) => sum + (item.actual_minutes ?? item.planned_minutes ?? 0), 0);
-    const completedTasks = (tasks ?? []).filter((item) => {
-      if (!item.completed_at) return false;
-      const value = new Date(item.completed_at).getTime();
-      return value >= from.getTime() && value < to.getTime();
-    }).length;
-    const completedPlan = (plan ?? []).filter((item) => {
-      if (item.status !== "concluida") return false;
-      const value = new Date(`${item.session_date}T12:00:00`).getTime();
-      return value >= from.getTime() && value < to.getTime();
-    }).length;
+    // The count query is scoped to today's completion window and is not capped
+    // by the 100 upcoming tasks loaded for reminder scheduling.
+    const completedTasks = completedTasksResult.count ?? 0;
+    // The exact count query is independent from the upcoming-session list cap.
+    const completedPlan = completedPlanResult.count ?? 0;
     return { studiedMinutes, completedTasks, completedPlan };
   };
 
@@ -359,14 +429,8 @@ export async function syncNativeAcademicNotifications() {
     ...(prefs?.monthly_summary === false
       ? []
       : (() => {
-          let at = new Date(nowDate.getFullYear(), nowDate.getMonth() + 1, 0);
-          at.setHours(19, 0, 0, 0);
-          if (at.getTime() <= now) {
-            at = new Date(nowDate.getFullYear(), nowDate.getMonth() + 2, 0);
-            at.setHours(19, 0, 0, 0);
-          }
-          if (at.getTime() > horizon.getTime() || isWithinQuietHours(at, quietStart, quietEnd))
-            return [];
+          const at = nextMonthlySummaryAt(nowDate);
+          if (isWithinQuietHours(at, quietStart, quietEnd)) return [];
           const summaryMonthStart = new Date(at.getFullYear(), at.getMonth(), 1);
           return [
             {
@@ -446,6 +510,30 @@ export async function syncNativeAcademicNotifications() {
               !isWithinQuietHours(at, quietStart, quietEnd),
           );
         })),
+    ...(prefs?.classes === false
+      ? []
+      : (events ?? []).flatMap((event) => {
+          const startsAt = new Date(event.starts_at);
+          if (!Number.isFinite(startsAt.getTime())) return [];
+          const reminder = new Date(startsAt.getTime() - 10 * 60 * 1000);
+          if (
+            reminder.getTime() <= now ||
+            reminder.getTime() > horizon.getTime() ||
+            isWithinQuietHours(reminder, quietStart, quietEnd)
+          ) {
+            return [];
+          }
+          return [
+            {
+              id: stableId(NOTIFICATION_IDS.event, `${event.id}:10m`),
+              title: `${event.title} — em 10 minutos`,
+              body:
+                event.location ??
+                (event.kind === "compromisso" ? "Seu compromisso está começando." : event.kind),
+              at: reminder,
+            },
+          ];
+        })),
     ...(prefs?.study_sessions === false
       ? []
       : (plan ?? []).flatMap((session) => {
@@ -512,12 +600,30 @@ export async function syncNativeAcademicNotifications() {
   ];
 
   const seen = new Set<number>();
+  let schedulingFailed = false;
   for (const notification of notifications) {
     if (seen.has(notification.id)) continue;
     seen.add(notification.id);
-    scheduledIds.add(notification.id);
-    await scheduleNativeNotification(notification);
+    try {
+      const scheduled = await scheduleNativeNotification(notification);
+      if (scheduled) {
+        scheduledIds.add(notification.id);
+      } else {
+        schedulingFailed = true;
+      }
+    } catch (error) {
+      schedulingFailed = true;
+      console.error("[notifications] individual reminder scheduling failed", {
+        id: notification.id,
+        error,
+      });
+    }
   }
+
+  // A transient plugin error must not cause otherwise valid pending reminders
+  // to be removed. Reconcile stale entries only after every new schedule call
+  // has completed without throwing.
+  if (schedulingFailed) return;
 
   const staleIds = pending.notifications
     .map((notification) => notification.id)

@@ -311,6 +311,63 @@ class DemoQuery implements PromiseLike<Result> {
     if (this.action === "delete") {
       const deleted = rows.filter((row) => this.matches(row));
       store[this.table] = rows.filter((row) => !this.matches(row));
+
+      const deletedIds = new Set(deleted.map((row) => row["id"]).filter(Boolean));
+      const cascadeDelete = (table: string, column: string, ids: Set<unknown>) => {
+        if (!ids.size) return;
+        const childRows = store[table] ?? [];
+        store[table] = childRows.filter((row) => !ids.has(row[column]));
+      };
+      const setNull = (table: string, column: string, ids: Set<unknown>) => {
+        if (!ids.size) return;
+        store[table] = (store[table] ?? []).map((row) =>
+          ids.has(row[column]) ? { ...row, [column]: null } : row,
+        );
+      };
+
+      // Mirror the ON DELETE actions from the Supabase schema in local mode.
+      // This prevents orphan records from appearing only in the offline demo.
+      if (this.table === "tasks") {
+        cascadeDelete("subtasks", "task_id", deletedIds);
+        setNull("plan_sessions", "task_id", deletedIds);
+      } else if (this.table === "subjects") {
+        cascadeDelete("subject_schedules", "subject_id", deletedIds);
+        const deletedTopics = (store["topics"] ?? []).filter((row) =>
+          deletedIds.has(row["subject_id"]),
+        );
+        const deletedTopicIds = new Set(deletedTopics.map((row) => row["id"]));
+        cascadeDelete("topics", "subject_id", deletedIds);
+        cascadeDelete("reviews", "topic_id", deletedTopicIds);
+        cascadeDelete("exam_topics", "topic_id", deletedTopicIds);
+        setNull("tasks", "topic_id", deletedTopicIds);
+        setNull("focus_sessions", "topic_id", deletedTopicIds);
+        setNull("plan_sessions", "topic_id", deletedTopicIds);
+        setNull("quiz_answers", "topic_id", deletedTopicIds);
+        cascadeDelete("grades", "subject_id", deletedIds);
+        cascadeDelete("attendance_records", "subject_id", deletedIds);
+        cascadeDelete("goals", "subject_id", deletedIds);
+        setNull("tasks", "subject_id", deletedIds);
+        setNull("exams", "subject_id", deletedIds);
+        setNull("focus_sessions", "subject_id", deletedIds);
+        setNull("plan_sessions", "subject_id", deletedIds);
+        setNull("calendar_events", "subject_id", deletedIds);
+        setNull("quiz_attempts", "subject_id", deletedIds);
+        setNull("daily_checkins", "hardest_subject_id", deletedIds);
+      } else if (this.table === "topics") {
+        cascadeDelete("reviews", "topic_id", deletedIds);
+        cascadeDelete("exam_topics", "topic_id", deletedIds);
+        setNull("tasks", "topic_id", deletedIds);
+        setNull("focus_sessions", "topic_id", deletedIds);
+        setNull("plan_sessions", "topic_id", deletedIds);
+        setNull("quiz_answers", "topic_id", deletedIds);
+      } else if (this.table === "exams") {
+        cascadeDelete("exam_topics", "exam_id", deletedIds);
+        setNull("grades", "exam_id", deletedIds);
+        setNull("plan_sessions", "exam_id", deletedIds);
+      } else if (this.table === "quiz_attempts") {
+        cascadeDelete("quiz_answers", "attempt_id", deletedIds);
+      }
+
       writeStore(store);
       return { data: deleted, error: null };
     }

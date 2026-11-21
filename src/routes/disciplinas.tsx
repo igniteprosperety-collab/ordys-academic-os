@@ -23,14 +23,18 @@ import {
   useAttendance,
   useExams,
   useGrades,
+  type Exam,
   useOrdysMutations,
   useProfile,
   useSchedules,
   useSubjects,
   useTasks,
   useTopics,
+  type Grade,
   type Subject,
+  type SubjectSchedule,
   type Topic,
+  type AttendanceRecord,
 } from "@/lib/ordys-db";
 import {
   attendanceStatusLabel,
@@ -64,6 +68,29 @@ export const Route = createFileRoute("/disciplinas")({
 
 const groups = [{ items: ["Ativas", "Arquivadas", "Conteúdos", "Notas", "Frequência"] }];
 const tabs = ["Conteúdos", "Tarefas", "Avaliações", "Notas", "Frequência"];
+
+type ExamForm = {
+  title: string;
+  exam_at: string;
+  kind: string;
+  weight: string;
+  content: string;
+};
+
+function toLocalDateTimeInput(value?: string | null) {
+  const date = value ? new Date(value) : new Date(Date.now() + 7 * 24 * 60 * 60_000);
+  if (!Number.isFinite(date.getTime())) return "";
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
+}
+
+const emptyExamForm = (): ExamForm => ({
+  title: "",
+  exam_at: toLocalDateTimeInput(),
+  kind: "prova",
+  weight: "",
+  content: "",
+});
 
 type SubjectForm = {
   name: string;
@@ -122,8 +149,38 @@ function Disciplinas() {
     next_review: "",
   });
   const [gradeForm, setGradeForm] = useState({ title: "", score: "", max_score: "", weight: "1" });
+  const [editingGrade, setEditingGrade] = useState<Grade | null>(null);
+  const [attendanceModal, setAttendanceModal] = useState<AttendanceRecord | null>(null);
+  const [attendanceEditStatus, setAttendanceEditStatus] = useState("presente");
+  const [attendanceEditDate, setAttendanceEditDate] = useState("");
+  const [attendanceDate, setAttendanceDate] = useState(() => dateKey(new Date()));
+  const [attendanceSaving, setAttendanceSaving] = useState(false);
+  const [examModal, setExamModal] = useState<{ open: boolean; editing?: Exam }>({ open: false });
+  const [examForm, setExamForm] = useState<ExamForm>(emptyExamForm);
+  const [examSaving, setExamSaving] = useState(false);
+  const [examToDelete, setExamToDelete] = useState<Exam | null>(null);
+  const [examDeleting, setExamDeleting] = useState(false);
   const [subjectToDelete, setSubjectToDelete] = useState<Subject | null>(null);
   const [deleteSubjectBusy, setDeleteSubjectBusy] = useState(false);
+  const [recordToDelete, setRecordToDelete] = useState<{
+    table: "topics" | "grades" | "attendance_records";
+    id: string;
+    label: string;
+  } | null>(null);
+  const [recordDeleting, setRecordDeleting] = useState(false);
+  const [scheduleModal, setScheduleModal] = useState<{
+    open: boolean;
+    editing?: SubjectSchedule;
+  }>({ open: false });
+  const [scheduleForm, setScheduleForm] = useState({
+    weekday: "0",
+    start_time: "",
+    end_time: "",
+    room: "",
+  });
+  const [scheduleSaving, setScheduleSaving] = useState(false);
+  const [scheduleToDelete, setScheduleToDelete] = useState<SubjectSchedule | null>(null);
+  const [scheduleDeleting, setScheduleDeleting] = useState(false);
 
   const scale = Number(profile?.grade_scale_max ?? 10);
   const average = selected ? subjectAverage(grades, selected.id, scale) : null;
@@ -132,6 +189,153 @@ function Disciplinas() {
     () => schedules.filter((s) => s.subject_id === selected?.id),
     [schedules, selected?.id],
   );
+
+  function openCreateSchedule() {
+    if (!selected) return;
+    setScheduleForm({
+      weekday: "0",
+      start_time: "",
+      end_time: "",
+      room: selected.room ?? "",
+    });
+    setScheduleModal({ open: true });
+  }
+
+  function openEditSchedule(schedule: SubjectSchedule) {
+    setScheduleForm({
+      weekday: String(schedule.weekday),
+      start_time: schedule.start_time.slice(0, 5),
+      end_time: schedule.end_time.slice(0, 5),
+      room: schedule.room ?? "",
+    });
+    setScheduleModal({ open: true, editing: schedule });
+  }
+
+  async function saveSchedule() {
+    if (!selected) return;
+    const weekday = Number(scheduleForm.weekday);
+    if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6) {
+      toast.error("Selecione um dia válido.");
+      return;
+    }
+    if (!scheduleForm.start_time || !scheduleForm.end_time) {
+      toast.error("Informe o início e o fim da aula.");
+      return;
+    }
+    if (scheduleForm.end_time <= scheduleForm.start_time) {
+      toast.error("O fim da aula deve ser depois do início.");
+      return;
+    }
+
+    setScheduleSaving(true);
+    try {
+      const payload = {
+        subject_id: scheduleModal.editing?.subject_id ?? selected.id,
+        weekday,
+        start_time: scheduleForm.start_time,
+        end_time: scheduleForm.end_time,
+        room: scheduleForm.room.trim() || null,
+      };
+      if (scheduleModal.editing) {
+        await update("subject_schedules", scheduleModal.editing.id, payload);
+        toast.success("Horário atualizado.");
+      } else {
+        await insert("subject_schedules", payload);
+        toast.success("Horário adicionado.");
+      }
+      setScheduleModal({ open: false });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível salvar o horário.");
+    } finally {
+      setScheduleSaving(false);
+    }
+  }
+
+  async function confirmDeleteSchedule() {
+    if (!scheduleToDelete || scheduleDeleting) return;
+    setScheduleDeleting(true);
+    try {
+      await remove("subject_schedules", scheduleToDelete.id);
+      toast.success("Horário removido.");
+      setScheduleToDelete(null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível remover o horário.");
+    } finally {
+      setScheduleDeleting(false);
+    }
+  }
+
+  function openCreateExam() {
+    setExamForm(emptyExamForm());
+    setExamModal({ open: true });
+  }
+
+  function openEditExam(exam: Exam) {
+    setExamForm({
+      title: exam.title,
+      exam_at: toLocalDateTimeInput(exam.exam_at),
+      kind: exam.kind,
+      weight: exam.weight ?? "",
+      content: exam.content ?? "",
+    });
+    setExamModal({ open: true, editing: exam });
+  }
+
+  async function saveExam() {
+    if (!selected) return;
+    const title = examForm.title.trim();
+    const examDate = new Date(examForm.exam_at);
+    if (!title) {
+      toast.error("Informe o nome da avaliação.");
+      return;
+    }
+    if (!examForm.exam_at || !Number.isFinite(examDate.getTime())) {
+      toast.error("Informe uma data e horário válidos.");
+      return;
+    }
+    if (examForm.weight.trim().length > 30 || examForm.content.length > 4000) {
+      toast.error("Revise o peso e o conteúdo da avaliação.");
+      return;
+    }
+
+    setExamSaving(true);
+    try {
+      const payload = {
+        title,
+        subject_id: examModal.editing?.subject_id ?? selected.id,
+        exam_at: examDate.toISOString(),
+        kind: examForm.kind,
+        weight: examForm.weight.trim() || null,
+        content: examForm.content.trim() || null,
+      };
+      if (examModal.editing) {
+        await update("exams", examModal.editing.id, payload);
+        toast.success("Avaliação atualizada.");
+      } else {
+        await insert("exams", payload);
+        toast.success("Avaliação cadastrada.");
+      }
+      setExamModal({ open: false });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível salvar a avaliação.");
+    } finally {
+      setExamSaving(false);
+    }
+  }
+
+  async function confirmDeleteExam() {
+    if (!examToDelete || examDeleting) return;
+    setExamDeleting(true);
+    try {
+      await remove("exams", examToDelete.id);
+      toast.success("Avaliação excluída.");
+      setExamToDelete(null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível excluir a avaliação.");
+    } finally {
+      setExamDeleting(false);
+    }
+  }
 
   function openCreate() {
     setForm(emptySubject);
@@ -202,6 +406,7 @@ function Disciplinas() {
       return;
     }
 
+    let savedSubject: Subject | null = null;
     try {
       const payload = {
         name,
@@ -216,7 +421,8 @@ function Disciplinas() {
       const row = subjectModal.editing
         ? await update("subjects", subjectModal.editing.id, payload)
         : await insert("subjects", payload);
-      const subjectId = (row as Subject).id;
+      savedSubject = row as Subject;
+      const subjectId = savedSubject.id;
       const existingSchedules = schedules
         .filter((item) => item.subject_id === subjectId)
         .slice()
@@ -241,11 +447,21 @@ function Disciplinas() {
         // additional schedules that may have been created elsewhere.
         await remove("subject_schedules", existingSchedules[0]!.id);
       }
-      setSelectedId((row as Subject).id);
+      setSelectedId(savedSubject.id);
       setSubjectModal({ open: false });
       toast.success("Disciplina salva");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao salvar");
+      if (savedSubject) {
+        // The subject itself is already stored. Keep the editor attached to that
+        // record so retrying the schedule step cannot create a duplicate subject.
+        setSelectedId(savedSubject.id);
+        setSubjectModal({ open: true, editing: savedSubject });
+        toast.error(
+          "A disciplina foi salva, mas o horário não. Revise o horário e tente salvar novamente.",
+        );
+      } else {
+        toast.error(err instanceof Error ? err.message : "Erro ao salvar");
+      }
     }
   }
 
@@ -302,34 +518,95 @@ function Disciplinas() {
       return;
     }
     try {
-      await insert("grades", {
-        subject_id: selected.id,
+      const payload = {
+        subject_id: editingGrade?.subject_id ?? selected.id,
         title: gradeForm.title.trim() || "Avaliação",
         score,
         max_score: maxScore,
         weight,
-        graded_on: dateKey(new Date()),
-      });
+        graded_on: editingGrade?.graded_on ?? dateKey(new Date()),
+      };
+      if (editingGrade) {
+        await update("grades", editingGrade.id, payload);
+        toast.success("Nota atualizada");
+      } else {
+        await insert("grades", payload);
+        toast.success("Nota registrada");
+      }
+      setEditingGrade(null);
       setGradeForm({ title: "", score: "", max_score: "", weight: "1" });
-      toast.success("Nota registrada");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao registrar nota");
+      toast.error(err instanceof Error ? err.message : "Erro ao salvar nota");
+    }
+  }
+
+  function openEditGrade(grade: Grade) {
+    setEditingGrade(grade);
+    setGradeForm({
+      title: grade.title ?? "",
+      score: String(grade.score),
+      max_score: String(grade.max_score),
+      weight: String(grade.weight),
+    });
+  }
+
+  async function saveAttendanceEdit() {
+    if (!attendanceModal) return;
+    setAttendanceSaving(true);
+    try {
+      if (!attendanceEditDate || !/^\d{4}-\d{2}-\d{2}$/.test(attendanceEditDate)) {
+        toast.error("Informe uma data válida para a aula.");
+        return;
+      }
+      if (attendanceEditDate > dateKey(new Date())) {
+        toast.error("A frequência não pode ser registrada em uma data futura.");
+        return;
+      }
+      const duplicate = attendance.some(
+        (record) =>
+          record.id !== attendanceModal.id &&
+          record.subject_id === attendanceModal.subject_id &&
+          record.class_date === attendanceEditDate,
+      );
+      if (duplicate) {
+        toast.error("Já existe um registro desta disciplina nessa data.");
+        return;
+      }
+      await update("attendance_records", attendanceModal.id, {
+        status: attendanceEditStatus,
+        class_date: attendanceEditDate,
+      });
+      toast.success("Frequência atualizada");
+      setAttendanceModal(null);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Não foi possível atualizar a frequência.",
+      );
+    } finally {
+      setAttendanceSaving(false);
     }
   }
 
   async function markAttendance(status: string) {
     if (!selected) return;
     try {
-      const today = dateKey(new Date());
+      if (!attendanceDate || !/^\d{4}-\d{2}-\d{2}$/.test(attendanceDate)) {
+        toast.error("Selecione a data da aula.");
+        return;
+      }
+      if (attendanceDate > dateKey(new Date())) {
+        toast.error("A frequência não pode ser registrada em uma data futura.");
+        return;
+      }
       const existing = attendance.find(
-        (record) => record.subject_id === selected.id && record.class_date === today,
+        (record) => record.subject_id === selected.id && record.class_date === attendanceDate,
       );
       if (existing) {
         await update("attendance_records", existing.id, { status });
       } else {
         await insert("attendance_records", {
           subject_id: selected.id,
-          class_date: today,
+          class_date: attendanceDate,
           status,
         });
       }
@@ -345,16 +622,26 @@ function Disciplinas() {
     }
   }
 
-  async function removeRecord(
+  function removeRecord(
     table: "topics" | "grades" | "attendance_records",
     id: string,
     label: string,
   ) {
+    setRecordToDelete({ table, id, label });
+  }
+
+  async function confirmRemoveRecord() {
+    const target = recordToDelete;
+    if (!target || recordDeleting) return;
+    setRecordDeleting(true);
     try {
-      await remove(table, id);
-      toast.success(label);
+      await remove(target.table, target.id);
+      toast.success(target.label);
+      setRecordToDelete(null);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Não foi possível excluir o registro.");
+    } finally {
+      setRecordDeleting(false);
     }
   }
 
@@ -452,6 +739,63 @@ function Disciplinas() {
                   sub={selected.term ?? "sem período"}
                 />
               </div>
+
+              <Panel className="mt-4">
+                <PanelHeader
+                  title="Horários das aulas"
+                  hint={`${subjectSchedules.length} horário(s) cadastrados`}
+                  action={
+                    <Button variant="ghost" onClick={openCreateSchedule}>
+                      <Plus className="size-[13px]" strokeWidth={2} /> Novo horário
+                    </Button>
+                  }
+                />
+                <div className="border-t border-border">
+                  {subjectSchedules.length ? (
+                    subjectSchedules
+                      .slice()
+                      .sort(
+                        (a, b) => a.weekday - b.weekday || a.start_time.localeCompare(b.start_time),
+                      )
+                      .map((schedule) => (
+                        <div
+                          key={schedule.id}
+                          className="flex min-w-0 items-center gap-3 border-b border-border px-4 py-2.5 last:border-b-0 sm:px-5"
+                        >
+                          <Dot color={selected.color} />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[12px] font-medium">
+                              {weekdayLong[schedule.weekday] ?? "Dia não definido"}
+                              {" · "}
+                              {schedule.start_time.slice(0, 5)}–{schedule.end_time.slice(0, 5)}
+                            </p>
+                            <p className="text-[10.5px] text-muted-foreground">
+                              {schedule.room ?? selected.room ?? "Sala não informada"}
+                            </p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            onClick={() => openEditSchedule(schedule)}
+                            aria-label="Editar horário"
+                          >
+                            <Pencil className="size-[13px]" strokeWidth={1.8} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            onClick={() => setScheduleToDelete(schedule)}
+                            aria-label="Remover horário"
+                          >
+                            <Trash2 className="size-[13px]" strokeWidth={1.8} />
+                          </Button>
+                        </div>
+                      ))
+                  ) : (
+                    <p className="px-5 py-5 text-[11.5px] text-muted-foreground">
+                      Nenhum horário cadastrado. Adicione os dias e períodos das suas aulas.
+                    </p>
+                  )}
+                </div>
+              </Panel>
 
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button variant="ghost" onClick={() => openEdit(selected)}>
@@ -618,32 +962,62 @@ function Disciplinas() {
 
                 {tab === "Avaliações" ? (
                   <Panel>
-                    <PanelHeader title="Avaliações" hint="provas e trabalhos" />
+                    <PanelHeader
+                      title="Avaliações"
+                      hint={`${exams.filter((exam) => exam.subject_id === selected.id).length} prova(s) e trabalho(s)`}
+                      action={
+                        <Button variant="ghost" onClick={openCreateExam}>
+                          <Plus className="size-[13px]" strokeWidth={2} /> Nova avaliação
+                        </Button>
+                      }
+                    />
                     <div className="border-t border-border">
-                      {exams.filter((e) => e.subject_id === selected.id).length ? (
+                      {exams.filter((exam) => exam.subject_id === selected.id).length ? (
                         exams
-                          .filter((e) => e.subject_id === selected.id)
-                          .map((e) => (
-                            <div key={e.id} className="px-5 py-3">
-                              <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5 text-[12.5px]">
-                                <span className="min-w-0 flex-1 basis-[10rem] break-words font-medium">
-                                  {e.title}
-                                </span>
-                                {e.weight ? <Chip tone="gold">{e.weight}</Chip> : null}
-                                <span className="num ml-auto text-[11px] text-muted-foreground">
-                                  {formatDateTime(e.exam_at)}
-                                </span>
+                          .filter((exam) => exam.subject_id === selected.id)
+                          .slice()
+                          .sort((a, b) => a.exam_at.localeCompare(b.exam_at))
+                          .map((exam) => (
+                            <div
+                              key={exam.id}
+                              className="flex min-w-0 items-start gap-2 border-b border-border px-4 py-3 last:border-0 sm:gap-3 sm:px-5"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5 text-[12.5px]">
+                                  <span className="min-w-0 flex-1 basis-[10rem] break-words font-medium">
+                                    {exam.title}
+                                  </span>
+                                  <Chip>{exam.kind === "simulado" ? "Simulado" : exam.kind}</Chip>
+                                  {exam.weight ? <Chip tone="gold">{exam.weight}</Chip> : null}
+                                  <span className="num text-[11px] text-muted-foreground">
+                                    {formatDateTime(exam.exam_at)}
+                                  </span>
+                                </div>
+                                {exam.content ? (
+                                  <p className="mt-1 text-[11.5px] text-muted-foreground">
+                                    {exam.content}
+                                  </p>
+                                ) : null}
                               </div>
-                              {e.content ? (
-                                <p className="mt-1 text-[11.5px] text-muted-foreground">
-                                  {e.content}
-                                </p>
-                              ) : null}
+                              <Button
+                                variant="ghost"
+                                onClick={() => openEditExam(exam)}
+                                aria-label={`Editar ${exam.title}`}
+                              >
+                                <Pencil className="size-[13px]" strokeWidth={1.8} />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                onClick={() => setExamToDelete(exam)}
+                                aria-label={`Excluir ${exam.title}`}
+                              >
+                                <Trash2 className="size-[13px]" strokeWidth={1.8} />
+                              </Button>
                             </div>
                           ))
                       ) : (
                         <p className="px-5 py-6 text-[12px] text-muted-foreground">
-                          Use a captura rápida para adicionar uma prova.
+                          Nenhuma avaliação cadastrada nesta disciplina.
                         </p>
                       )}
                     </div>
@@ -670,10 +1044,18 @@ function Disciplinas() {
                                 <span className="num font-semibold">
                                   {fmtNumber(Number(g.score))} / {fmtNumber(Number(g.max_score), 0)}
                                 </span>
+                                <Button
+                                  variant="ghost"
+                                  onClick={() => openEditGrade(g)}
+                                  aria-label="Editar nota"
+                                >
+                                  <Pencil className="size-[13px]" strokeWidth={1.8} />
+                                </Button>
                                 <button
                                   type="button"
                                   className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-destructive sm:size-8"
-                                  onClick={() => void removeRecord("grades", g.id, "Nota excluída")}
+                                  onClick={() => removeRecord("grades", g.id, "Nota excluída")}
+                                  aria-label="Excluir nota"
                                 >
                                   <Trash2 className="size-[13px]" strokeWidth={1.7} />
                                 </button>
@@ -687,7 +1069,9 @@ function Disciplinas() {
                       </div>
                     </Panel>
                     <Panel className="px-5 py-4">
-                      <p className="text-[12px] font-semibold">Registrar nota</p>
+                      <p className="text-[12px] font-semibold">
+                        {editingGrade ? "Editar nota" : "Registrar nota"}
+                      </p>
                       <div className="mt-3 grid gap-2.5">
                         <Field label="Avaliação">
                           <TextInput
@@ -722,9 +1106,26 @@ function Disciplinas() {
                             />
                           </Field>
                         </div>
-                        <Button onClick={saveGrade} disabled={!gradeForm.score}>
-                          Salvar nota
-                        </Button>
+                        <div className="flex gap-2">
+                          {editingGrade ? (
+                            <Button
+                              variant="ghost"
+                              onClick={() => {
+                                setEditingGrade(null);
+                                setGradeForm({ title: "", score: "", max_score: "", weight: "1" });
+                              }}
+                            >
+                              Cancelar
+                            </Button>
+                          ) : null}
+                          <Button
+                            className="flex-1"
+                            onClick={saveGrade}
+                            disabled={!gradeForm.score}
+                          >
+                            {editingGrade ? "Salvar alterações" : "Salvar nota"}
+                          </Button>
+                        </div>
                       </div>
                     </Panel>
                   </div>
@@ -757,16 +1158,28 @@ function Disciplinas() {
                                 >
                                   {attendanceStatusLabel(a.status)}
                                 </Chip>
+                                <Button
+                                  variant="ghost"
+                                  onClick={() => {
+                                    setAttendanceModal(a);
+                                    setAttendanceEditStatus(a.status);
+                                    setAttendanceEditDate(a.class_date);
+                                  }}
+                                  aria-label="Editar frequência"
+                                >
+                                  <Pencil className="size-[13px]" strokeWidth={1.8} />
+                                </Button>
                                 <button
                                   type="button"
-                                  className="text-muted-foreground hover:text-destructive"
+                                  className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-destructive sm:size-8"
                                   onClick={() =>
-                                    void removeRecord(
+                                    removeRecord(
                                       "attendance_records",
                                       a.id,
                                       "Registro de frequência excluído",
                                     )
                                   }
+                                  aria-label="Excluir registro de frequência"
                                 >
                                   <Trash2 className="size-[13px]" strokeWidth={1.7} />
                                 </button>
@@ -780,8 +1193,16 @@ function Disciplinas() {
                       </div>
                     </Panel>
                     <Panel className="px-5 py-4">
-                      <p className="text-[12px] font-semibold">Registrar aula de hoje</p>
+                      <p className="text-[12px] font-semibold">Registrar frequência</p>
                       <div className="mt-3 flex flex-col gap-2">
+                        <Field label="Data da aula">
+                          <TextInput
+                            type="date"
+                            value={attendanceDate}
+                            max={dateKey(new Date())}
+                            onChange={(event) => setAttendanceDate(event.target.value)}
+                          />
+                        </Field>
                         <Button onClick={() => markAttendance("presente")}>Presente</Button>
                         <Button variant="ghost" onClick={() => markAttendance("falta")}>
                           Falta
@@ -897,6 +1318,231 @@ function Disciplinas() {
       </Modal>
 
       <Modal
+        open={examModal.open}
+        onClose={() => {
+          if (!examSaving) setExamModal({ open: false });
+        }}
+        title={examModal.editing ? "Editar avaliação" : "Nova avaliação"}
+        subtitle={selected ? `Avaliação de ${selected.name}` : "Avaliação da disciplina"}
+        width={520}
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Título" className="sm:col-span-2">
+            <TextInput
+              maxLength={160}
+              value={examForm.title}
+              onChange={(event) =>
+                setExamForm((current) => ({ ...current, title: event.target.value }))
+              }
+            />
+          </Field>
+          <Field label="Data e horário">
+            <TextInput
+              type="datetime-local"
+              value={examForm.exam_at}
+              onChange={(event) =>
+                setExamForm((current) => ({ ...current, exam_at: event.target.value }))
+              }
+            />
+          </Field>
+          <Field label="Tipo">
+            <Select
+              value={examForm.kind}
+              onChange={(event) =>
+                setExamForm((current) => ({ ...current, kind: event.target.value }))
+              }
+            >
+              <option value="prova">Prova</option>
+              <option value="trabalho">Trabalho</option>
+              <option value="simulado">Simulado</option>
+              <option value="apresentacao">Apresentação</option>
+              <option value="outro">Outro</option>
+            </Select>
+          </Field>
+          <Field label="Peso (opcional)">
+            <TextInput
+              maxLength={30}
+              value={examForm.weight}
+              onChange={(event) =>
+                setExamForm((current) => ({ ...current, weight: event.target.value }))
+              }
+              placeholder="Ex.: 2"
+            />
+          </Field>
+          <Field label="Conteúdo (opcional)" className="sm:col-span-2">
+            <TextArea
+              value={examForm.content}
+              onChange={(event) =>
+                setExamForm((current) => ({ ...current, content: event.target.value }))
+              }
+              maxLength={4000}
+            />
+          </Field>
+        </div>
+        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button
+            variant="ghost"
+            disabled={examSaving}
+            onClick={() => setExamModal({ open: false })}
+          >
+            Cancelar
+          </Button>
+          <Button
+            disabled={examSaving || !examForm.title.trim() || !examForm.exam_at}
+            onClick={() => void saveExam()}
+          >
+            {examSaving
+              ? "Salvando…"
+              : examModal.editing
+                ? "Salvar alterações"
+                : "Cadastrar avaliação"}
+          </Button>
+        </div>
+      </Modal>
+      <ConfirmDialog
+        open={examToDelete !== null}
+        title="Excluir avaliação?"
+        description={
+          examToDelete
+            ? `“${examToDelete.title}” será removida. Notas associadas permanecem registradas sem vínculo com a prova.`
+            : ""
+        }
+        confirmLabel="Excluir avaliação"
+        loading={examDeleting}
+        loadingLabel="Excluindo…"
+        onClose={() => {
+          if (!examDeleting) setExamToDelete(null);
+        }}
+        onConfirm={() => void confirmDeleteExam()}
+      />
+      <Modal
+        open={scheduleModal.open}
+        onClose={() => {
+          if (!scheduleSaving) setScheduleModal({ open: false });
+        }}
+        title={scheduleModal.editing ? "Editar horário" : "Novo horário"}
+        subtitle={selected ? `Horário de ${selected.name}` : "Horário da disciplina"}
+        width={480}
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Dia da semana">
+            <Select
+              value={scheduleForm.weekday}
+              onChange={(event) =>
+                setScheduleForm((current) => ({ ...current, weekday: event.target.value }))
+              }
+            >
+              {weekdayLong.map((day, index) => (
+                <option key={day} value={index}>
+                  {day}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Sala (opcional)">
+            <TextInput
+              maxLength={80}
+              value={scheduleForm.room}
+              onChange={(event) =>
+                setScheduleForm((current) => ({ ...current, room: event.target.value }))
+              }
+            />
+          </Field>
+          <Field label="Início">
+            <TextInput
+              type="time"
+              value={scheduleForm.start_time}
+              onChange={(event) =>
+                setScheduleForm((current) => ({ ...current, start_time: event.target.value }))
+              }
+            />
+          </Field>
+          <Field label="Fim">
+            <TextInput
+              type="time"
+              value={scheduleForm.end_time}
+              onChange={(event) =>
+                setScheduleForm((current) => ({ ...current, end_time: event.target.value }))
+              }
+            />
+          </Field>
+        </div>
+        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button
+            variant="ghost"
+            disabled={scheduleSaving}
+            onClick={() => setScheduleModal({ open: false })}
+          >
+            Cancelar
+          </Button>
+          <Button disabled={scheduleSaving} onClick={() => void saveSchedule()}>
+            {scheduleSaving ? "Salvando…" : "Salvar horário"}
+          </Button>
+        </div>
+      </Modal>
+      <ConfirmDialog
+        open={scheduleToDelete !== null}
+        title="Remover este horário?"
+        description={
+          scheduleToDelete
+            ? `${weekdayLong[scheduleToDelete.weekday] ?? "Este dia"} · ${scheduleToDelete.start_time.slice(0, 5)}–${scheduleToDelete.end_time.slice(0, 5)} será removido da agenda.`
+            : ""
+        }
+        confirmLabel="Remover horário"
+        loading={scheduleDeleting}
+        loadingLabel="Removendo…"
+        onClose={() => {
+          if (!scheduleDeleting) setScheduleToDelete(null);
+        }}
+        onConfirm={() => void confirmDeleteSchedule()}
+      />
+      <Modal
+        open={attendanceModal !== null}
+        onClose={() => {
+          if (!attendanceSaving) setAttendanceModal(null);
+        }}
+        title="Corrigir frequência"
+        subtitle={
+          attendanceModal
+            ? formatDay(`${attendanceModal.class_date}T12:00:00`)
+            : "Registro de frequência"
+        }
+        width={420}
+      >
+        <div className="space-y-4">
+          <Field label="Data da aula">
+            <TextInput
+              type="date"
+              value={attendanceEditDate}
+              max={dateKey(new Date())}
+              onChange={(event) => setAttendanceEditDate(event.target.value)}
+            />
+          </Field>
+          <Field label="Situação da aula">
+            <Select
+              value={attendanceEditStatus}
+              onChange={(event) => setAttendanceEditStatus(event.target.value)}
+            >
+              <option value="presente">Presente</option>
+              <option value="falta">Falta</option>
+              <option value="justificada">Falta justificada</option>
+            </Select>
+          </Field>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button
+              variant="ghost"
+              disabled={attendanceSaving}
+              onClick={() => setAttendanceModal(null)}
+            >
+              Cancelar
+            </Button>
+            <Button disabled={attendanceSaving} onClick={() => void saveAttendanceEdit()}>
+              {attendanceSaving ? "Salvando…" : "Salvar correção"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+      <Modal
         open={topicModal.open}
         onClose={() => setTopicModal({ open: false })}
         title={topicModal.editing ? "Editar conteúdo" : "Novo conteúdo"}
@@ -953,6 +1599,25 @@ function Disciplinas() {
           </Button>
         </div>
       </Modal>
+      <ConfirmDialog
+        open={recordToDelete !== null}
+        title="Excluir este registro?"
+        description={
+          recordToDelete?.table === "topics"
+            ? "O conteúdo será removido da disciplina e deixará de aparecer no plano e nas revisões."
+            : recordToDelete?.table === "grades"
+              ? "A nota será removida e as médias da disciplina serão recalculadas."
+              : "Este registro de presença ou falta será removido da frequência da disciplina."
+        }
+        confirmLabel="Excluir registro"
+        confirmVariant="danger"
+        loading={recordDeleting}
+        loadingLabel="Excluindo…"
+        onClose={() => {
+          if (!recordDeleting) setRecordToDelete(null);
+        }}
+        onConfirm={() => void confirmRemoveRecord()}
+      />
       <ConfirmDialog
         open={subjectToDelete !== null}
         title={

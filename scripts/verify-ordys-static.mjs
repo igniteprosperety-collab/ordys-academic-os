@@ -737,7 +737,12 @@ requireIncludes("src/routes/perfil.tsx", [
   "a permissão só é solicitada quando você toca em Ativar",
 ]);
 requireIncludes("src/lib/native-notifications.ts", [
-  "const NOTIFICATION_IDS = { exam: 100000, task: 200000, study: 300000, class: 400000, summary: 500000 };",
+  "const NOTIFICATION_IDS = {",
+  "exam: 100000,",
+  "task: 200000,",
+  "study: 300000,",
+  "class: 400000,",
+  "summary: 500000,",
   "return prefix + ((hash >>> 0) % 90000);",
   "NOTIFICATION_IDS.summary, `summary-day:",
   "NOTIFICATION_IDS.summary, `summary-week:",
@@ -1781,7 +1786,7 @@ for (const expected of [
 }
 for (const expected of [
   'import { dateKey } from "@/lib/ordys-engine";',
-  '.gte("session_date", dateKey(new Date()))',
+  '.gte("session_date", dateKey(syncNow))',
 ]) {
   if (!assistantClient.includes(expected))
     failures.push(
@@ -2472,12 +2477,48 @@ requireIncludes("src/routes/index.tsx", [
   "notificationSyncRef.current === notificationSyncSignature",
 ]);
 
+requireFile("src/lib/notification-schedule.ts");
+requireFile("tests/notification-schedule.test.ts");
+requireIncludes("src/components/ordys/realtime-sync-bridge.tsx", [
+  "notificationSyncChain",
+  "needsNotificationCleanup.current",
+  "readFocusTimerState(userId)",
+  "scheduleNativeFocusTimerAlarm(userId, saved.endsAtMs)",
+  "cancelNativeFocusTimerAlarm(userId)",
+  "refreshVisibleSession",
+  'import { App } from "@capacitor/app";',
+  'App.addListener("appStateChange"',
+  "listener.remove()",
+]);
+requireIncludes("src/lib/notification-schedule.ts", [
+  "export function nextMonthlySummaryAt(now: Date): Date",
+  "currentMonthEnd.getTime() > now.getTime()",
+]);
+requireIncludes("tests/notification-schedule.test.ts", [
+  "more than 14 days away",
+  "moves to the next month",
+  "leap-year February",
+  "moves from December to January",
+]);
+
 const nativeNotifications = read("src/lib/native-notifications.ts");
 requireIncludes("src/lib/native-notifications.ts", [
-  "const [prefsResult, examsResult, tasksResult, planResult, schedulesResult, focusResult, subjectsResult]",
-  "const queryErrors = [",
+  "const syncNow = new Date();",
+  "completedTasksResult.error,",
+  "completedPlanResult.error,",
   "Never delete already scheduled reminders when a transient data query fails.",
-  "if (queryErrors.length) {",
+  "hasNativeNotificationSyncErrors(queryErrors)",
+  '.gte("exam_at", syncNow.toISOString())',
+  '.gte("due_at", syncNow.toISOString())',
+  "completedTasksResult.count ?? 0",
+  "completedPlanResult.count ?? 0",
+  '.gte("started_at", summaryDayStart.toISOString())',
+  "const at = nextMonthlySummaryAt(nowDate);",
+  "const scheduled = await scheduleNativeNotification(notification);",
+  "if (scheduled) {",
+  "schedulingFailed = true;",
+  "      } else {\n        schedulingFailed = true;\n      }",
+  "if (schedulingFailed) return;",
 ]);
 
 if (!nativeNotifications.includes("const daysUntilSunday = (0 - at.getDay() + 7) % 7;")) {
@@ -2548,7 +2589,7 @@ if (!nativeNotifications.includes("classes: boolean;")) {
 
 for (const expected of [
   'import { dateKey, ordysWeekdayToJsDay, parseTimeOfDay } from "@/lib/ordys-engine";',
-  '.gte("session_date", dateKey(new Date()))',
+  '.gte("session_date", dateKey(syncNow))',
 ]) {
   if (!nativeNotifications.includes(expected))
     failures.push("Notificações nativas não contêm correção esperada para data local: " + expected);

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, ListChecks, Pencil, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Shell } from "@/components/ordys/shell";
 import { Chip, Dot, Panel, PanelHeader, PageTitle, Stat } from "@/components/ordys/primitives";
@@ -14,7 +14,15 @@ import {
   TextArea,
   TextInput,
 } from "@/components/ordys/form";
-import { useOrdysMutations, useSubjects, useTasks, useTopics, type Task } from "@/lib/ordys-db";
+import {
+  useOrdysMutations,
+  useSubjects,
+  useSubtasks,
+  useTasks,
+  useTopics,
+  type Subtask,
+  type Task,
+} from "@/lib/ordys-db";
 import { daysUntil, formatDateTime, priorityLabel } from "@/lib/ordys-engine";
 
 export const Route = createFileRoute("/tarefas")({
@@ -111,12 +119,25 @@ function Tarefas() {
   const [active, setActive] = useState("Abertas");
   const { data: tasks = [] } = useTasks();
   const { data: subjects = [] } = useSubjects();
+  const { data: subtasks = [] } = useSubtasks();
   const { insert, update, remove } = useOrdysMutations();
   const [modal, setModal] = useState<{ open: boolean; editing?: Task }>({ open: false });
   const [confirm, setConfirm] = useState<Task | null>(null);
   const [removing, setRemoving] = useState(false);
   const [form, setForm] = useState(emptyForm);
+  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
+  const [editingSubtaskId, setEditingSubtaskId] = useState<string | null>(null);
+  const [editingSubtaskTitle, setEditingSubtaskTitle] = useState("");
+  const [subtaskBusy, setSubtaskBusy] = useState(false);
+  const [subtaskToDelete, setSubtaskToDelete] = useState<Subtask | null>(null);
+  const [subtaskDeleting, setSubtaskDeleting] = useState(false);
   const { data: topics = [] } = useTopics(form.subject_id || null);
+
+  const subtasksByTask = subtasks.reduce<Record<string, Subtask[]>>((groups, subtask) => {
+    (groups[subtask.task_id] ??= []).push(subtask);
+    return groups;
+  }, {});
 
   const visible = tasks.filter((t) => matchesBucket(t, active));
   const late = tasks.filter((t) => matchesBucket(t, "Atrasadas")).length;
@@ -166,11 +187,21 @@ function Tarefas() {
       toast.error("A descrição deve ter no máximo 8.000 caracteres.");
       return;
     }
+    let dueAt: string | null = null;
+    if (form.due_at) {
+      const parsedDueAt = new Date(form.due_at);
+      if (!Number.isFinite(parsedDueAt.getTime())) {
+        toast.error("Informe um prazo válido.");
+        return;
+      }
+      dueAt = parsedDueAt.toISOString();
+    }
+
     const payload = {
       title: form.title.trim(),
       subject_id: form.subject_id || null,
       topic_id: form.topic_id || null,
-      due_at: form.due_at ? new Date(form.due_at).toISOString() : null,
+      due_at: dueAt,
       priority: form.priority,
       estimated_minutes: form.estimated_minutes ? Number(form.estimated_minutes) : null,
       description: form.description.trim() || null,
@@ -196,6 +227,75 @@ function Tarefas() {
       toast.success(isDone ? "Tarefa reaberta" : "Tarefa concluída");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Não foi possível atualizar a tarefa");
+    }
+  }
+
+  async function addSubtask(task: Task) {
+    const title = newSubtaskTitle.trim();
+    if (!title || subtaskBusy) return;
+    if (title.length > 160) {
+      toast.error("A etapa deve ter no máximo 160 caracteres.");
+      return;
+    }
+    setSubtaskBusy(true);
+    try {
+      await insert("subtasks", { task_id: task.id, title, done: false });
+      setNewSubtaskTitle("");
+      toast.success("Etapa adicionada");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível adicionar a etapa.");
+    } finally {
+      setSubtaskBusy(false);
+    }
+  }
+
+  function beginEditSubtask(subtask: Subtask) {
+    setEditingSubtaskId(subtask.id);
+    setEditingSubtaskTitle(subtask.title);
+  }
+
+  async function saveSubtaskEdit(subtask: Subtask) {
+    const title = editingSubtaskTitle.trim();
+    if (!title) {
+      toast.error("A etapa precisa ter um título.");
+      return;
+    }
+    if (title.length > 160) {
+      toast.error("A etapa deve ter no máximo 160 caracteres.");
+      return;
+    }
+    setSubtaskBusy(true);
+    try {
+      await update("subtasks", subtask.id, { title });
+      setEditingSubtaskId(null);
+      setEditingSubtaskTitle("");
+      toast.success("Etapa corrigida.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível editar a etapa.");
+    } finally {
+      setSubtaskBusy(false);
+    }
+  }
+
+  async function toggleSubtask(subtask: Subtask) {
+    try {
+      await update("subtasks", subtask.id, { done: !subtask.done });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível atualizar a etapa.");
+    }
+  }
+
+  async function confirmRemoveSubtask() {
+    if (!subtaskToDelete || subtaskDeleting) return;
+    setSubtaskDeleting(true);
+    try {
+      await remove("subtasks", subtaskToDelete.id);
+      toast.success("Etapa removida");
+      setSubtaskToDelete(null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível remover a etapa.");
+    } finally {
+      setSubtaskDeleting(false);
     }
   }
 
@@ -255,74 +355,203 @@ function Tarefas() {
               const left = daysUntil(t.due_at);
               const isDone = t.status === "concluida";
               return (
-                <div
-                  key={t.id}
-                  className="flex items-start gap-3 border-b border-border px-4 py-3 last:border-0 sm:px-5"
-                >
-                  <button
-                    type="button"
-                    onClick={() => toggle(t)}
-                    className="mt-0 grid size-10 shrink-0 place-items-center rounded-md"
-                    aria-label={isDone ? `Reabrir ${t.title}` : `Concluir ${t.title}`}
-                  >
-                    <span
-                      aria-hidden="true"
-                      className={`size-4 rounded-[4px] border transition-colors ${
-                        isDone
-                          ? "border-success bg-success/40"
-                          : "border-border-strong hover:border-primary"
-                      }`}
-                    />
-                  </button>
-                  <div className="min-w-0 flex-1">
-                    <p
-                      className={`text-[12.5px] ${isDone ? "text-muted-foreground line-through" : ""}`}
+                <div key={t.id} className="border-b border-border px-4 py-3 last:border-0 sm:px-5">
+                  <div className="flex items-start gap-3">
+                    <button
+                      type="button"
+                      onClick={() => toggle(t)}
+                      className="mt-0 grid size-10 shrink-0 place-items-center rounded-md"
+                      aria-label={isDone ? `Reabrir ${t.title}` : `Concluir ${t.title}`}
                     >
-                      {t.title}
-                    </p>
-                    <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
-                      {subject ? (
-                        <>
-                          <Dot color={subject.color} /> {subject.name} ·{" "}
-                        </>
-                      ) : null}
-                      {t.due_at ? formatDateTime(t.due_at) : "Sem prazo definido"}
-                      {t.estimated_minutes ? ` · ${t.estimated_minutes} min` : ""}
-                    </p>
-                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                      <Chip
-                        tone={
-                          t.priority === "alta"
-                            ? "danger"
-                            : t.priority === "baixa"
-                              ? "muted"
-                              : "primary"
-                        }
+                      <span
+                        aria-hidden="true"
+                        className={`size-4 rounded-[4px] border transition-colors ${
+                          isDone
+                            ? "border-success bg-success/40"
+                            : "border-border-strong hover:border-primary"
+                        }`}
+                      />
+                    </button>
+                    <div className="min-w-0 flex-1">
+                      <p
+                        className={`text-[12.5px] ${isDone ? "text-muted-foreground line-through" : ""}`}
                       >
-                        {`Prioridade ${priorityLabel(t.priority)}`}
-                      </Chip>
-                      {left !== null && left < 0 && !isDone ? (
-                        <Chip tone="danger">Atrasada</Chip>
-                      ) : null}
+                        {t.title}
+                      </p>
+                      <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+                        {subject ? (
+                          <>
+                            <Dot color={subject.color} /> {subject.name} ·{" "}
+                          </>
+                        ) : null}
+                        {t.due_at ? formatDateTime(t.due_at) : "Sem prazo definido"}
+                        {t.estimated_minutes ? ` · ${t.estimated_minutes} min` : ""}
+                      </p>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        <Chip
+                          tone={
+                            t.priority === "alta"
+                              ? "danger"
+                              : t.priority === "baixa"
+                                ? "muted"
+                                : "primary"
+                          }
+                        >
+                          {`Prioridade ${priorityLabel(t.priority)}`}
+                        </Chip>
+                        {left !== null && left < 0 && !isDone ? (
+                          <Chip tone="danger">Atrasada</Chip>
+                        ) : null}
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <button
+                        type="button"
+                        className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground sm:size-9"
+                        onClick={() => openEdit(t)}
+                        aria-label={`Editar ${t.title}`}
+                      >
+                        <Pencil className="size-[14px]" strokeWidth={1.7} />
+                      </button>
+                      <button
+                        type="button"
+                        className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-destructive sm:size-9"
+                        onClick={() => setConfirm(t)}
+                        aria-label={`Excluir ${t.title}`}
+                      >
+                        <Trash2 className="size-[14px]" strokeWidth={1.7} />
+                      </button>
                     </div>
                   </div>
-                  <div className="flex shrink-0 items-center gap-1">
+                  <div className="ml-[52px] mt-2">
                     <button
                       type="button"
-                      className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground sm:size-9"
-                      onClick={() => openEdit(t)}
-                      aria-label={`Editar ${t.title}`}
+                      aria-expanded={expandedTaskId === t.id}
+                      onClick={() =>
+                        setExpandedTaskId((current) => (current === t.id ? null : t.id))
+                      }
+                      className="inline-flex min-h-9 items-center gap-1.5 rounded-md px-2 text-[11px] text-muted-foreground hover:bg-secondary hover:text-foreground"
                     >
-                      <Pencil className="size-[14px]" strokeWidth={1.7} />
+                      <ListChecks className="size-[13px]" strokeWidth={1.8} />
+                      Etapas ({(subtasksByTask[t.id] ?? []).filter((item) => item.done).length}/
+                      {(subtasksByTask[t.id] ?? []).length})
+                      {expandedTaskId === t.id ? (
+                        <ChevronUp className="size-[13px]" />
+                      ) : (
+                        <ChevronDown className="size-[13px]" />
+                      )}
                     </button>
-                    <button
-                      type="button"
-                      className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-destructive sm:size-9"
-                      onClick={() => setConfirm(t)}
-                      aria-label={`Excluir ${t.title}`}
-                    >
-                      <Trash2 className="size-[14px]" strokeWidth={1.7} />
-                    </button>
+                    {expandedTaskId === t.id ? (
+                      <div className="mt-2 space-y-2 rounded-lg border border-border bg-background/60 p-3">
+                        {(subtasksByTask[t.id] ?? []).map((subtask) => (
+                          <div key={subtask.id} className="flex min-w-0 items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => void toggleSubtask(subtask)}
+                              aria-label={
+                                subtask.done
+                                  ? `Reabrir ${subtask.title}`
+                                  : `Concluir ${subtask.title}`
+                              }
+                              className={`grid size-8 shrink-0 place-items-center rounded-md border ${
+                                subtask.done
+                                  ? "border-success/50 bg-success/10 text-success"
+                                  : "border-border text-muted-foreground"
+                              }`}
+                            >
+                              {subtask.done ? <Check className="size-[13px]" /> : null}
+                            </button>
+                            {editingSubtaskId === subtask.id ? (
+                              <>
+                                <TextInput
+                                  value={editingSubtaskTitle}
+                                  maxLength={160}
+                                  autoFocus
+                                  onChange={(event) => setEditingSubtaskTitle(event.target.value)}
+                                  onKeyDown={(event) => {
+                                    if (event.key === "Enter") {
+                                      event.preventDefault();
+                                      void saveSubtaskEdit(subtask);
+                                    }
+                                    if (event.key === "Escape") {
+                                      setEditingSubtaskId(null);
+                                      setEditingSubtaskTitle("");
+                                    }
+                                  }}
+                                />
+                                <button
+                                  type="button"
+                                  disabled={subtaskBusy || !editingSubtaskTitle.trim()}
+                                  onClick={() => void saveSubtaskEdit(subtask)}
+                                  aria-label="Salvar etapa"
+                                  className="grid size-8 shrink-0 place-items-center rounded-md text-success hover:bg-success/10 disabled:opacity-40"
+                                >
+                                  <Check className="size-[13px]" />
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={subtaskBusy}
+                                  onClick={() => {
+                                    setEditingSubtaskId(null);
+                                    setEditingSubtaskTitle("");
+                                  }}
+                                  aria-label="Cancelar edição"
+                                  className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary disabled:opacity-40"
+                                >
+                                  <X className="size-[13px]" />
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <span
+                                  className={`min-w-0 flex-1 text-[11.5px] ${
+                                    subtask.done ? "text-muted-foreground line-through" : ""
+                                  }`}
+                                >
+                                  {subtask.title}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => beginEditSubtask(subtask)}
+                                  aria-label={`Editar etapa ${subtask.title}`}
+                                  className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground"
+                                >
+                                  <Pencil className="size-[12px]" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setSubtaskToDelete(subtask)}
+                                  aria-label={`Remover etapa ${subtask.title}`}
+                                  className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-destructive"
+                                >
+                                  <Trash2 className="size-[12px]" />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        ))}
+                        <div className="flex min-w-0 gap-2 pt-1">
+                          <TextInput
+                            value={newSubtaskTitle}
+                            maxLength={160}
+                            placeholder="Adicionar uma etapa..."
+                            onChange={(event) => setNewSubtaskTitle(event.target.value)}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") {
+                                event.preventDefault();
+                                void addSubtask(t);
+                              }
+                            }}
+                          />
+                          <Button
+                            disabled={subtaskBusy || !newSubtaskTitle.trim()}
+                            onClick={() => void addSubtask(t)}
+                          >
+                            Adicionar
+                          </Button>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               );
@@ -432,6 +661,18 @@ function Tarefas() {
         </div>
       </Modal>
 
+      <ConfirmDialog
+        open={subtaskToDelete !== null}
+        title="Remover esta etapa?"
+        description={subtaskToDelete ? `“${subtaskToDelete.title}” será removida da tarefa.` : ""}
+        confirmLabel="Remover etapa"
+        loading={subtaskDeleting}
+        loadingLabel="Removendo…"
+        onClose={() => {
+          if (!subtaskDeleting) setSubtaskToDelete(null);
+        }}
+        onConfirm={() => void confirmRemoveSubtask()}
+      />
       <ConfirmDialog
         open={!!confirm}
         title="Excluir tarefa"
