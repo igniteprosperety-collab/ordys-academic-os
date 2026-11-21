@@ -35,6 +35,20 @@ describe("goal progress reminders", () => {
     expect(reminders[0]?.at.getHours()).toBe(19);
   });
 
+  it("does not round an average up to the target in the alert copy", () => {
+    const reminders = buildGoalProgressReminders(
+      [{ ...averageGoal, target: 8 }],
+      [
+        { subject_id: "math", graded_on: "2026-11-10", score: 7.999, max_score: 10, weight: 1 },
+      ],
+      [],
+      options,
+    );
+
+    expect(reminders).toHaveLength(1);
+    expect(reminders[0]?.body).toContain("7.99 de 8.00");
+  });
+
   it("alerts when attendance is below the goal and counts justified records as present", () => {
     const goal: GoalAlertGoal = {
       ...averageGoal,
