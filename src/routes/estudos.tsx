@@ -605,23 +605,11 @@ function FocusPanel({
       planId: planId || null,
     };
     try {
-      window.localStorage.setItem(
-        focusTimerStorageKey(userId),
-        serializeFocusTimerState(snapshot),
-      );
+      window.localStorage.setItem(focusTimerStorageKey(userId), serializeFocusTimerState(snapshot));
     } catch {
       // Persistence is best-effort; never interrupt a running focus session.
     }
-  }, [
-    minutes,
-    planId,
-    running,
-    sessionStartedAt,
-    subjectId,
-    timerHydratedUserId,
-    topicId,
-    userId,
-  ]);
+  }, [minutes, planId, running, sessionStartedAt, subjectId, timerHydratedUserId, topicId, userId]);
 
   useEffect(() => {
     if (!userId || timerHydratedUserId !== userId || running) return;
