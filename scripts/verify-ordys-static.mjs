@@ -2486,6 +2486,9 @@ requireIncludes("src/components/ordys/realtime-sync-bridge.tsx", [
   "scheduleNativeFocusTimerAlarm(userId, saved.endsAtMs)",
   "cancelNativeFocusTimerAlarm(userId)",
   "refreshVisibleSession",
+  'import { App } from "@capacitor/app";',
+  'App.addListener("appStateChange"',
+  "listener.remove()",
 ]);
 requireIncludes("src/lib/notification-schedule.ts", [
   "export function nextMonthlySummaryAt(now: Date): Date",
