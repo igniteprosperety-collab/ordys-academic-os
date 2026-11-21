@@ -1,4 +1,4 @@
-import type { RestoredFocusTimer } from "@/lib/focus-timer-state";
+import type { FocusTimerSnapshot } from "@/lib/focus-timer-state";
 
 const FOCUS_TIMER_NOTIFICATION_ID_PREFIX = 900000;
 
@@ -19,7 +19,7 @@ export function focusTimerNotificationId(userId: string, startedAt: string): num
 }
 
 export function buildFocusTimerCompletionReminder(
-  snapshot: RestoredFocusTimer | null,
+  snapshot: FocusTimerSnapshot | null,
   now = Date.now(),
 ): FocusTimerCompletionReminder | null {
   if (
