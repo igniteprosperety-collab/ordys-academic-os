@@ -38,11 +38,7 @@ export function RealtimeSyncBridge() {
       if (cancelled || loading || !userId || isDemo) return;
 
       const saved = readFocusTimerState(userId);
-      if (
-        saved?.status === "running" &&
-        saved.endsAtMs !== null &&
-        saved.endsAtMs > Date.now()
-      ) {
+      if (saved?.status === "running" && saved.endsAtMs !== null && saved.endsAtMs > Date.now()) {
         await scheduleNativeFocusTimerAlarm(userId, saved.endsAtMs);
       } else {
         await cancelNativeFocusTimerAlarm(userId);
@@ -81,19 +77,13 @@ export function RealtimeSyncBridge() {
           needsNotificationCleanup.current = false;
         }
         const saved = readFocusTimerState(userId);
-        if (
-          saved?.status === "running" &&
-          saved.endsAtMs !== null &&
-          saved.endsAtMs > Date.now()
-        ) {
+        if (saved?.status === "running" && saved.endsAtMs !== null && saved.endsAtMs > Date.now()) {
           await scheduleNativeFocusTimerAlarm(userId, saved.endsAtMs);
         } else {
           await cancelNativeFocusTimerAlarm(userId);
         }
       };
-      const queued = notificationSyncChain.current
-        .catch(() => undefined)
-        .then(restoreFocusAlarm);
+      const queued = notificationSyncChain.current.catch(() => undefined).then(restoreFocusAlarm);
       notificationSyncChain.current = queued.catch((error) => {
         console.error("[focus] could not restore Android timer alarm after resume", error);
       });
@@ -104,15 +94,17 @@ export function RealtimeSyncBridge() {
 
     void App.addListener("appStateChange", ({ isActive }) => {
       if (isActive) refreshVisibleSession();
-    }).then((listener) => {
-      if (disposed) {
-        void listener.remove();
-      } else {
-        appStateListener = listener;
-      }
-    }).catch((error) => {
-      console.error("[realtime] could not observe native app lifecycle", error);
-    });
+    })
+      .then((listener) => {
+        if (disposed) {
+          void listener.remove();
+        } else {
+          appStateListener = listener;
+        }
+      })
+      .catch((error) => {
+        console.error("[realtime] could not observe native app lifecycle", error);
+      });
 
     document.addEventListener("visibilitychange", refreshVisibleSession);
     window.addEventListener("online", refreshVisibleSession);
