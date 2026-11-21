@@ -340,7 +340,7 @@ function Agenda() {
     if (!eventToDelete) return;
     try {
       await remove("calendar_events", eventToDelete);
-      if (isNativeAndroid()) {
+      if (isNativeAndroid() && !isDemoMode()) {
         void syncNativeAcademicNotifications().catch((error) => {
           console.error("Could not refresh event reminders:", error);
         });
