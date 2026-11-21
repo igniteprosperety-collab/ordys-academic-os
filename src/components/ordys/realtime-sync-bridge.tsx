@@ -1,4 +1,6 @@
 import { useEffect, useRef } from "react";
+import { App } from "@capacitor/app";
+import type { PluginListenerHandle } from "@capacitor/core";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import {
@@ -97,9 +99,26 @@ export function RealtimeSyncBridge() {
       });
     };
 
+    let disposed = false;
+    let appStateListener: PluginListenerHandle | null = null;
+
+    void App.addListener("appStateChange", ({ isActive }) => {
+      if (isActive) refreshVisibleSession();
+    }).then((listener) => {
+      if (disposed) {
+        void listener.remove();
+      } else {
+        appStateListener = listener;
+      }
+    }).catch((error) => {
+      console.error("[realtime] could not observe native app lifecycle", error);
+    });
+
     document.addEventListener("visibilitychange", refreshVisibleSession);
     window.addEventListener("online", refreshVisibleSession);
     return () => {
+      disposed = true;
+      if (appStateListener) void appStateListener.remove();
       document.removeEventListener("visibilitychange", refreshVisibleSession);
       window.removeEventListener("online", refreshVisibleSession);
     };
