@@ -28,8 +28,8 @@ export function buildFocusTimerCompletionReminder(
     !snapshot.userId.trim() ||
     !snapshot.startedAt ||
     !Number.isFinite(Date.parse(snapshot.startedAt)) ||
-    !Number.isFinite(snapshot.endAtMs) ||
     snapshot.endAtMs === null ||
+    !Number.isFinite(snapshot.endAtMs) ||
     !Number.isFinite(now) ||
     snapshot.endAtMs <= now
   ) {
