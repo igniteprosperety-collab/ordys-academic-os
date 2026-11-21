@@ -240,6 +240,7 @@ export function scheduleNativeFocusTimerNotification(snapshot: FocusTimerSnapsho
       return;
     }
 
+    await cancelNativeNotifications([reminder.id]);
     const scheduled = await scheduleNativeNotification(reminder);
     if (!scheduled) {
       await cancelNativeNotifications([reminder.id]);
@@ -290,6 +291,7 @@ export function syncNativeFocusTimerNotification(): Promise<void> {
       return;
     }
 
+    await cancelNativeNotifications([reminder.id]);
     const scheduled = await scheduleNativeNotification(reminder);
     if (!scheduled) {
       await cancelAllPendingFocusTimerNotifications(notificationsApi);
