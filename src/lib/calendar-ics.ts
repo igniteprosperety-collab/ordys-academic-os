@@ -92,7 +92,14 @@ export function buildCalendarIcs(events: CalendarIcsEvent[], options: CalendarIc
     const location = event.location?.trim();
     if (location) lines.push(`LOCATION:${escapeIcsText(location)}`);
 
-    lines.push("END:VEVENT");
+    lines.push(
+      "BEGIN:VALARM",
+      "ACTION:DISPLAY",
+      `DESCRIPTION:${escapeIcsText(`${title} começa em 10 minutos`)}`,
+      "TRIGGER:-PT10M",
+      "END:VALARM",
+      "END:VEVENT",
+    );
   }
 
   lines.push("END:VCALENDAR");
