@@ -65,9 +65,24 @@ describe("ORDYS realtime coverage", () => {
     for (const queryKey of ownedKeys) {
       expect(matchesOrdysRealtimeOwnerQueryKey(queryKey, "student-a")).toBe(true);
     }
-    expect(matchesOrdysRealtimeOwnerQueryKey(["tasks", "student-b", "cloud"], "student-a")).toBe(false);
-    expect(matchesOrdysRealtimeOwnerQueryKey(["tasks", "student-a", "demo"], "student-a")).toBe(false);
-    expect(matchesOrdysRealtimeOwnerQueryKey(["billing", "student-a", "cloud"], "student-a")).toBe(false);
+    expect(
+      matchesOrdysRealtimeOwnerQueryKey(
+        ["tasks", "student-b", "cloud"],
+        "student-a",
+      ),
+    ).toBe(false);
+    expect(
+      matchesOrdysRealtimeOwnerQueryKey(
+        ["tasks", "student-a", "demo"],
+        "student-a",
+      ),
+    ).toBe(false);
+    expect(
+      matchesOrdysRealtimeOwnerQueryKey(
+        ["billing", "student-a", "cloud"],
+        "student-a",
+      ),
+    ).toBe(false);
   });
 
   it("uses the profile primary key instead of a user_id column", () => {
