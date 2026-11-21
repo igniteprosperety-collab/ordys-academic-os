@@ -11,6 +11,13 @@ const STORAGE_PREFIX = "ordys_browser_notifications_v1:";
 const MAX_SEEN_IDS = 200;
 const MAX_DELIVERY_AGE_MS = 3 * 60 * 1000;
 
+export function isBrowserNotificationDeliveryEnabled(
+  permission: string,
+  notificationsEnabled: boolean | null | undefined,
+) {
+  return permission === "granted" && notificationsEnabled !== false;
+}
+
 function resolveStorage(storage?: BrowserNotificationStorage | null) {
   if (storage) return storage;
   if (typeof window === "undefined") return null;
