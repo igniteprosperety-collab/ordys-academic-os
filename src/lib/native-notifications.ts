@@ -190,34 +190,24 @@ function enqueueFocusTimerNotificationOperation(task: () => Promise<void>): Prom
   return result;
 }
 
-async function cancelAllPendingFocusTimerNotifications(
-  notificationsApi: LocalNotificationsApi,
-) {
+async function cancelAllPendingFocusTimerNotifications(notificationsApi: LocalNotificationsApi) {
   const pending = await notificationsApi.getPending();
   const ids = pending.notifications
     .map((notification) => notification.id)
     .filter(
-      (id) =>
-        id >= NOTIFICATION_IDS.focusTimer && id < NOTIFICATION_IDS.focusTimer + 90000,
+      (id) => id >= NOTIFICATION_IDS.focusTimer && id < NOTIFICATION_IDS.focusTimer + 90000,
     );
   await cancelNativeNotifications(ids);
 }
 
-export function cancelNativeFocusTimerNotification(
-  userId: string,
-  startedAt: string,
-): Promise<void> {
+export function cancelNativeFocusTimerNotification(userId: string, startedAt: string): Promise<void> {
   return enqueueFocusTimerNotificationOperation(async () => {
     if (!userId.trim() || !startedAt) return;
-    await cancelNativeNotifications([
-      focusTimerNotificationId(userId, startedAt),
-    ]);
+    await cancelNativeNotifications([focusTimerNotificationId(userId, startedAt)]);
   });
 }
 
-export function scheduleNativeFocusTimerNotification(
-  snapshot: FocusTimerSnapshot,
-): Promise<void> {
+export function scheduleNativeFocusTimerNotification(snapshot: FocusTimerSnapshot): Promise<void> {
   return enqueueFocusTimerNotificationOperation(async () => {
     if (NATIVE_NOTIFICATIONS_DISABLED || !isNativeAndroid()) return;
     const { data: sessionData } = await supabase.auth.getSession();
@@ -229,7 +219,9 @@ export function scheduleNativeFocusTimerNotification(
       .eq("user_id", snapshot.userId)
       .maybeSingle();
     if (prefsResult.error) {
-      console.error("[notifications] focus timer scheduling skipped because preferences could not be read");
+      console.error(
+        "[notifications] focus timer scheduling skipped because preferences could not be read",
+      );
       return;
     }
     if (prefsResult.data?.enabled === false) {
@@ -440,7 +432,9 @@ export async function syncNativeAcademicNotifications() {
     await cancelNativeNotifications(
       pending.notifications
         .map((notification) => notification.id)
-        .filter((id) => NOTIFICATION_PREFIXES.some((prefix) => id >= prefix && id < prefix + 90000)),
+        .filter(
+          (id) => NOTIFICATION_PREFIXES.some((prefix) => id >= prefix && id < prefix + 90000),
+        ),
     );
     return;
   }
