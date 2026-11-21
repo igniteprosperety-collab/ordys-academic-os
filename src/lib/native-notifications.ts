@@ -608,6 +608,8 @@ export async function syncNativeAcademicNotifications() {
       const scheduled = await scheduleNativeNotification(notification);
       if (scheduled) {
         scheduledIds.add(notification.id);
+      } else {
+        schedulingFailed = true;
       }
     } catch (error) {
       schedulingFailed = true;
