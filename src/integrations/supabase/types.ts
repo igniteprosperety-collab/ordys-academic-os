@@ -641,6 +641,7 @@ export type Database = {
           grade_pass: number;
           grade_scale_max: number;
           id: string;
+          realtime_revision: number;
           school_name: string | null;
           stage: string;
           state: string | null;
@@ -662,6 +663,7 @@ export type Database = {
           grade_pass?: number;
           grade_scale_max?: number;
           id?: string;
+          realtime_revision?: number;
           school_name?: string | null;
           stage?: string;
           state?: string | null;
