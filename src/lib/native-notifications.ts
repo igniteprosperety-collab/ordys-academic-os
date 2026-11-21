@@ -308,6 +308,9 @@ async function syncNativeAcademicNotificationsNow() {
   const now = Date.now();
   const horizon = new Date();
   horizon.setDate(horizon.getDate() + 14);
+  // Monthly summaries need a wider window than event reminders and study sessions.
+  const monthlyHorizon = new Date();
+  monthlyHorizon.setDate(monthlyHorizon.getDate() + 40);
   const quietStart = prefs?.quiet_start ?? "22:00:00";
   const quietEnd = prefs?.quiet_end ?? "07:00:00";
   const nowDate = new Date();
@@ -371,7 +374,7 @@ async function syncNativeAcademicNotificationsNow() {
           at.setDate(at.getDate() + daysUntilSunday);
           at.setHours(19, 0, 0, 0);
           if (at.getTime() <= now) at.setDate(at.getDate() + 7);
-          if (at.getTime() > horizon.getTime() || isWithinQuietHours(at, quietStart, quietEnd))
+          if (at.getTime() > monthlyHorizon.getTime() || isWithinQuietHours(at, quietStart, quietEnd))
             return [];
           const summaryWeekStart = startOfWeek(at);
           return [
