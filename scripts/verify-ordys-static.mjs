@@ -2585,7 +2585,7 @@ if (!nativeNotifications.includes("classes: boolean;")) {
 
 for (const expected of [
   'import { dateKey, ordysWeekdayToJsDay, parseTimeOfDay } from "@/lib/ordys-engine";',
-  '.gte("session_date", dateKey(new Date()))',
+  '.gte("session_date", dateKey(syncNow))',
 ]) {
   if (!nativeNotifications.includes(expected))
     failures.push("Notificações nativas não contêm correção esperada para data local: " + expected);
