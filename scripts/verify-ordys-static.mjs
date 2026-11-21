@@ -2498,6 +2498,7 @@ requireIncludes("tests/notification-schedule.test.ts", [
   "more than 14 days away",
   "moves to the next month",
   "leap-year February",
+  "moves from December to January",
 ]);
 
 const nativeNotifications = read("src/lib/native-notifications.ts");
@@ -2514,6 +2515,8 @@ requireIncludes("src/lib/native-notifications.ts", [
   '.gte("started_at", summaryDayStart.toISOString())',
   "const at = nextMonthlySummaryAt(nowDate);",
   "const scheduled = await scheduleNativeNotification(notification);",
+  "if (scheduled) {",
+  "schedulingFailed = true;",
   "if (schedulingFailed) return;",
 ]);
 
