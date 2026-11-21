@@ -25,7 +25,12 @@ describe("focus timer persistence", () => {
   });
 
   it("restores a paused session with its exact remaining time and links", () => {
-    const snapshot = { ...runningSnapshot, status: "paused" as const, endAtMs: null, leftSeconds: 517 };
+    const snapshot = {
+      ...runningSnapshot,
+      status: "paused" as const,
+      endAtMs: null,
+      leftSeconds: 517,
+    };
     const restored = restoreFocusTimerState(serializeFocusTimerState(snapshot), "student-1");
 
     expect(restored).toMatchObject({
@@ -40,7 +45,11 @@ describe("focus timer persistence", () => {
 
   it("recalculates a running session from its deadline after the app was closed", () => {
     const raw = serializeFocusTimerState(runningSnapshot);
-    const restored = restoreFocusTimerState(raw, "student-1", Date.parse("2026-11-21T12:05:00.000Z"));
+    const restored = restoreFocusTimerState(
+      raw,
+      "student-1",
+      Date.parse("2026-11-21T12:05:00.000Z"),
+    );
 
     expect(restored?.remainingSeconds).toBe(20 * 60);
     expect(restored?.status).toBe("running");
@@ -48,7 +57,11 @@ describe("focus timer persistence", () => {
 
   it("restores an expired running session at zero instead of granting extra time", () => {
     const raw = serializeFocusTimerState(runningSnapshot);
-    const restored = restoreFocusTimerState(raw, "student-1", Date.parse("2026-11-21T12:26:00.000Z"));
+    const restored = restoreFocusTimerState(
+      raw,
+      "student-1",
+      Date.parse("2026-11-21T12:26:00.000Z"),
+    );
 
     expect(restored?.remainingSeconds).toBe(0);
   });
@@ -61,7 +74,11 @@ describe("focus timer persistence", () => {
 
   it("rejects malformed and structurally invalid snapshots", () => {
     expect(restoreFocusTimerState("{", "student-1")).toBeNull();
-    expect(restoreFocusTimerState(JSON.stringify({ ...runningSnapshot, minutes: 10 }), "student-1")).toBeNull();
-    expect(restoreFocusTimerState(JSON.stringify({ ...runningSnapshot, endAtMs: null }), "student-1")).toBeNull();
+    expect(
+      restoreFocusTimerState(JSON.stringify({ ...runningSnapshot, minutes: 10 }), "student-1"),
+    ).toBeNull();
+    expect(
+      restoreFocusTimerState(JSON.stringify({ ...runningSnapshot, endAtMs: null }), "student-1"),
+    ).toBeNull();
   });
 });
