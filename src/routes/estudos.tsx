@@ -33,6 +33,7 @@ import {
   type PlanSession,
 } from "@/lib/ordys-db";
 import {
+  clearFocusTimerSnapshot,
   focusTimerStorageKey,
   restoreFocusTimerState,
   serializeFocusTimerState,
@@ -523,7 +524,7 @@ function FocusPanel({
         });
         if (userId && typeof window !== "undefined") {
           try {
-            window.localStorage.removeItem(focusTimerStorageKey(userId));
+            clearFocusTimerSnapshot(window.localStorage, userId);
           } catch {
             // The session is saved remotely; local cleanup is best-effort.
           }
