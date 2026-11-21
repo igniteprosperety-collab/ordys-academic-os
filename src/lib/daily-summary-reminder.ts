@@ -57,8 +57,10 @@ export function buildDailySummaryReminder(
   if (isWithinQuietHours(at, options.quietStart, options.quietEnd)) return null;
 
   const isToday = isSameLocalDay(at, options.now);
+  const taskLabel = options.summary.completedTasks === 1 ? "tarefa" : "tarefas";
+  const sessionLabel = options.summary.completedPlan === 1 ? "sessão" : "sessões";
   const body = isToday
-    ? `Hoje: ${options.summary.studiedMinutes} min de estudo, ${options.summary.completedTasks} tarefa(s) concluída(s) e ${options.summary.completedPlan} sessão(ões) do plano concluída(s).`
+    ? `Hoje: ${options.summary.studiedMinutes} min de estudo, ${options.summary.completedTasks} ${taskLabel} concluídas e ${options.summary.completedPlan} ${sessionLabel} do plano concluídas.`
     : "Amanhã, confira seu tempo de estudo, tarefas concluídas e plano no resumo diário do ORDYS.";
 
   return {
