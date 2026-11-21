@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { toast } from "sonner";
 import { Shell } from "@/components/ordys/shell";
 import { Chip, Dot, Panel, PanelHeader, PageTitle, Stat } from "@/components/ordys/primitives";
-import { Button } from "@/components/ordys/form";
+import { Button, Field, Modal, Select, TextInput } from "@/components/ordys/form";
 import {
   subjectAttendance,
   subjectAverage,
@@ -16,6 +17,7 @@ import {
   useSubjects,
   useTasks,
   useTopics,
+  useOrdysMutations,
 } from "@/lib/ordys-db";
 import {
   addDays,
@@ -66,6 +68,25 @@ type Item = {
   scheduleId?: string;
 };
 
+function localDateTimeValue(date: Date) {
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return localDate.toISOString().slice(0, 16);
+}
+
+function createDefaultEventForm() {
+  const startsAt = new Date(Date.now() + 30 * 60_000);
+  startsAt.setSeconds(0, 0);
+  const endsAt = new Date(startsAt.getTime() + 60 * 60_000);
+  return {
+    title: "",
+    startsAt: localDateTimeValue(startsAt),
+    endsAt: localDateTimeValue(endsAt),
+    location: "",
+    kind: "evento",
+    subjectId: "",
+  };
+}
+
 function Agenda() {
   const [active, setActive] = useState("Semana");
   const [offset, setOffset] = useState(0);
@@ -75,6 +96,10 @@ function Agenda() {
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
   const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
   const [subjectSection, setSubjectSection] = useState<SubjectSection>("resumo");
+  const [eventModalOpen, setEventModalOpen] = useState(false);
+  const [savingEvent, setSavingEvent] = useState(false);
+  const [eventForm, setEventForm] = useState(createDefaultEventForm);
+  const { insert } = useOrdysMutations();
 
   const { data: subjects = [] } = useSubjects();
   const { data: schedules = [] } = useSchedules();
@@ -160,7 +185,7 @@ function Agenda() {
         key: `v${ev.id}`,
         time: new Date(ev.starts_at).toTimeString().slice(0, 5),
         label: ev.title,
-        meta: ev.location ?? ev.source,
+        meta: ev.location ?? ev.kind,
         color: "var(--muted-foreground)",
         tone: "evento",
         subjectId: ev.subject_id,
@@ -242,6 +267,45 @@ function Agenda() {
     })
     .sort((a, b) => a.occurrence.getTime() - b.occurrence.getTime())
     .slice(0, 6);
+
+  async function saveManualEvent() {
+    const title = eventForm.title.trim();
+    const startsAt = new Date(eventForm.startsAt);
+    const endsAt = eventForm.endsAt ? new Date(eventForm.endsAt) : null;
+
+    if (!title) {
+      toast.error("Informe o título do evento.");
+      return;
+    }
+    if (!eventForm.startsAt || !Number.isFinite(startsAt.getTime())) {
+      toast.error("Informe uma data e horário de início válidos.");
+      return;
+    }
+    if (endsAt && (!Number.isFinite(endsAt.getTime()) || endsAt.getTime() <= startsAt.getTime())) {
+      toast.error("O horário de término deve ser posterior ao início.");
+      return;
+    }
+
+    setSavingEvent(true);
+    try {
+      await insert("calendar_events", {
+        title,
+        starts_at: startsAt.toISOString(),
+        ends_at: endsAt?.toISOString() ?? null,
+        location: eventForm.location.trim() || null,
+        kind: eventForm.kind,
+        source: "ordys",
+        subject_id: eventForm.subjectId || null,
+      });
+      setEventModalOpen(false);
+      setEventForm(createDefaultEventForm());
+      toast.success("Evento adicionado à agenda.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível salvar o evento.");
+    } finally {
+      setSavingEvent(false);
+    }
+  }
 
   function openDay(index: number) {
     setSelectedDay(index);
@@ -1461,7 +1525,13 @@ function Agenda() {
           ) : null}
           {active === "Eventos" ? (
             <Panel className="mt-4">
-              <PanelHeader title="Eventos" hint="importados ou criados manualmente" />
+              <PanelHeader title="Eventos" hint="compromissos pessoais e eventos da agenda" />
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-5 py-3">
+                <p className="text-[11.5px] text-muted-foreground">
+                  Cadastre compromissos que não fazem parte de uma aula, prova ou tarefa.
+                </p>
+                <Button onClick={() => setEventModalOpen(true)}>Novo evento</Button>
+              </div>
               <div className="border-t border-border">
                 {events.length ? (
                   events.map((e) => (
@@ -1477,7 +1547,7 @@ function Agenda() {
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-[12.5px] font-medium">{e.title}</p>
                         <p className="truncate text-[11px] text-muted-foreground">
-                          {e.location ?? e.source}
+                          {e.location ?? e.kind}
                         </p>
                       </div>
                       <span className="num shrink-0 text-[11px] text-muted-foreground">
@@ -1495,6 +1565,80 @@ function Agenda() {
           ) : null}
         </>
       )}
+      <Modal
+        open={eventModalOpen}
+        onClose={() => {
+          if (!savingEvent) setEventModalOpen(false);
+        }}
+        title="Novo evento"
+        subtitle="O evento ficará salvo na sua agenda e será exibido nas visões de dia, semana e mês."
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Título">
+            <TextInput
+              value={eventForm.title}
+              onChange={(event) => setEventForm({ ...eventForm, title: event.target.value })}
+              placeholder="Ex.: Consulta, reunião ou compromisso"
+              maxLength={120}
+              autoFocus
+            />
+          </Field>
+          <Field label="Tipo">
+            <Select
+              value={eventForm.kind}
+              onChange={(event) => setEventForm({ ...eventForm, kind: event.target.value })}
+            >
+              <option value="evento">Evento</option>
+              <option value="compromisso">Compromisso</option>
+              <option value="lembrete">Lembrete</option>
+            </Select>
+          </Field>
+          <Field label="Início">
+            <TextInput
+              type="datetime-local"
+              value={eventForm.startsAt}
+              onChange={(event) => setEventForm({ ...eventForm, startsAt: event.target.value })}
+              required
+            />
+          </Field>
+          <Field label="Término (opcional)">
+            <TextInput
+              type="datetime-local"
+              value={eventForm.endsAt}
+              onChange={(event) => setEventForm({ ...eventForm, endsAt: event.target.value })}
+            />
+          </Field>
+          <Field label="Local (opcional)">
+            <TextInput
+              value={eventForm.location}
+              onChange={(event) => setEventForm({ ...eventForm, location: event.target.value })}
+              placeholder="Endereço ou link"
+              maxLength={160}
+            />
+          </Field>
+          <Field label="Vincular disciplina (opcional)">
+            <Select
+              value={eventForm.subjectId}
+              onChange={(event) => setEventForm({ ...eventForm, subjectId: event.target.value })}
+            >
+              <option value="">Sem disciplina</option>
+              {subjects.map((subject) => (
+                <option key={subject.id} value={subject.id}>
+                  {subject.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </div>
+        <div className="mt-4 flex justify-end gap-2">
+          <Button variant="ghost" onClick={() => setEventModalOpen(false)} disabled={savingEvent}>
+            Cancelar
+          </Button>
+          <Button onClick={() => void saveManualEvent()} disabled={savingEvent}>
+            {savingEvent ? "Salvando…" : "Salvar evento"}
+          </Button>
+        </div>
+      </Modal>
     </Shell>
   );
 }
