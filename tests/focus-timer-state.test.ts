@@ -107,5 +107,4 @@ describe("focus timer persistence", () => {
     expect(clearFocusTimerSnapshot(storage, "  ")).toBe(false);
     expect(removed).toEqual([]);
   });
-
 });
