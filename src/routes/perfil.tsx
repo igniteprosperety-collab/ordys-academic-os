@@ -845,9 +845,9 @@ function Perfil() {
               <Panel className="px-5 py-5">
                 <p className="text-[13px] font-semibold">Notificações do dispositivo</p>
                 <p className="mt-1 text-[12px] text-muted-foreground">
-                  No Android, os lembretes são enviados pelo sistema e a permissão só é solicitada
-                  quando você toca em Ativar. No navegador, os avisos ficam disponíveis enquanto o
-                  ORDYS estiver aberto.
+                  No Android, os lembretes do sistema incluem o término do cronômetro de foco; a
+                  permissão só é solicitada quando você toca em Ativar. No navegador, os avisos
+                  ficam disponíveis enquanto o ORDYS estiver aberto.
                 </p>
                 <div className="mt-3 flex items-center gap-2">
                   <Chip
