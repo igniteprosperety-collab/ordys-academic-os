@@ -129,6 +129,7 @@ export async function scheduleNativeNotification(params: {
   title: string;
   body: string;
   at: Date;
+  displayDetails?: boolean;
 }) {
   if (NATIVE_NOTIFICATIONS_DISABLED) return false;
   if (
@@ -146,8 +147,10 @@ export async function scheduleNativeNotification(params: {
     notifications: [
       {
         id: params.id,
-        title: params.title,
-        body: params.body,
+        title: params.displayDetails ? params.title : "ORDYS",
+        body: params.displayDetails
+          ? params.body
+          : "Você tem um lembrete acadêmico. Abra o ORDYS para ver os detalhes.",
         // Exactness belongs to LocalNotificationSchema, not its Schedule.
         // Keep reminders inexact to avoid exact-alarm access on Android.
         isExactNotification: false,
@@ -169,6 +172,7 @@ export async function scheduleNativeFocusTimerAlarm(userId: string, endsAtMs: nu
     title: "Tempo de foco concluído",
     body: "Sua sessão de estudo terminou. Registre seu progresso no ORDYS.",
     at: new Date(endsAtMs),
+    displayDetails: true,
   });
 }
 
