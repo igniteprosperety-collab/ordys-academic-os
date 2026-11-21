@@ -21,9 +21,7 @@ export type CalendarEventFormResult =
   | { valid: true; values: CalendarEventPayload }
   | { valid: false; error: string };
 
-export function buildCalendarEventPayload(
-  form: CalendarEventFormInput,
-): CalendarEventFormResult {
+export function buildCalendarEventPayload(form: CalendarEventFormInput): CalendarEventFormResult {
   const title = form.title.trim();
   if (!title) {
     return { valid: false, error: "Informe o título do evento." };
@@ -35,10 +33,7 @@ export function buildCalendarEventPayload(
   }
 
   const endsAt = form.endsAt ? new Date(form.endsAt) : null;
-  if (
-    endsAt &&
-    (!Number.isFinite(endsAt.getTime()) || endsAt.getTime() <= startsAt.getTime())
-  ) {
+  if (endsAt && (!Number.isFinite(endsAt.getTime()) || endsAt.getTime() <= startsAt.getTime())) {
     return {
       valid: false,
       error: "O horário de término deve ser posterior ao início.",
