@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { isNativeAndroid, syncNativeAcademicNotifications } from "@/lib/native-notifications";
 import { isDemoMode } from "@/lib/demo-mode";
 import { buildCalendarIcs } from "@/lib/calendar-ics";
+import { buildCalendarEventPayload } from "@/lib/calendar-event-form";
 import { Shell } from "@/components/ordys/shell";
 import { Chip, Dot, Panel, PanelHeader, PageTitle, Stat } from "@/components/ordys/primitives";
 import { Button, ConfirmDialog, Field, Modal, Select, TextInput } from "@/components/ordys/form";
@@ -274,34 +275,15 @@ function Agenda() {
     .slice(0, 6);
 
   async function saveManualEvent() {
-    const title = eventForm.title.trim();
-    const startsAt = new Date(eventForm.startsAt);
-    const endsAt = eventForm.endsAt ? new Date(eventForm.endsAt) : null;
-
-    if (!title) {
-      toast.error("Informe o título do evento.");
-      return;
-    }
-    if (!eventForm.startsAt || !Number.isFinite(startsAt.getTime())) {
-      toast.error("Informe uma data e horário de início válidos.");
-      return;
-    }
-    if (endsAt && (!Number.isFinite(endsAt.getTime()) || endsAt.getTime() <= startsAt.getTime())) {
-      toast.error("O horário de término deve ser posterior ao início.");
+    const validation = buildCalendarEventPayload(eventForm);
+    if (!validation.valid) {
+      toast.error(validation.error);
       return;
     }
 
     setSavingEvent(true);
     try {
-      const values = {
-        title,
-        starts_at: startsAt.toISOString(),
-        ends_at: endsAt?.toISOString() ?? null,
-        location: eventForm.location.trim() || null,
-        kind: eventForm.kind,
-        source: "ordys",
-        subject_id: eventForm.subjectId || null,
-      };
+      const values = validation.values;
       if (editingEventId) {
         await update("calendar_events", editingEventId, values);
       } else {
