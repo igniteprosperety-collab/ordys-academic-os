@@ -32,7 +32,11 @@ import {
   useTopics,
   type PlanSession,
 } from "@/lib/ordys-db";
-import { focusTimerStorageKey, restoreFocusTimerState, serializeFocusTimerState } from "@/lib/focus-timer-state";
+import {
+  focusTimerStorageKey,
+  restoreFocusTimerState,
+  serializeFocusTimerState,
+} from "@/lib/focus-timer-state";
 import {
   addDays,
   dateKey,
@@ -601,11 +605,23 @@ function FocusPanel({
       planId: planId || null,
     };
     try {
-      window.localStorage.setItem(focusTimerStorageKey(userId), serializeFocusTimerState(snapshot));
+      window.localStorage.setItem(
+        focusTimerStorageKey(userId),
+        serializeFocusTimerState(snapshot),
+      );
     } catch {
       // Persistence is best-effort; never interrupt a running focus session.
     }
-  }, [minutes, planId, running, sessionStartedAt, subjectId, timerHydratedUserId, topicId, userId]);
+  }, [
+    minutes,
+    planId,
+    running,
+    sessionStartedAt,
+    subjectId,
+    timerHydratedUserId,
+    topicId,
+    userId,
+  ]);
 
   useEffect(() => {
     if (!userId || timerHydratedUserId !== userId || running) return;
@@ -637,7 +653,17 @@ function FocusPanel({
     } catch {
       // Persistence is best-effort; never block pausing or saving the session.
     }
-  }, [left, minutes, planId, running, sessionStartedAt, subjectId, timerHydratedUserId, topicId, userId]);
+  }, [
+    left,
+    minutes,
+    planId,
+    running,
+    sessionStartedAt,
+    subjectId,
+    timerHydratedUserId,
+    topicId,
+    userId,
+  ]);
 
   useEffect(() => {
     if (!running) return;
