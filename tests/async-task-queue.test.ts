@@ -23,9 +23,11 @@ describe("serial async task queue", () => {
   it("continues processing after a task rejects", async () => {
     const enqueue = createSerialTaskQueue();
 
-    await expect(enqueue(async () => {
-      throw new Error("temporary failure");
-    })).rejects.toThrow("temporary failure");
+    await expect(
+      enqueue(async () => {
+        throw new Error("temporary failure");
+      }),
+    ).rejects.toThrow("temporary failure");
 
     await expect(enqueue(async () => "recovered")).resolves.toBe("recovered");
   });
