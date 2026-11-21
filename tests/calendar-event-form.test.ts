@@ -40,12 +40,12 @@ describe("calendar event form validation", () => {
 
   it("rejects an end timestamp that is invalid or not after the start", () => {
     expect(buildCalendarEventPayload({ ...validForm, endsAt: "invalid" }).valid).toBe(false);
-    expect(
-      buildCalendarEventPayload({ ...validForm, endsAt: "2026-11-21T08:59" }).valid,
-    ).toBe(false);
-    expect(
-      buildCalendarEventPayload({ ...validForm, endsAt: validForm.startsAt }).valid,
-    ).toBe(false);
+    expect(buildCalendarEventPayload({ ...validForm, endsAt: "2026-11-21T08:59" }).valid).toBe(
+      false,
+    );
+    expect(buildCalendarEventPayload({ ...validForm, endsAt: validForm.startsAt }).valid).toBe(
+      false,
+    );
   });
 
   it("allows no end time and normalizes optional fields", () => {
