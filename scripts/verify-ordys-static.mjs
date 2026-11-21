@@ -2479,6 +2479,14 @@ requireIncludes("src/routes/index.tsx", [
 
 requireFile("src/lib/notification-schedule.ts");
 requireFile("tests/notification-schedule.test.ts");
+requireIncludes("src/components/ordys/realtime-sync-bridge.tsx", [
+  "notificationSyncChain",
+  "needsNotificationCleanup.current",
+  "readFocusTimerState(userId)",
+  "scheduleNativeFocusTimerAlarm(userId, saved.endsAtMs)",
+  "cancelNativeFocusTimerAlarm(userId)",
+  "refreshVisibleSession",
+]);
 requireIncludes("src/lib/notification-schedule.ts", [
   "export function nextMonthlySummaryAt(now: Date): Date",
   "currentMonthEnd.getTime() > now.getTime()",
