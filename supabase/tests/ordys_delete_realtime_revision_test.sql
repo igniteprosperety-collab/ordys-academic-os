@@ -34,7 +34,7 @@ SELECT is(
        AND trigger_row.tgname = 'ordys_profile_revision_after_delete'
        AND NOT trigger_row.tgisinternal
   ),
-  'attendance_records,calendar_connections,calendar_events,daily_checkins,exams,focus_sessions,goals,grades,notifications,notification_preferences,plan_sessions,quiz_answers,quiz_attempts,reviews,subject_schedules,subjects,subtasks,tasks,topics',
+  'attendance_records,calendar_connections,calendar_events,daily_checkins,exams,focus_sessions,goals,grades,notification_preferences,notifications,plan_sessions,quiz_answers,quiz_attempts,reviews,subject_schedules,subjects,subtasks,tasks,topics',
   'the revision trigger is attached to all 19 owner-scoped student tables'
 );
 
