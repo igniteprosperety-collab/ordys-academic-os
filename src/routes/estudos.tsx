@@ -808,11 +808,7 @@ function FocusPanel({
                 onClick={() => {
                   const startedAt = sessionStartedAt ?? new Date().toISOString();
                   const endAtMs = Date.now() + left * 1000;
-                  if (
-                    userId &&
-                    timerHydratedUserId === userId &&
-                    typeof window !== "undefined"
-                  ) {
+                  if (userId && timerHydratedUserId === userId && typeof window !== "undefined") {
                     const snapshot = {
                       version: 1 as const,
                       userId,
