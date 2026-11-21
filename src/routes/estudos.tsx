@@ -758,10 +758,39 @@ function FocusPanel({
                   variant="ghost"
                   disabled={saving}
                   onClick={() => {
-                    if (timerEndAt.current !== null) {
-                      setLeft(Math.max(0, Math.ceil((timerEndAt.current - Date.now()) / 1000)));
-                    }
+                    const remainingSeconds =
+                      timerEndAt.current !== null
+                        ? Math.max(0, Math.ceil((timerEndAt.current - Date.now()) / 1000))
+                        : left;
                     timerEndAt.current = null;
+                    if (
+                      userId &&
+                      timerHydratedUserId === userId &&
+                      sessionStartedAt &&
+                      typeof window !== "undefined"
+                    ) {
+                      const snapshot = {
+                        version: 1 as const,
+                        userId,
+                        minutes,
+                        leftSeconds: remainingSeconds,
+                        startedAt: sessionStartedAt,
+                        endAtMs: null,
+                        status: "paused" as const,
+                        subjectId: subjectId || null,
+                        topicId: topicId || null,
+                        planId: planId || null,
+                      };
+                      try {
+                        window.localStorage.setItem(
+                          focusTimerStorageKey(userId),
+                          serializeFocusTimerState(snapshot),
+                        );
+                      } catch {
+                        // Persistence is best-effort; pausing must remain immediate.
+                      }
+                    }
+                    setLeft(remainingSeconds);
                     setRunning(false);
                   }}
                 >
@@ -777,8 +806,36 @@ function FocusPanel({
             ) : (
               <Button
                 onClick={() => {
-                  setSessionStartedAt((current) => current ?? new Date().toISOString());
-                  timerEndAt.current = Date.now() + left * 1000;
+                  const startedAt = sessionStartedAt ?? new Date().toISOString();
+                  const endAtMs = Date.now() + left * 1000;
+                  if (
+                    userId &&
+                    timerHydratedUserId === userId &&
+                    typeof window !== "undefined"
+                  ) {
+                    const snapshot = {
+                      version: 1 as const,
+                      userId,
+                      minutes,
+                      leftSeconds: left,
+                      startedAt,
+                      endAtMs,
+                      status: "running" as const,
+                      subjectId: subjectId || null,
+                      topicId: topicId || null,
+                      planId: planId || null,
+                    };
+                    try {
+                      window.localStorage.setItem(
+                        focusTimerStorageKey(userId),
+                        serializeFocusTimerState(snapshot),
+                      );
+                    } catch {
+                      // Persistence is best-effort; starting focus must remain immediate.
+                    }
+                  }
+                  setSessionStartedAt(startedAt);
+                  timerEndAt.current = endAtMs;
                   setRunning(true);
                 }}
               >
