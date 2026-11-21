@@ -192,7 +192,15 @@ export async function syncNativeAcademicNotifications() {
 
   const { data: sessionData } = await supabase.auth.getSession();
   const userId = sessionData.session?.user.id;
-  if (!userId) return;
+  if (!userId) {
+    // Do not leave a previous account's academic details visible after sign-out.
+    const pending = await notificationsApi.getPending();
+    const staleIds = pending.notifications
+      .map((notification) => notification.id)
+      .filter((id) => NOTIFICATION_PREFIXES.some((prefix) => id >= prefix && id < prefix + 90000));
+    await cancelNativeNotifications(staleIds);
+    return;
+  }
 
   const [
     prefsResult,
