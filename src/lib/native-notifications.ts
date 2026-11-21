@@ -5,6 +5,7 @@ import { nativeNotificationsEnabledForBuild } from "@/lib/native-notifications-c
 import { buildCalendarEventReminders } from "@/lib/calendar-event-reminders";
 import { createSerialTaskQueue } from "@/lib/async-task-queue";
 import { buildGoalProgressReminders } from "@/lib/goal-progress-reminders";
+import { buildOverdueTaskReminder } from "@/lib/overdue-task-reminders";
 
 // Native reminders are enabled only in distribution profiles that explicitly opt in.
 // The direct-install APK v1 disables this feature; Google Play keeps it available.
@@ -34,6 +35,7 @@ const NOTIFICATION_IDS = {
   summary: 500000,
   event: 600000,
   goal: 700000,
+  overdue: 800000,
 };
 const NOTIFICATION_PREFIXES = Object.values(NOTIFICATION_IDS);
 
@@ -504,6 +506,16 @@ async function syncNativeAcademicNotificationsNow() {
               !isWithinQuietHours(at, quietStart, quietEnd),
           );
         })),
+    ...(prefs?.overdue === false
+      ? []
+      : (() => {
+          const reminder = buildOverdueTaskReminder(tasks ?? [], {
+            now: new Date(now),
+            quietStart,
+            quietEnd,
+          });
+          return reminder ? [reminder] : [];
+        })()),
     ...(prefs?.study_sessions === false
       ? []
       : (plan ?? []).flatMap((session) => {
