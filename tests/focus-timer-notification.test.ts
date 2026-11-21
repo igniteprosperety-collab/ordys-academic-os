@@ -43,18 +43,13 @@ describe("focus timer completion reminders", () => {
       }),
     ).toBeNull();
 
-    expect(
-      buildFocusTimerCompletionReminder(snapshot, snapshot.endAtMs),
-    ).toBeNull();
+    expect(buildFocusTimerCompletionReminder(snapshot, snapshot.endAtMs)).toBeNull();
   });
 
   it("scopes notification identifiers to both account and session", () => {
     const first = focusTimerNotificationId("student-1", snapshot.startedAt);
     const otherAccount = focusTimerNotificationId("student-2", snapshot.startedAt);
-    const otherSession = focusTimerNotificationId(
-      "student-1",
-      "2026-11-21T12:01:00.000Z",
-    );
+    const otherSession = focusTimerNotificationId("student-1", "2026-11-21T12:01:00.000Z");
 
     expect(first).toBeGreaterThanOrEqual(900000);
     expect(first).toBeLessThan(990000);
@@ -63,12 +58,8 @@ describe("focus timer completion reminders", () => {
   });
 
   it("rejects snapshots with an invalid account or deadline", () => {
-    expect(
-      buildFocusTimerCompletionReminder({ ...snapshot, userId: "" }),
-    ).toBeNull();
+    expect(buildFocusTimerCompletionReminder({ ...snapshot, userId: "" })).toBeNull();
 
-    expect(
-      buildFocusTimerCompletionReminder({ ...snapshot, endAtMs: Number.NaN }),
-    ).toBeNull();
+    expect(buildFocusTimerCompletionReminder({ ...snapshot, endAtMs: Number.NaN })).toBeNull();
   });
 });
