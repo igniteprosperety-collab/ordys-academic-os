@@ -678,8 +678,9 @@ function FocusPanel({
   }, [running]);
 
   useEffect(() => {
+    if (!userId || timerHydratedUserId !== userId || sessionStartedAt) return;
     setLeft(minutes * 60);
-  }, [minutes]);
+  }, [minutes, sessionStartedAt, timerHydratedUserId, userId]);
 
   useEffect(() => {
     if (!running || left > 0) return;
