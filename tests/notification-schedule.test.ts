@@ -24,6 +24,17 @@ describe("monthly summary schedule", () => {
     expect(next.getMinutes()).toBe(0);
   });
 
+  it("moves from December to January of the next year", () => {
+    const now = new Date(2026, 11, 31, 19, 0, 1, 0);
+    const next = nextMonthlySummaryAt(now);
+
+    expect(next.getFullYear()).toBe(2027);
+    expect(next.getMonth()).toBe(0);
+    expect(next.getDate()).toBe(31);
+    expect(next.getHours()).toBe(19);
+    expect(next.getMinutes()).toBe(0);
+  });
+
   it("handles leap-year February", () => {
     const now = new Date(2028, 1, 1, 8, 0, 0, 0);
     const next = nextMonthlySummaryAt(now);
