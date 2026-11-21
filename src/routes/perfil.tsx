@@ -22,6 +22,7 @@ import {
   isNativeAndroid,
   requestNativeNotificationPermission,
   syncNativeAcademicNotifications,
+  syncNativeFocusTimerNotification,
 } from "@/lib/native-notifications";
 import {
   addLocalProfile,
@@ -441,6 +442,7 @@ function Perfil() {
       await upsertNotificationPrefs({ [key]: value } as never);
       if (isNativeAndroid()) {
         await syncNativeAcademicNotifications();
+        await syncNativeFocusTimerNotification();
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Não foi possível salvar a preferência.");
@@ -454,6 +456,7 @@ function Perfil() {
         setPermission(result);
         if (result === "granted") {
           await syncNativeAcademicNotifications();
+          await syncNativeFocusTimerNotification();
           toast.success("Notificações do Android ativadas");
         } else {
           toast.error("Permissão de notificações não concedida");
