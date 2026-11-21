@@ -27,7 +27,16 @@ describe("overdue task reminders", () => {
     expect(reminder).not.toBeNull();
     expect(reminder?.at.getDate()).toBe(24);
     expect(reminder?.at.getHours()).toBe(9);
-    expect(reminder?.title).toBe("2 tarefa(s) atrasada(s)");
+    expect(reminder?.title).toBe("2 tarefas atrasadas");
+  });
+
+  it("uses a singular title when only one overdue task remains", () => {
+    const reminder = buildOverdueTaskReminder([task], {
+      now: new Date(2026, 10, 23, 10, 0),
+      quietStart: "22:00",
+      quietEnd: "07:00",
+    });
+    expect(reminder?.title).toBe("1 tarefa atrasada");
   });
 
   it("uses today's 09:00 when synchronization happens before the reminder time", () => {
