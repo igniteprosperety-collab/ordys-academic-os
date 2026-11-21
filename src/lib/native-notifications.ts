@@ -4,6 +4,7 @@ import { dateKey, ordysWeekdayToJsDay, parseTimeOfDay } from "@/lib/ordys-engine
 import { nativeNotificationsEnabledForBuild } from "@/lib/native-notifications-config";
 import { buildCalendarEventReminders } from "@/lib/calendar-event-reminders";
 import { createSerialTaskQueue } from "@/lib/async-task-queue";
+import { buildGoalProgressReminders } from "@/lib/goal-progress-reminders";
 
 // Native reminders are enabled only in distribution profiles that explicitly opt in.
 // The direct-install APK v1 disables this feature; Google Play keeps it available.
@@ -32,6 +33,7 @@ const NOTIFICATION_IDS = {
   class: 400000,
   summary: 500000,
   event: 600000,
+  goal: 700000,
 };
 const NOTIFICATION_PREFIXES = Object.values(NOTIFICATION_IDS);
 
@@ -218,6 +220,10 @@ async function syncNativeAcademicNotificationsNow() {
     focusResult,
     subjectsResult,
     calendarEventsResult,
+    goalsResult,
+    gradesResult,
+    attendanceResult,
+    profileResult,
   ] = await Promise.all([
     supabase.from("notification_preferences").select("*").eq("user_id", userId).maybeSingle(),
     supabase
@@ -262,6 +268,20 @@ async function syncNativeAcademicNotificationsNow() {
       .gte("starts_at", new Date().toISOString())
       .order("starts_at")
       .limit(120),
+    supabase
+      .from("goals")
+      .select("id,title,metric,target,period,subject_id,active")
+      .eq("user_id", userId)
+      .eq("active", true),
+    supabase
+      .from("grades")
+      .select("subject_id,score,max_score,weight,graded_on")
+      .eq("user_id", userId),
+    supabase
+      .from("attendance_records")
+      .select("subject_id,status,class_date")
+      .eq("user_id", userId),
+    supabase.from("profiles").select("grade_scale_max").eq("id", userId).maybeSingle(),
   ]);
 
   const queryErrors = [
@@ -273,6 +293,10 @@ async function syncNativeAcademicNotificationsNow() {
     focusResult.error,
     subjectsResult.error,
     calendarEventsResult.error,
+    goalsResult.error,
+    gradesResult.error,
+    attendanceResult.error,
+    profileResult.error,
   ].filter(Boolean);
 
   // Never delete already scheduled reminders when a transient data query fails.
@@ -289,6 +313,10 @@ async function syncNativeAcademicNotificationsNow() {
   const focus = focusResult.data;
   const subjects = subjectsResult.data;
   const calendarEvents = calendarEventsResult.data;
+  const goals = goalsResult.data;
+  const grades = gradesResult.data;
+  const attendance = attendanceResult.data;
+  const gradeScale = Number(profileResult.data?.grade_scale_max ?? 10);
 
   const prefixes = NOTIFICATION_PREFIXES;
   const pending = await notificationsApi.getPending();
@@ -545,6 +573,14 @@ async function syncNativeAcademicNotificationsNow() {
       quietStart,
       quietEnd,
     }),
+    ...(prefs?.goals === false
+      ? []
+      : buildGoalProgressReminders(goals ?? [], grades ?? [], attendance ?? [], {
+          now: new Date(now),
+          scale: gradeScale,
+          quietStart,
+          quietEnd,
+        })),
   ];
 
   const seen = new Set<number>();
