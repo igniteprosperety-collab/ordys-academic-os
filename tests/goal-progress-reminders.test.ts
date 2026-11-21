@@ -73,15 +73,21 @@ describe("goal progress reminders", () => {
 
   it("respects quiet hours and does not schedule after the daily reminder time", () => {
     expect(
-      buildGoalProgressReminders([averageGoal], [
-        { subject_id: "math", graded_on: "2026-11-10", score: 6, max_score: 10, weight: 1 },
-      ], [], { ...options, quietStart: "18:30", quietEnd: "20:00" }),
+      buildGoalProgressReminders(
+        [averageGoal],
+        [{ subject_id: "math", graded_on: "2026-11-10", score: 6, max_score: 10, weight: 1 }],
+        [],
+        { ...options, quietStart: "18:30", quietEnd: "20:00" },
+      ),
     ).toEqual([]);
 
     expect(
-      buildGoalProgressReminders([averageGoal], [
-        { subject_id: "math", graded_on: "2026-11-10", score: 6, max_score: 10, weight: 1 },
-      ], [], { ...options, now: new Date(2026, 10, 23, 19, 1) }),
+      buildGoalProgressReminders(
+        [averageGoal],
+        [{ subject_id: "math", graded_on: "2026-11-10", score: 6, max_score: 10, weight: 1 }],
+        [],
+        { ...options, now: new Date(2026, 10, 23, 19, 1) },
+      ),
     ).toEqual([]);
   });
 
