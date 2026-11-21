@@ -1,7 +1,10 @@
 import { Capacitor } from "@capacitor/core";
 import { supabase } from "@/integrations/supabase/client";
 import { dateKey, ordysWeekdayToJsDay, parseTimeOfDay } from "@/lib/ordys-engine";
-import { nativeNotificationsEnabledForBuild } from "@/lib/native-notifications-config";
+import {
+  hasNativeNotificationSyncErrors,
+  nativeNotificationsEnabledForBuild,
+} from "@/lib/native-notifications-config";
 
 // Native reminders are enabled only in distribution profiles that explicitly opt in.
 // The direct-install APK v1 disables this feature; Google Play keeps it available.
@@ -278,11 +281,12 @@ export async function syncNativeAcademicNotifications() {
     planResult.error,
     schedulesResult.error,
     focusResult.error,
+    eventsResult.error,
     subjectsResult.error,
-  ].filter(Boolean);
+  ];
 
   // Never delete already scheduled reminders when a transient data query fails.
-  if (queryErrors.length) {
+  if (hasNativeNotificationSyncErrors(queryErrors)) {
     console.error("[notifications] sync aborted because a data query failed");
     return;
   }
@@ -294,9 +298,6 @@ export async function syncNativeAcademicNotifications() {
   const schedules = schedulesResult.data;
   const focus = focusResult.data;
   const events = eventsResult.data ?? [];
-  if (eventsResult.error) {
-    console.warn("[notifications] calendar event reminders unavailable during this sync");
-  }
   const subjects = subjectsResult.data;
 
   const prefixes = NOTIFICATION_PREFIXES;
