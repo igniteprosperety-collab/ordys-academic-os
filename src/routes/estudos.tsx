@@ -39,6 +39,10 @@ import {
   serializeFocusTimerState,
 } from "@/lib/focus-timer-state";
 import {
+  cancelNativeFocusTimerNotification,
+  scheduleNativeFocusTimerNotification,
+} from "@/lib/native-notifications";
+import {
   addDays,
   dateKey,
   ensureAutomaticReviews,
@@ -509,6 +513,11 @@ function FocusPanel({
     async (status: "concluida" | "cancelada") => {
       if (saving || !sessionStartedAt) return;
       setRunning(false);
+      if (userId) {
+        void cancelNativeFocusTimerNotification(userId, sessionStartedAt).catch((error) => {
+          console.error("Could not cancel native focus timer reminder:", error);
+        });
+      }
       setSaving(true);
       const actualMinutes = status === "concluida" ? Math.max(1, elapsedMinutes) : elapsedMinutes;
       try {
@@ -590,6 +599,9 @@ function FocusPanel({
     if (restored.status === "running") {
       timerEndAt.current = restored.endAtMs;
       setRunning(true);
+      void scheduleNativeFocusTimerNotification(restored).catch((error) => {
+        console.error("Could not restore native focus timer reminder:", error);
+      });
     }
     setTimerHydratedUserId(userId);
   }, [userId]);
@@ -800,6 +812,11 @@ function FocusPanel({
                     }
                     setLeft(remainingSeconds);
                     setRunning(false);
+                    if (userId && sessionStartedAt) {
+                      void cancelNativeFocusTimerNotification(userId, sessionStartedAt).catch((error) => {
+                        console.error("Could not cancel native focus timer reminder:", error);
+                      });
+                    }
                   }}
                 >
                   <Pause className="size-[13px]" strokeWidth={1.8} /> Pausar
@@ -837,6 +854,9 @@ function FocusPanel({
                     } catch {
                       // Persistence is best-effort; starting focus must remain immediate.
                     }
+                    void scheduleNativeFocusTimerNotification(snapshot).catch((error) => {
+                      console.error("Could not schedule native focus timer reminder:", error);
+                    });
                   }
                   setSessionStartedAt(startedAt);
                   timerEndAt.current = endAtMs;
