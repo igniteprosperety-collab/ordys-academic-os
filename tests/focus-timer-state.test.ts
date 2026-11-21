@@ -100,6 +100,12 @@ describe("focus timer persistence", () => {
     expect(values.get(secondKey)).toBe("second-session");
   });
 
+  it("rejects serialized snapshots without a valid account identity", () => {
+    expect(() =>
+      serializeFocusTimerState({ ...runningSnapshot, userId: "" }),
+    ).toThrow("Estado de cronômetro inválido.");
+  });
+
   it("does not clear storage when no account is supplied", () => {
     const removed: string[] = [];
     const storage = { removeItem: (key: string) => removed.push(key) };
