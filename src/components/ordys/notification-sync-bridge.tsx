@@ -119,8 +119,8 @@ export function NotificationSyncBridge() {
       const fresh = collectFreshBrowserNotifications(userId, notificationRows);
       for (const notification of fresh) {
         try {
-          new Notification(notification.title, {
-            body: notification.body ?? "",
+          new Notification("ORDYS", {
+            body: "Você tem um lembrete acadêmico. Abra o ORDYS para ver os detalhes.",
             tag: `ordys-${notification.id}`,
           });
         } catch (error) {
