@@ -101,9 +101,9 @@ describe("focus timer persistence", () => {
   });
 
   it("rejects serialized snapshots without a valid account identity", () => {
-    expect(() =>
-      serializeFocusTimerState({ ...runningSnapshot, userId: "" }),
-    ).toThrow("Estado de cronômetro inválido.");
+    expect(() => serializeFocusTimerState({ ...runningSnapshot, userId: "" })).toThrow(
+      "Estado de cronômetro inválido.",
+    );
   });
 
   it("does not clear storage when no account is supplied", () => {
