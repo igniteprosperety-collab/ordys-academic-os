@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
+import { isNativeAndroid, syncNativeAcademicNotifications } from "@/lib/native-notifications";
 import { Shell } from "@/components/ordys/shell";
 import { Chip, Dot, Panel, PanelHeader, PageTitle, Stat } from "@/components/ordys/primitives";
 import { Button, ConfirmDialog, Field, Modal, Select, TextInput } from "@/components/ordys/form";
@@ -298,6 +299,11 @@ function Agenda() {
         source: "ordys",
         subject_id: eventForm.subjectId || null,
       });
+      if (isNativeAndroid()) {
+        void syncNativeAcademicNotifications().catch((error) => {
+          console.error("Could not refresh event reminders:", error);
+        });
+      }
       setEventModalOpen(false);
       setEventForm(createDefaultEventForm());
       toast.success("Evento adicionado à agenda.");
@@ -312,6 +318,11 @@ function Agenda() {
     if (!eventToDelete) return;
     try {
       await remove("calendar_events", eventToDelete);
+      if (isNativeAndroid()) {
+        void syncNativeAcademicNotifications().catch((error) => {
+          console.error("Could not refresh event reminders:", error);
+        });
+      }
       setEventToDelete(null);
       toast.success("Evento removido da agenda.");
     } catch (error) {
