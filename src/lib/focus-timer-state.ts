@@ -21,6 +21,15 @@ export function focusTimerStorageKey(userId: string): string {
   return `ordys:focus-timer:v1:${userId}`;
 }
 
+export function clearFocusTimerSnapshot(
+  storage: { removeItem: (key: string) => void },
+  userId: string,
+): boolean {
+  if (!userId.trim()) return false;
+  storage.removeItem(focusTimerStorageKey(userId));
+  return true;
+}
+
 function isValidSnapshot(value: unknown, userId: string): value is FocusTimerSnapshot {
   if (!value || typeof value !== "object") return false;
   const item = value as Partial<FocusTimerSnapshot> & Record<string, unknown>;
