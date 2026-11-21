@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { isNativeAndroid, syncNativeAcademicNotifications } from "@/lib/native-notifications";
+import { isDemoMode } from "@/lib/demo-mode";
 import { Shell } from "@/components/ordys/shell";
 import { Chip, Dot, Panel, PanelHeader, PageTitle, Stat } from "@/components/ordys/primitives";
 import { Button, ConfirmDialog, Field, Modal, Select, TextInput } from "@/components/ordys/form";
@@ -299,7 +300,7 @@ function Agenda() {
         source: "ordys",
         subject_id: eventForm.subjectId || null,
       });
-      if (isNativeAndroid()) {
+      if (isNativeAndroid() && !isDemoMode()) {
         void syncNativeAcademicNotifications().catch((error) => {
           console.error("Could not refresh event reminders:", error);
         });
