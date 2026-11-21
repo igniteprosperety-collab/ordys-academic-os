@@ -1575,7 +1575,15 @@ function Agenda() {
                 <p className="text-[11.5px] text-muted-foreground">
                   Cadastre compromissos que não fazem parte de uma aula, prova ou tarefa.
                 </p>
-                <Button onClick={() => { setEditingEventId(null); setEventForm(createDefaultEventForm()); setEventModalOpen(true); }}>Novo evento</Button>
+                <Button
+                  onClick={() => {
+                    setEditingEventId(null);
+                    setEventForm(createDefaultEventForm());
+                    setEventModalOpen(true);
+                  }}
+                >
+                  Novo evento
+                </Button>
               </div>
               <div className="border-t border-border">
                 {events.length ? (
@@ -1705,7 +1713,14 @@ function Agenda() {
           </Field>
         </div>
         <div className="mt-4 flex justify-end gap-2">
-          <Button variant="ghost" onClick={() => { setEventModalOpen(false); setEditingEventId(null); }} disabled={savingEvent}>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setEventModalOpen(false);
+              setEditingEventId(null);
+            }}
+            disabled={savingEvent}
+          >
             Cancelar
           </Button>
           <Button onClick={() => void saveManualEvent()} disabled={savingEvent}>
