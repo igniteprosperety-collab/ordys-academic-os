@@ -521,6 +521,13 @@ function FocusPanel({
           ended_at: new Date().toISOString(),
           status,
         });
+        if (userId && typeof window !== "undefined") {
+          try {
+            window.localStorage.removeItem(focusTimerStorageKey(userId));
+          } catch {
+            // The session is saved remotely; local cleanup is best-effort.
+          }
+        }
         setSessionStartedAt(null);
         timerEndAt.current = null;
         setLeft(minutes * 60);
@@ -536,7 +543,7 @@ function FocusPanel({
         setSaving(false);
       }
     },
-    [elapsedMinutes, minutes, onSave, planId, saving, sessionStartedAt, subjectId, topicId],
+    [elapsedMinutes, minutes, onSave, planId, saving, sessionStartedAt, subjectId, topicId, userId],
   );
 
   useEffect(() => {
