@@ -3,6 +3,7 @@ import {
   collectFreshBrowserNotifications,
   type BrowserNotificationStorage,
   type BrowserNotificationRow,
+  isBrowserNotificationDeliveryEnabled,
 } from "@/lib/browser-notifications";
 
 class MemoryStorage implements BrowserNotificationStorage {
@@ -26,6 +27,14 @@ const row = (id: string, ageMs = 0): BrowserNotificationRow => ({
 });
 
 describe("browser notification delivery", () => {
+  it("requires browser permission and respects the global notification toggle", () => {
+    expect(isBrowserNotificationDeliveryEnabled("granted", true)).toBe(true);
+    expect(isBrowserNotificationDeliveryEnabled("granted", null)).toBe(true);
+    expect(isBrowserNotificationDeliveryEnabled("granted", false)).toBe(false);
+    expect(isBrowserNotificationDeliveryEnabled("default", true)).toBe(false);
+    expect(isBrowserNotificationDeliveryEnabled("denied", true)).toBe(false);
+  });
+
   it("creates a baseline instead of replaying old notifications on first use", () => {
     const storage = new MemoryStorage();
 
