@@ -223,6 +223,22 @@ export function scheduleNativeFocusTimerNotification(
     const { data: sessionData } = await supabase.auth.getSession();
     if (sessionData.session?.user.id !== snapshot.userId) return;
 
+    const prefsResult = await supabase
+      .from("notification_preferences")
+      .select("enabled")
+      .eq("user_id", snapshot.userId)
+      .maybeSingle();
+    if (prefsResult.error) {
+      console.error("[notifications] focus timer scheduling skipped because preferences could not be read");
+      return;
+    }
+    if (prefsResult.data?.enabled === false) {
+      await cancelNativeNotifications([
+        focusTimerNotificationId(snapshot.userId, snapshot.startedAt),
+      ]);
+      return;
+    }
+
     const reminder = buildFocusTimerCompletionReminder(snapshot);
     if (!reminder) {
       await cancelNativeNotifications([
