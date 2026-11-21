@@ -25,6 +25,10 @@ describe("calendar iCalendar export", () => {
     expect(ics).toContain("SUMMARY:Consulta");
     expect(ics).toContain("DESCRIPTION:compromisso");
     expect(ics).toContain("LOCATION:Sala 3");
+    expect(ics).toContain("BEGIN:VALARM");
+    expect(ics).toContain("ACTION:DISPLAY");
+    expect(ics).toContain("TRIGGER:-PT10M");
+    expect(ics).toContain("DESCRIPTION:Consulta começa em 10 minutos");
     expect(ics).toContain("END:VCALENDAR");
   });
 
