@@ -37,7 +37,6 @@ type GoalProgressOptions = {
 };
 
 const GOAL_NOTIFICATION_ID_PREFIX = 700000;
-const DAILY_REMINDER_MINUTES = 19 * 60;
 
 function startOfDay(date: Date) {
   const value = new Date(date);
@@ -121,7 +120,7 @@ function currentGoalValue(
   grades: GoalAlertGrade[],
   attendance: GoalAlertAttendance[],
   options: GoalProgressOptions,
-): { value: number; suffix: string } | null {
+): { value: number } | null {
   const range = goalRange(goal.period, options.now);
   if (goal.metric === "media") {
     const scopedGrades = grades.filter(
@@ -150,7 +149,7 @@ function currentGoalValue(
       totalWeight += weight;
     }
     if (!totalWeight) return null;
-    return { value: weightedSum / totalWeight, suffix: "" };
+    return { value: weightedSum / totalWeight };
   }
 
   if (goal.metric === "frequencia") {
@@ -163,7 +162,7 @@ function currentGoalValue(
     const present = scopedAttendance.filter(
       (record) => record.status === "presente" || record.status === "justificada",
     ).length;
-    return { value: (present / scopedAttendance.length) * 100, suffix: "%" };
+    return { value: (present / scopedAttendance.length) * 100 };
   }
 
   return null;
@@ -196,13 +195,14 @@ export function buildGoalProgressReminders(
     const current = currentGoalValue(goal, grades, attendance, options);
     if (!current || current.value >= target) return [];
 
-    const valueLabel = goal.metric === "media"
-      ? current.value.toFixed(1)
-      : `${Math.round(current.value)}%`;
-    const targetLabel = goal.metric === "media"
-      ? target.toFixed(1)
-      : `${target}%`;
-    const dayKey = `${options.now.getFullYear()}-${String(options.now.getMonth() + 1).padStart(2, "0")}-${String(options.now.getDate()).padStart(2, "0")}`;
+    const valueLabel =
+      goal.metric === "media" ? current.value.toFixed(1) : `${Math.round(current.value)}%`;
+    const targetLabel = goal.metric === "media" ? target.toFixed(1) : `${target}%`;
+    const dayKey = [
+      options.now.getFullYear(),
+      String(options.now.getMonth() + 1).padStart(2, "0"),
+      String(options.now.getDate()).padStart(2, "0"),
+    ].join("-");
 
     return [{
       id: stableGoalNotificationId(`${goal.id}:${goal.period}:${dayKey}`),
