@@ -38,9 +38,7 @@ describe("goal progress reminders", () => {
   it("does not round an average up to the target in the alert copy", () => {
     const reminders = buildGoalProgressReminders(
       [{ ...averageGoal, target: 8 }],
-      [
-        { subject_id: "math", graded_on: "2026-11-10", score: 7.999, max_score: 10, weight: 1 },
-      ],
+      [{ subject_id: "math", graded_on: "2026-11-10", score: 7.999, max_score: 10, weight: 1 }],
       [],
       options,
     );
