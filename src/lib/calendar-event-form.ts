@@ -18,7 +18,7 @@ export type CalendarEventPayload = {
 };
 
 export type CalendarEventFormResult =
-  | { valid: true; values: CalendarEventPayload }
+  { valid: true; values: CalendarEventPayload }
   | { valid: false; error: string };
 
 export function buildCalendarEventPayload(form: CalendarEventFormInput): CalendarEventFormResult {
