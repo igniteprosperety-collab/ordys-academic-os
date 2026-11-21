@@ -2,6 +2,7 @@ import { Capacitor } from "@capacitor/core";
 import { supabase } from "@/integrations/supabase/client";
 import { dateKey, ordysWeekdayToJsDay, parseTimeOfDay } from "@/lib/ordys-engine";
 import { nativeNotificationsEnabledForBuild } from "@/lib/native-notifications-config";
+import { buildCalendarEventReminders } from "@/lib/calendar-event-reminders";
 
 // Native reminders are enabled only in distribution profiles that explicitly opt in.
 // The direct-install APK v1 disables this feature; Google Play keeps it available.
@@ -29,6 +30,7 @@ const NOTIFICATION_IDS = {
   study: 300000,
   class: 400000,
   summary: 500000,
+  event: 600000,
 };
 const NOTIFICATION_PREFIXES = Object.values(NOTIFICATION_IDS);
 
@@ -200,6 +202,7 @@ export async function syncNativeAcademicNotifications() {
     schedulesResult,
     focusResult,
     subjectsResult,
+    calendarEventsResult,
   ] = await Promise.all([
     supabase.from("notification_preferences").select("*").eq("user_id", userId).maybeSingle(),
     supabase
@@ -237,6 +240,13 @@ export async function syncNativeAcademicNotifications() {
       .order("started_at", { ascending: false })
       .limit(120),
     supabase.from("subjects").select("id,name").eq("user_id", userId),
+    supabase
+      .from("calendar_events")
+      .select("id,title,starts_at,location,kind")
+      .eq("user_id", userId)
+      .gte("starts_at", new Date().toISOString())
+      .order("starts_at")
+      .limit(120),
   ]);
 
   const queryErrors = [
@@ -247,6 +257,7 @@ export async function syncNativeAcademicNotifications() {
     schedulesResult.error,
     focusResult.error,
     subjectsResult.error,
+    calendarEventsResult.error,
   ].filter(Boolean);
 
   // Never delete already scheduled reminders when a transient data query fails.
@@ -262,6 +273,7 @@ export async function syncNativeAcademicNotifications() {
   const schedules = schedulesResult.data;
   const focus = focusResult.data;
   const subjects = subjectsResult.data;
+  const calendarEvents = calendarEventsResult.data;
 
   const prefixes = NOTIFICATION_PREFIXES;
   const pending = await notificationsApi.getPending();
@@ -509,6 +521,12 @@ export async function syncNativeAcademicNotifications() {
           }
           return out;
         })),
+    ...buildCalendarEventReminders(calendarEvents ?? [], {
+      now: new Date(now),
+      horizon,
+      quietStart,
+      quietEnd,
+    }),
   ];
 
   const seen = new Set<number>();
