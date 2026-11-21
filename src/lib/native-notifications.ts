@@ -194,13 +194,14 @@ async function cancelAllPendingFocusTimerNotifications(notificationsApi: LocalNo
   const pending = await notificationsApi.getPending();
   const ids = pending.notifications
     .map((notification) => notification.id)
-    .filter(
-      (id) => id >= NOTIFICATION_IDS.focusTimer && id < NOTIFICATION_IDS.focusTimer + 90000,
-    );
+    .filter((id) => id >= NOTIFICATION_IDS.focusTimer && id < NOTIFICATION_IDS.focusTimer + 90000);
   await cancelNativeNotifications(ids);
 }
 
-export function cancelNativeFocusTimerNotification(userId: string, startedAt: string): Promise<void> {
+export function cancelNativeFocusTimerNotification(
+  userId: string,
+  startedAt: string,
+): Promise<void> {
   return enqueueFocusTimerNotificationOperation(async () => {
     if (!userId.trim() || !startedAt) return;
     await cancelNativeNotifications([focusTimerNotificationId(userId, startedAt)]);
@@ -432,8 +433,8 @@ export async function syncNativeAcademicNotifications() {
     await cancelNativeNotifications(
       pending.notifications
         .map((notification) => notification.id)
-        .filter(
-          (id) => NOTIFICATION_PREFIXES.some((prefix) => id >= prefix && id < prefix + 90000),
+        .filter((id) =>
+          NOTIFICATION_PREFIXES.some((prefix) => id >= prefix && id < prefix + 90000),
         ),
     );
     return;
