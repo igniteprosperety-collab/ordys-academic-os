@@ -32,6 +32,7 @@ import {
   useTopics,
   type PlanSession,
 } from "@/lib/ordys-db";
+import { focusTimerStorageKey, restoreFocusTimerState, serializeFocusTimerState } from "@/lib/focus-timer-state";
 import {
   addDays,
   dateKey,
@@ -343,6 +344,7 @@ function Estudos() {
           subjects={subjects}
           topics={topics}
           plan={plan.filter((p) => p.session_date === todayKey && p.status === "planejada")}
+          userId={userId}
           onSave={async (payload) => {
             await insert("focus_sessions", payload);
           }}
@@ -469,6 +471,7 @@ function FocusPanel({
   subjects,
   topics,
   plan,
+  userId,
   onSave,
   recent,
   weekMinutes,
@@ -477,6 +480,7 @@ function FocusPanel({
   subjects: { id: string; name: string; color: string }[];
   topics: { id: string; title: string; subject_id: string }[];
   plan: PlanSession[];
+  userId: string | null;
   onSave: (payload: Record<string, unknown>) => Promise<void>;
   recent: { id: string; label: string; minutes: number; status: string; color: string }[];
   weekMinutes: number;
@@ -489,15 +493,16 @@ function FocusPanel({
   const [left, setLeft] = useState(50 * 60);
   const [running, setRunning] = useState(false);
   const [saving, setSaving] = useState(false);
-  const startedAt = useRef<string | null>(null);
+  const [sessionStartedAt, setSessionStartedAt] = useState<string | null>(null);
+  const [timerHydratedUserId, setTimerHydratedUserId] = useState<string | null>(null);
   const timerEndAt = useRef<number | null>(null);
 
-  const sessionStarted = startedAt.current !== null;
+  const sessionStarted = sessionStartedAt !== null;
   const elapsedMinutes = Math.max(0, Math.round((minutes * 60 - left) / 60));
 
   const finish = useCallback(
     async (status: "concluida" | "cancelada") => {
-      if (saving || !startedAt.current) return;
+      if (saving || !sessionStartedAt) return;
       setRunning(false);
       setSaving(true);
       const actualMinutes = status === "concluida" ? Math.max(1, elapsedMinutes) : elapsedMinutes;
@@ -508,11 +513,11 @@ function FocusPanel({
           plan_session_id: planId || null,
           planned_minutes: minutes,
           actual_minutes: actualMinutes,
-          started_at: startedAt.current,
+          started_at: sessionStartedAt,
           ended_at: new Date().toISOString(),
           status,
         });
-        startedAt.current = null;
+        setSessionStartedAt(null);
         timerEndAt.current = null;
         setLeft(minutes * 60);
         toast.success(
@@ -527,8 +532,112 @@ function FocusPanel({
         setSaving(false);
       }
     },
-    [elapsedMinutes, minutes, onSave, planId, saving, subjectId, topicId],
+    [elapsedMinutes, minutes, onSave, planId, saving, sessionStartedAt, subjectId, topicId],
   );
+
+  useEffect(() => {
+    if (!userId || typeof window === "undefined") return;
+
+    timerEndAt.current = null;
+    setRunning(false);
+    setMinutes(50);
+    setLeft(50 * 60);
+    setSessionStartedAt(null);
+    setSubjectId("");
+    setTopicId("");
+    setPlanId("");
+
+    const storageKey = focusTimerStorageKey(userId);
+    let raw: string | null = null;
+    try {
+      raw = window.localStorage.getItem(storageKey);
+    } catch {
+      setTimerHydratedUserId(userId);
+      return;
+    }
+
+    const restored = restoreFocusTimerState(raw, userId);
+    if (!restored) {
+      if (raw) {
+        try {
+          window.localStorage.removeItem(storageKey);
+        } catch {
+          // Storage is best-effort; the timer remains usable in memory.
+        }
+      }
+      setTimerHydratedUserId(userId);
+      return;
+    }
+
+    setMinutes(restored.minutes);
+    setLeft(restored.remainingSeconds);
+    setSessionStartedAt(restored.startedAt);
+    setSubjectId(restored.subjectId ?? "");
+    setTopicId(restored.topicId ?? "");
+    setPlanId(restored.planId ?? "");
+    if (restored.status === "running") {
+      timerEndAt.current = restored.endAtMs;
+      setRunning(true);
+    }
+    setTimerHydratedUserId(userId);
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId || timerHydratedUserId !== userId || !sessionStartedAt || !running) return;
+    if (typeof window === "undefined") return;
+    const endAtMs = timerEndAt.current;
+    if (endAtMs === null) return;
+
+    const snapshot = {
+      version: 1 as const,
+      userId,
+      minutes,
+      leftSeconds: Math.max(0, Math.min(minutes * 60, Math.ceil((endAtMs - Date.now()) / 1000))),
+      startedAt: sessionStartedAt,
+      endAtMs,
+      status: "running" as const,
+      subjectId: subjectId || null,
+      topicId: topicId || null,
+      planId: planId || null,
+    };
+    try {
+      window.localStorage.setItem(focusTimerStorageKey(userId), serializeFocusTimerState(snapshot));
+    } catch {
+      // Persistence is best-effort; never interrupt a running focus session.
+    }
+  }, [minutes, planId, running, sessionStartedAt, subjectId, timerHydratedUserId, topicId, userId]);
+
+  useEffect(() => {
+    if (!userId || timerHydratedUserId !== userId || running) return;
+    if (typeof window === "undefined") return;
+    const storageKey = focusTimerStorageKey(userId);
+    if (!sessionStartedAt) {
+      try {
+        window.localStorage.removeItem(storageKey);
+      } catch {
+        // The completed session is already saved remotely; cleanup is best-effort.
+      }
+      return;
+    }
+
+    const snapshot = {
+      version: 1 as const,
+      userId,
+      minutes,
+      leftSeconds: left,
+      startedAt: sessionStartedAt,
+      endAtMs: null,
+      status: "paused" as const,
+      subjectId: subjectId || null,
+      topicId: topicId || null,
+      planId: planId || null,
+    };
+    try {
+      window.localStorage.setItem(storageKey, serializeFocusTimerState(snapshot));
+    } catch {
+      // Persistence is best-effort; never block pausing or saving the session.
+    }
+  }, [left, minutes, planId, running, sessionStartedAt, subjectId, timerHydratedUserId, topicId, userId]);
 
   useEffect(() => {
     if (!running) return;
@@ -653,7 +762,7 @@ function FocusPanel({
             ) : (
               <Button
                 onClick={() => {
-                  startedAt.current = startedAt.current ?? new Date().toISOString();
+                  setSessionStartedAt((current) => current ?? new Date().toISOString());
                   timerEndAt.current = Date.now() + left * 1000;
                   setRunning(true);
                 }}
