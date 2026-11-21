@@ -22,7 +22,7 @@ describe("daily summary reminders", () => {
     expect(reminder?.at.getDate()).toBe(23);
     expect(reminder?.at.getHours()).toBe(20);
     expect(reminder?.body).toContain("75 min de estudo");
-    expect(reminder?.body).toContain("3 tarefa(s)");
+    expect(reminder?.body).toContain("3 tarefas concluídas");
   });
 
   it("schedules the next day's reminder after today's 20:00 has passed", () => {
