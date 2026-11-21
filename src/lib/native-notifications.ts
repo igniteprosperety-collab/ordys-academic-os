@@ -45,7 +45,6 @@ const NOTIFICATION_PREFIXES = Object.values(NOTIFICATION_IDS);
 const ACADEMIC_NOTIFICATION_PREFIXES = NOTIFICATION_PREFIXES.filter(
   (prefix) => prefix !== NOTIFICATION_IDS.focusTimer,
 );
-const NOTIFICATION_PREFIXES = Object.values(NOTIFICATION_IDS);
 
 function stableId(prefix: number, value: string) {
   let hash = 0;
