@@ -35,6 +35,8 @@ function isValidSnapshot(value: unknown, userId: string): value is FocusTimerSna
   const item = value as Partial<FocusTimerSnapshot> & Record<string, unknown>;
   if (
     item.version !== 1 ||
+    typeof item.userId !== "string" ||
+    !item.userId.trim() ||
     item.userId !== userId ||
     typeof item.minutes !== "number" ||
     !Number.isInteger(item.minutes) ||
