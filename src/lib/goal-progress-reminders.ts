@@ -196,8 +196,8 @@ export function buildGoalProgressReminders(
     if (!current || current.value >= target) return [];
 
     const valueLabel =
-      goal.metric === "media" ? current.value.toFixed(1) : `${Math.round(current.value)}%`;
-    const targetLabel = goal.metric === "media" ? target.toFixed(1) : `${target}%`;
+      goal.metric === "media" ? (Math.floor(current.value * 100) / 100).toFixed(2) : `${Math.round(current.value)}%`;
+    const targetLabel = goal.metric === "media" ? target.toFixed(2) : `${target}%`;
     const dayKey = [
       options.now.getFullYear(),
       String(options.now.getMonth() + 1).padStart(2, "0"),
