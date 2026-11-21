@@ -22,7 +22,10 @@ function escapeIcsText(value: string) {
 function toIcsUtcDate(value: string | Date) {
   const date = value instanceof Date ? value : new Date(value);
   if (!Number.isFinite(date.getTime())) return null;
-  return date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+  return date
+    .toISOString()
+    .replace(/[-:]/g, "")
+    .replace(/\.\d{3}Z$/, "Z");
 }
 
 function foldIcsLine(line: string) {
@@ -72,8 +75,7 @@ export function buildCalendarIcs(events: CalendarIcsEvent[], options: CalendarIc
 
     const startMs = new Date(event.starts_at).getTime();
     const endMs = event.ends_at ? new Date(event.ends_at).getTime() : NaN;
-    const endsAt =
-      Number.isFinite(endMs) && endMs > startMs ? toIcsUtcDate(event.ends_at!) : null;
+    const endsAt = Number.isFinite(endMs) && endMs > startMs ? toIcsUtcDate(event.ends_at!) : null;
 
     lines.push(
       "BEGIN:VEVENT",
