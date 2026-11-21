@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getOrdysDataClient } from "@/lib/demo-supabase";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
@@ -152,6 +153,46 @@ export function useGoals() {
   return useOwnedQuery<Goal[]>(["goals"], (db) => db.from("goals").select("*").order("created_at"));
 }
 export function useNotifications() {
+  const { userId, isDemo } = useAuth();
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!userId || isDemo) return;
+
+    const invalidateNotifications = () => {
+      void queryClient.invalidateQueries({
+        queryKey: ["notifications", userId, "cloud"],
+      });
+    };
+    const channel = supabase
+      .channel(`notifications:${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${userId}`,
+        },
+        invalidateNotifications,
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${userId}`,
+        },
+        invalidateNotifications,
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [isDemo, queryClient, userId]);
+
   return useOwnedQuery<NotificationRow[]>(["notifications"], (db) =>
     db
       .from("notifications")
