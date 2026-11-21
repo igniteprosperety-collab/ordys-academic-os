@@ -31,7 +31,7 @@ describe("goal progress reminders", () => {
     );
 
     expect(reminders).toHaveLength(1);
-    expect(reminders[0]?.body).toContain("Média mínima: 7.5 de 8.0");
+    expect(reminders[0]?.body).toContain("Média mínima: 7.50 de 8.00");
     expect(reminders[0]?.at.getHours()).toBe(19);
   });
 
