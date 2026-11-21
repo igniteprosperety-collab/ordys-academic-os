@@ -100,9 +100,10 @@ function Agenda() {
   const [subjectSection, setSubjectSection] = useState<SubjectSection>("resumo");
   const [eventModalOpen, setEventModalOpen] = useState(false);
   const [eventToDelete, setEventToDelete] = useState<string | null>(null);
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [savingEvent, setSavingEvent] = useState(false);
   const [eventForm, setEventForm] = useState(createDefaultEventForm);
-  const { insert, remove } = useOrdysMutations();
+  const { insert, update, remove } = useOrdysMutations();
 
   const { data: subjects = [] } = useSubjects();
   const { data: schedules = [] } = useSchedules();
@@ -291,7 +292,7 @@ function Agenda() {
 
     setSavingEvent(true);
     try {
-      await insert("calendar_events", {
+      const values = {
         title,
         starts_at: startsAt.toISOString(),
         ends_at: endsAt?.toISOString() ?? null,
@@ -299,20 +300,40 @@ function Agenda() {
         kind: eventForm.kind,
         source: "ordys",
         subject_id: eventForm.subjectId || null,
-      });
+      };
+      if (editingEventId) {
+        await update("calendar_events", editingEventId, values);
+      } else {
+        await insert("calendar_events", values);
+      }
       if (isNativeAndroid() && !isDemoMode()) {
         void syncNativeAcademicNotifications().catch((error) => {
           console.error("Could not refresh event reminders:", error);
         });
       }
       setEventModalOpen(false);
+      setEditingEventId(null);
       setEventForm(createDefaultEventForm());
-      toast.success("Evento adicionado à agenda.");
+      toast.success(editingEventId ? "Evento atualizado." : "Evento adicionado à agenda.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível salvar o evento.");
     } finally {
       setSavingEvent(false);
     }
+  }
+
+  function editManualEvent(event: (typeof events)[number]) {
+    if (event.source !== "ordys") return;
+    setEditingEventId(event.id);
+    setEventForm({
+      title: event.title,
+      startsAt: localDateTimeValue(new Date(event.starts_at)),
+      endsAt: event.ends_at ? localDateTimeValue(new Date(event.ends_at)) : "",
+      location: event.location ?? "",
+      kind: event.kind,
+      subjectId: event.subject_id ?? "",
+    });
+    setEventModalOpen(true);
   }
 
   async function deleteManualEvent() {
@@ -1554,7 +1575,7 @@ function Agenda() {
                 <p className="text-[11.5px] text-muted-foreground">
                   Cadastre compromissos que não fazem parte de uma aula, prova ou tarefa.
                 </p>
-                <Button onClick={() => setEventModalOpen(true)}>Novo evento</Button>
+                <Button onClick={() => { setEditingEventId(null); setEventForm(createDefaultEventForm()); setEventModalOpen(true); }}>Novo evento</Button>
               </div>
               <div className="border-t border-border">
                 {events.length ? (
@@ -1582,13 +1603,22 @@ function Agenda() {
                         </span>
                       </button>
                       {e.source === "ordys" ? (
-                        <Button
-                          variant="ghost"
-                          onClick={() => setEventToDelete(e.id)}
-                          aria-label={`Excluir evento ${e.title}`}
-                        >
-                          Excluir
-                        </Button>
+                        <div className="flex shrink-0 gap-1">
+                          <Button
+                            variant="ghost"
+                            onClick={() => editManualEvent(e)}
+                            aria-label={`Editar evento ${e.title}`}
+                          >
+                            Editar
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            onClick={() => setEventToDelete(e.id)}
+                            aria-label={`Excluir evento ${e.title}`}
+                          >
+                            Excluir
+                          </Button>
+                        </div>
                       ) : null}
                     </div>
                   ))
@@ -1614,7 +1644,7 @@ function Agenda() {
         onClose={() => {
           if (!savingEvent) setEventModalOpen(false);
         }}
-        title="Novo evento"
+        title={editingEventId ? "Editar evento" : "Novo evento"}
         subtitle="O evento ficará salvo na sua agenda e será exibido nas visões de dia, semana e mês."
       >
         <div className="grid gap-3 sm:grid-cols-2">
@@ -1675,11 +1705,11 @@ function Agenda() {
           </Field>
         </div>
         <div className="mt-4 flex justify-end gap-2">
-          <Button variant="ghost" onClick={() => setEventModalOpen(false)} disabled={savingEvent}>
+          <Button variant="ghost" onClick={() => { setEventModalOpen(false); setEditingEventId(null); }} disabled={savingEvent}>
             Cancelar
           </Button>
           <Button onClick={() => void saveManualEvent()} disabled={savingEvent}>
-            {savingEvent ? "Salvando…" : "Salvar evento"}
+            {savingEvent ? "Salvando…" : editingEventId ? "Salvar alterações" : "Salvar evento"}
           </Button>
         </div>
       </Modal>
