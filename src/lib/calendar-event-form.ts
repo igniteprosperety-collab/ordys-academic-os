@@ -17,9 +17,7 @@ export type CalendarEventPayload = {
   subject_id: string | null;
 };
 
-export type CalendarEventFormResult =
-  { valid: true; values: CalendarEventPayload }
-  | { valid: false; error: string };
+export type CalendarEventFormResult = { valid: true; values: CalendarEventPayload } | { valid: false; error: string };
 
 export function buildCalendarEventPayload(form: CalendarEventFormInput): CalendarEventFormResult {
   const title = form.title.trim();
