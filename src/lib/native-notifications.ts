@@ -6,6 +6,7 @@ import { buildCalendarEventReminders } from "@/lib/calendar-event-reminders";
 import { createSerialTaskQueue } from "@/lib/async-task-queue";
 import { buildGoalProgressReminders } from "@/lib/goal-progress-reminders";
 import { buildOverdueTaskReminder } from "@/lib/overdue-task-reminders";
+import { buildDailySummaryReminder } from "@/lib/daily-summary-reminder";
 
 // Native reminders are enabled only in distribution profiles that explicitly opt in.
 // The direct-install APK v1 disables this feature; Google Play keeps it available.
@@ -378,22 +379,17 @@ async function syncNativeAcademicNotificationsNow() {
     ...(prefs?.daily_summary === false
       ? []
       : (() => {
-          const at = new Date(dayStart);
-          at.setHours(20, 0, 0, 0);
-          if (at.getTime() <= now) at.setDate(at.getDate() + 1);
-          if (at.getTime() > horizon.getTime() || isWithinQuietHours(at, quietStart, quietEnd))
-            return [];
-          const summaryIsForToday = dateKey(at) === dateKey(dayStart);
-          const summary = summaryIsForToday ? summarizeRange(dayStart, nextDay) : null;
-          const body = summary
-            ? `Hoje: ${summary.studiedMinutes} min de estudo, ${summary.completedTasks} tarefa(s) concluída(s) e ${summary.completedPlan} sessão(ões) do plano concluída(s).`
-            : "Amanhã, confira seu tempo de estudo, tarefas concluídas e plano no resumo diário do ORDYS.";
+          const reminder = buildDailySummaryReminder({
+            now: new Date(now),
+            summary: summarizeRange(dayStart, nextDay),
+            quietStart,
+            quietEnd,
+          });
+          if (!reminder) return [];
           return [
             {
-              id: stableId(NOTIFICATION_IDS.summary, `summary-day:${dateKey(at)}`),
-              title: "Resumo diário",
-              body,
-              at,
+              ...reminder,
+              id: stableId(NOTIFICATION_IDS.summary, `summary-day:${dateKey(reminder.at)}`),
             },
           ];
         })()),
