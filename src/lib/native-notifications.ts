@@ -380,18 +380,19 @@ async function syncNativeAcademicNotificationsNow() {
       : (() => {
           const at = new Date(dayStart);
           at.setHours(20, 0, 0, 0);
-          if (
-            at.getTime() <= now ||
-            at.getTime() > horizon.getTime() ||
-            isWithinQuietHours(at, quietStart, quietEnd)
-          )
+          if (at.getTime() <= now) at.setDate(at.getDate() + 1);
+          if (at.getTime() > horizon.getTime() || isWithinQuietHours(at, quietStart, quietEnd))
             return [];
-          const summary = summarizeRange(dayStart, nextDay);
+          const summaryIsForToday = dateKey(at) === dateKey(dayStart);
+          const summary = summaryIsForToday ? summarizeRange(dayStart, nextDay) : null;
+          const body = summary
+            ? `Hoje: ${summary.studiedMinutes} min de estudo, ${summary.completedTasks} tarefa(s) concluída(s) e ${summary.completedPlan} sessão(ões) do plano concluída(s).`
+            : "Amanhã, confira seu tempo de estudo, tarefas concluídas e plano no resumo diário do ORDYS.";
           return [
             {
-              id: stableId(NOTIFICATION_IDS.summary, `summary-day:${dateKey(dayStart)}`),
+              id: stableId(NOTIFICATION_IDS.summary, `summary-day:${dateKey(at)}`),
               title: "Resumo diário",
-              body: `Hoje: ${summary.studiedMinutes} min de estudo, ${summary.completedTasks} tarefa(s) concluída(s) e ${summary.completedPlan} sessão(ões) do plano concluída(s).`,
+              body,
               at,
             },
           ];
