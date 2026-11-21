@@ -813,9 +813,11 @@ function FocusPanel({
                     setLeft(remainingSeconds);
                     setRunning(false);
                     if (userId && sessionStartedAt) {
-                      void cancelNativeFocusTimerNotification(userId, sessionStartedAt).catch((error) => {
-                        console.error("Could not cancel native focus timer reminder:", error);
-                      });
+                      void cancelNativeFocusTimerNotification(userId, sessionStartedAt).catch(
+                        (error) => {
+                          console.error("Could not cancel native focus timer reminder:", error);
+                        },
+                      );
                     }
                   }}
                 >
