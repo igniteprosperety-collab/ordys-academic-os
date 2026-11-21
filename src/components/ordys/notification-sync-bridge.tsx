@@ -2,7 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { useAuth } from "@/hooks/use-auth";
-import { collectFreshBrowserNotifications } from "@/lib/browser-notifications";
+import {
+  collectFreshBrowserNotifications,
+  isBrowserNotificationDeliveryEnabled,
+} from "@/lib/browser-notifications";
 import {
   useAttendance,
   useCalendarEvents,
@@ -99,6 +102,8 @@ export function NotificationSyncBridge() {
       typeof window === "undefined" ||
       notificationQuery.isLoading ||
       notificationQuery.isError ||
+      prefsQuery.isLoading ||
+      prefsQuery.isError ||
       !("Notification" in window)
     ) {
       return;
@@ -106,7 +111,7 @@ export function NotificationSyncBridge() {
 
     const deliverFreshNotifications = () => {
       // Do not mark alerts as seen until the browser grants permission.
-      if (Notification.permission !== "granted") return;
+      if (!isBrowserNotificationDeliveryEnabled(Notification.permission, prefs?.enabled)) return;
       if (
         isWithinQuietHours(
           new Date(),
@@ -139,7 +144,18 @@ export function NotificationSyncBridge() {
       window.removeEventListener("focus", deliverFreshNotifications);
       document.removeEventListener("visibilitychange", deliverFreshNotifications);
     };
-  }, [isDemo, notificationQuery.isError, notificationQuery.isLoading, notificationRows, userId]);
+  }, [
+    isDemo,
+    notificationQuery.isError,
+    notificationQuery.isLoading,
+    notificationRows,
+    prefs?.enabled,
+    prefs?.quiet_end,
+    prefs?.quiet_start,
+    prefsQuery.isError,
+    prefsQuery.isLoading,
+    userId,
+  ]);
 
   const signature = JSON.stringify([
     userId,
