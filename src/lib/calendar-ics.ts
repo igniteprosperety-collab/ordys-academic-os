@@ -58,7 +58,13 @@ export function buildCalendarIcs(events: CalendarIcsEvent[], options: CalendarIc
     "X-WR-CALNAME:ORDYS Academy",
   ];
 
-  const sortedEvents = [...events].sort((a, b) => a.starts_at.localeCompare(b.starts_at));
+  const sortedEvents = [...events].sort((a, b) => {
+    const aTime = new Date(a.starts_at).getTime();
+    const bTime = new Date(b.starts_at).getTime();
+    if (!Number.isFinite(aTime)) return Number.isFinite(bTime) ? 1 : 0;
+    if (!Number.isFinite(bTime)) return -1;
+    return aTime - bTime;
+  });
   for (const event of sortedEvents) {
     const title = event.title.trim();
     const startsAt = toIcsUtcDate(event.starts_at);
