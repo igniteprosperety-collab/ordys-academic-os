@@ -36,9 +36,21 @@ describe("calendar event reminders", () => {
     const now = localDate(2026, 10, 23, 8, 0);
     const horizon = localDate(2026, 10, 30, 23, 59);
     const events = [
-      { id: "past-reminder", title: "Soon", starts_at: localDate(2026, 10, 23, 8, 5).toISOString() },
-      { id: "past-event", title: "Past", starts_at: localDate(2026, 10, 23, 7, 50).toISOString() },
-      { id: "too-far", title: "Later", starts_at: localDate(2026, 11, 1, 9).toISOString() },
+      {
+        id: "past-reminder",
+        title: "Soon",
+        starts_at: localDate(2026, 10, 23, 8, 5).toISOString(),
+      },
+      {
+        id: "past-event",
+        title: "Past",
+        starts_at: localDate(2026, 10, 23, 7, 50).toISOString(),
+      },
+      {
+        id: "too-far",
+        title: "Later",
+        starts_at: localDate(2026, 11, 1, 9).toISOString(),
+      },
       { id: "invalid", title: "Invalid", starts_at: "not-a-date" },
     ];
 
