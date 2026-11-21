@@ -12,7 +12,7 @@ const averageGoal: GoalAlertGoal = {
   id: "goal-average",
   title: "Média mínima",
   metric: "media",
-  target: 7,
+  target: 8,
   period: "semestral",
   subject_id: "math",
   active: true,
@@ -31,7 +31,7 @@ describe("goal progress reminders", () => {
     );
 
     expect(reminders).toHaveLength(1);
-    expect(reminders[0]?.body).toContain("Média mínima: 7.5 de 7.0");
+    expect(reminders[0]?.body).toContain("Média mínima: 7.5 de 8.0");
     expect(reminders[0]?.at.getHours()).toBe(19);
   });
 
