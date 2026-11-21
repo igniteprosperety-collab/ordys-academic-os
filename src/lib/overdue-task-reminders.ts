@@ -79,7 +79,7 @@ export function buildOverdueTaskReminder(
 
   return {
     id: stableId(`overdue:${dayKey}`),
-    title: `${overdue.length} tarefa(s) atrasada(s)`,
+    title: overdue.length === 1 ? "1 tarefa atrasada" : `${overdue.length} tarefas atrasadas`,
     body: `Revise seus prazos pendentes no ORDYS.${suffix}`.slice(0, 180),
     at,
   };
