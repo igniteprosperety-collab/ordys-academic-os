@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { matchesOrdysRealtimeQueryKey, ORDYS_REALTIME_TABLES } from "@/lib/ordys-realtime";
+import {
+  matchesOrdysRealtimeOwnerQueryKey,
+  matchesOrdysRealtimeQueryKey,
+  ORDYS_REALTIME_TABLES,
+} from "@/lib/ordys-realtime";
 
 describe("ORDYS realtime coverage", () => {
   it("covers each student-facing data area exactly once", () => {
@@ -46,6 +50,24 @@ describe("ORDYS realtime coverage", () => {
         "subjects",
       ),
     ).toBe(false);
+  });
+
+  it("matches every owned cloud query when the profile revision changes", () => {
+    const ownedKeys = [
+      ["profile", "student-a", "cloud"],
+      ["subjects", false, "student-a", "cloud"],
+      ["topics", "subject-1", "student-a", "cloud"],
+      ["tasks", "student-a", "cloud"],
+      ["calendar-connections", "student-a", "cloud"],
+      ["quiz-answers", "student-a", "cloud"],
+    ];
+
+    for (const queryKey of ownedKeys) {
+      expect(matchesOrdysRealtimeOwnerQueryKey(queryKey, "student-a")).toBe(true);
+    }
+    expect(matchesOrdysRealtimeOwnerQueryKey(["tasks", "student-b", "cloud"], "student-a")).toBe(false);
+    expect(matchesOrdysRealtimeOwnerQueryKey(["tasks", "student-a", "demo"], "student-a")).toBe(false);
+    expect(matchesOrdysRealtimeOwnerQueryKey(["billing", "student-a", "cloud"], "student-a")).toBe(false);
   });
 
   it("uses the profile primary key instead of a user_id column", () => {
