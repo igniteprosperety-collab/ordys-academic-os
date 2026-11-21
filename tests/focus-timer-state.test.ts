@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  clearFocusTimerSnapshot,
   focusTimerStorageKey,
   restoreFocusTimerState,
   serializeFocusTimerState,
@@ -81,4 +82,30 @@ describe("focus timer persistence", () => {
       restoreFocusTimerState(JSON.stringify({ ...runningSnapshot, endAtMs: null }), "student-1"),
     ).toBeNull();
   });
+  it("clears only the snapshot owned by the account that saved the session", () => {
+    const firstKey = focusTimerStorageKey("student-1");
+    const secondKey = focusTimerStorageKey("student-2");
+    const values = new Map([
+      [firstKey, "first-session"],
+      [secondKey, "second-session"],
+    ]);
+    const storage = {
+      removeItem: (key: string) => {
+        values.delete(key);
+      },
+    };
+
+    expect(clearFocusTimerSnapshot(storage, "student-1")).toBe(true);
+    expect(values.has(firstKey)).toBe(false);
+    expect(values.get(secondKey)).toBe("second-session");
+  });
+
+  it("does not clear storage when no account is supplied", () => {
+    const removed: string[] = [];
+    const storage = { removeItem: (key: string) => removed.push(key) };
+
+    expect(clearFocusTimerSnapshot(storage, "  ")).toBe(false);
+    expect(removed).toEqual([]);
+  });
+
 });
