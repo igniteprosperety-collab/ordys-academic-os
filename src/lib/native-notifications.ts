@@ -404,7 +404,7 @@ async function syncNativeAcademicNotificationsNow() {
           at.setDate(at.getDate() + daysUntilSunday);
           at.setHours(19, 0, 0, 0);
           if (at.getTime() <= now) at.setDate(at.getDate() + 7);
-          if (at.getTime() > monthlyHorizon.getTime() || isWithinQuietHours(at, quietStart, quietEnd))
+          if (at.getTime() > horizon.getTime() || isWithinQuietHours(at, quietStart, quietEnd))
             return [];
           const summaryWeekStart = startOfWeek(at);
           return [
@@ -425,7 +425,7 @@ async function syncNativeAcademicNotificationsNow() {
             at = new Date(nowDate.getFullYear(), nowDate.getMonth() + 2, 0);
             at.setHours(19, 0, 0, 0);
           }
-          if (at.getTime() > horizon.getTime() || isWithinQuietHours(at, quietStart, quietEnd))
+          if (at.getTime() > monthlyHorizon.getTime() || isWithinQuietHours(at, quietStart, quietEnd))
             return [];
           const summaryMonthStart = new Date(at.getFullYear(), at.getMonth(), 1);
           return [
