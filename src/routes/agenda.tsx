@@ -3,6 +3,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { isNativeAndroid, syncNativeAcademicNotifications } from "@/lib/native-notifications";
 import { isDemoMode } from "@/lib/demo-mode";
+import { buildCalendarIcs } from "@/lib/calendar-ics";
 import { Shell } from "@/components/ordys/shell";
 import { Chip, Dot, Panel, PanelHeader, PageTitle, Stat } from "@/components/ordys/primitives";
 import { Button, ConfirmDialog, Field, Modal, Select, TextInput } from "@/components/ordys/form";
@@ -350,6 +351,29 @@ function Agenda() {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível remover o evento.");
     }
+  }
+
+  function exportCalendarIcs() {
+    if (!events.length) {
+      toast.error("Não há eventos para exportar.");
+      return;
+    }
+    if (isNativeAndroid()) {
+      toast.error("A exportação .ics está disponível ao abrir o ORDYS no navegador.");
+      return;
+    }
+
+    const content = buildCalendarIcs(events);
+    const blob = new Blob([content], { type: "text/calendar;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `ordys-eventos-${dateKey(new Date())}.ics`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast.success("Arquivo .ics gerado para importar em outro calendário.");
   }
 
   function openDay(index: number) {
@@ -1573,17 +1597,24 @@ function Agenda() {
               <PanelHeader title="Eventos" hint="compromissos pessoais e eventos da agenda" />
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-5 py-3">
                 <p className="text-[11.5px] text-muted-foreground">
-                  Cadastre compromissos que não fazem parte de uma aula, prova ou tarefa.
+                  Cadastre compromissos ou exporte seus eventos para outro calendário.
                 </p>
-                <Button
-                  onClick={() => {
-                    setEditingEventId(null);
-                    setEventForm(createDefaultEventForm());
-                    setEventModalOpen(true);
-                  }}
-                >
-                  Novo evento
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  {!isNativeAndroid() ? (
+                    <Button variant="ghost" onClick={exportCalendarIcs} disabled={!events.length}>
+                      Exportar .ics
+                    </Button>
+                  ) : null}
+                  <Button
+                    onClick={() => {
+                      setEditingEventId(null);
+                      setEventForm(createDefaultEventForm());
+                      setEventModalOpen(true);
+                    }}
+                  >
+                    Novo evento
+                  </Button>
+                </div>
               </div>
               <div className="border-t border-border">
                 {events.length ? (
