@@ -15,7 +15,7 @@ import {
   useProfile,
   useSubjects,
 } from "@/lib/ordys-db";
-import { supabase } from "@/integrations/supabase/client";
+import { requestOrdysAsaasApi } from "@/lib/asaas-client";
 import {
   getNativeNotificationPermission,
   nativeNotificationsDisabled,
@@ -164,12 +164,10 @@ function Perfil() {
     setBillingLoading(true);
     setBillingError("");
     try {
-      const { data, error } = await supabase.functions.invoke("ordys-billing-status", { body: {} });
-      if (error) throw error;
-      if (!data || typeof data !== "object" || typeof data.enabled !== "boolean") {
+      const result = await requestOrdysAsaasApi<BillingOverview>("/api/asaas/status", {});
+      if (typeof result.enabled !== "boolean") {
         throw new Error("O serviço de assinaturas retornou uma resposta inválida.");
       }
-      const result = data as BillingOverview;
       setBillingOverview({
         enabled: result.enabled,
         plans: Array.isArray(result.plans) ? result.plans : [],
@@ -188,11 +186,11 @@ function Perfil() {
     if (billingBusy) return;
     setBillingBusy(true);
     try {
-      const { data, error } = await supabase.functions.invoke("ordys-billing-checkout", {
-        body: { planCode },
-      });
-      if (error) throw error;
-      const checkoutUrl = data && typeof data.checkoutUrl === "string" ? data.checkoutUrl : "";
+      const data = await requestOrdysAsaasApi<{
+        checkoutUrl?: string;
+        error?: string;
+      }>("/api/asaas/checkout", { planCode });
+      const checkoutUrl = typeof data.checkoutUrl === "string" ? data.checkoutUrl : "";
       if (!checkoutUrl) {
         throw new Error(
           data && typeof data.error === "string"
@@ -221,10 +219,11 @@ function Perfil() {
     if (billingBusy) return;
     setBillingBusy(true);
     try {
-      const { data, error } = await supabase.functions.invoke("ordys-billing-manage", {
-        body: { action: "cancel" },
-      });
-      if (error) throw error;
+      const data = await requestOrdysAsaasApi<{
+        cancelled?: boolean;
+        accessUntil?: string;
+        error?: string;
+      }>("/api/asaas/manage", { action: "cancel" });
       if (data?.cancelled !== true) {
         throw new Error(
           typeof data?.error === "string" ? data.error : "Não foi possível cancelar a assinatura.",
