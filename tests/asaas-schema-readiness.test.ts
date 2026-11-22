@@ -75,9 +75,7 @@ describe("ORDYS optional billing schema readiness", () => {
     const fetchMock = missingSchemaFetch();
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(
-      getBillingCoreSchemaStatus(new AbortController().signal),
-    ).resolves.toBe("absent");
+    await expect(getBillingCoreSchemaStatus(new AbortController().signal)).resolves.toBe("absent");
     expect(fetchMock).toHaveBeenCalledTimes(1 + billingTables.length);
   });
 
@@ -86,8 +84,6 @@ describe("ORDYS optional billing schema readiness", () => {
     const fetchMock = missingSchemaFetch("ordys_billing_subscriptions");
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(
-      getBillingCoreSchemaStatus(new AbortController().signal),
-    ).resolves.toBe("partial");
+    await expect(getBillingCoreSchemaStatus(new AbortController().signal)).resolves.toBe("partial");
   });
 });
