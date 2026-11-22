@@ -8,9 +8,7 @@ const STRUCTURAL_PRIVILEGES = /\b(?:TRUNCATE|REFERENCES|TRIGGER)\b/i;
 const CLIENT_ROLES = /\b(?:PUBLIC|anon|authenticated)\b/i;
 
 function stripSqlComments(source) {
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/--[^\r\n]*/g, "");
+  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/--[^\r\n]*/g, "");
 }
 
 export function findUnsafePublicTableGrants(source) {
