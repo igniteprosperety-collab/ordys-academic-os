@@ -363,6 +363,6 @@ if (failures.length) {
   process.exitCode = 1;
 } else {
   console.log(
-    `ORDYS TanStack billing static verification passed: ${routes.length} routes, ${migrationPaths.length} required migrations, ${createdPublicTables.size} public tables and ${pgTapAssertions} Asaas inbox pgTAP assertions.`,
+    `ORDYS TanStack billing static verification passed: ${routes.length} routes, ${migrationPaths.length} required migrations, ${createdPublicTables.size} public tables, ${pgTapAssertions} Asaas inbox pgTAP assertions and ${publicAclAssertions} public API ACL pgTAP assertions.`,
   );
 }
