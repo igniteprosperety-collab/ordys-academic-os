@@ -15,6 +15,7 @@ vi.mock("@/integrations/supabase/client", () => ({
   supabase: { auth: { getSession: mocks.getSession } },
 }));
 
+import { AuthRequestTimeoutError } from "../src/lib/auth-request-timeout";
 import {
   OrdysApiResponseError,
   OrdysApiTransportError,
@@ -169,6 +170,21 @@ describe("authenticated Asaas TanStack API client", () => {
       name: "FunctionsFetchError",
     });
     expect(new OrdysApiTransportError()).toBeInstanceOf(Error);
+  });
+
+  it("times out while reading the local Supabase session before sending a request", async () => {
+    vi.useFakeTimers();
+    mocks.isNativePlatform.mockReturnValue(false);
+    mocks.getSession.mockReturnValue(new Promise(() => undefined));
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const pending = requestOrdysAsaasApi("/api/asaas/status", {});
+    await vi.advanceTimersByTimeAsync(8_000);
+
+    await expect(pending).rejects.toBeInstanceOf(AuthRequestTimeoutError);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(mocks.nativeRequest).not.toHaveBeenCalled();
   });
 
   it("rejects an unsupported path before sending the bearer token", async () => {
