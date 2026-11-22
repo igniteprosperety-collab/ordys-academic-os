@@ -186,3 +186,16 @@ This addendum supersedes earlier CI commit references in this manifest and the P
 - Disposable database job: Supabase local services started; `supabase db reset --local --no-seed` applied the complete checked-in migration chain from an empty disposable database; Data API integration reported 49/49 isolation tests passed; Auth integration reported signup/profile creation/login/session refresh/password update passed; pgTAP reported 44 tests passed across the Asaas webhook inbox, public API ACL, and student core RLS test files. Local Supabase services were stopped in the cleanup step.
 - This is CI evidence for source code and an ephemeral local database only. It does not apply any migration to the connected Lovable Cloud database, reconcile its existing 18-version ledger or 28 missing migration files, deploy the TanStack server runtime, configure secrets, install the production webhook worker, call Asaas, or perform a Sandbox/live charge.
 - PR #10 remains Draft. Keep billing and Plus disabled until the separate Lovable source handoff, remote migration reconciliation, deploy/runtime, Sandbox, age-assurance, privacy, and release gates are evidenced.
+
+
+## 9. Latest CI result after documentation sync — 2026-11-22
+
+This entry supersedes the previous public PR #10 CI reference in section 8 and in older PR-body notes.
+
+- Current public PR #10 HEAD: `658662dd290d148ef256e366170c5ddcfc472421`.
+- GitHub Actions run #774: `45038394972`, pull_request event against the exact HEAD above; both jobs completed with `success`.
+- Application job: TypeScript passed; TanStack billing static verification passed (5 routes, 15 required migrations, 34 public tables, 18 Asaas inbox pgTAP assertions and 9 public API ACL pgTAP assertions); unit tests reported 19 test files passed / 2 skipped and 135 tests passed / 50 skipped; lint reported 0 errors and 7 React Fast Refresh warnings; production build completed.
+- Disposable database job: all checked-in migrations applied via `supabase db reset --local --no-seed` from an empty local Supabase database; 49/49 Data API isolation tests passed; signup/profile creation/login/session refresh/password change passed; pgTAP passed all 44 tests in the 3 checked-in SQL test files (Asaas webhook inbox, public API ACL and student core RLS). Local Supabase services were stopped by the workflow.
+- The pgTAP image pull emitted transient registry `Data limit exceeded` messages, but the test command subsequently ran and reported `All tests successful`, `Files=3, Tests=44`, `Result: PASS`; the job completed successfully.
+- The result validates this public source commit and disposable local Supabase only. It does not migrate or inspect the Lovable Cloud production DB, deploy the Node runtime, configure any secret, install/schedule a production worker, configure an Asaas webhook, or test real Sandbox payment flows.
+- PR #10 remains Draft; billing and Plus remain blocked pending runtime/source handoff, live schema reconciliation, Sandbox and legal/age/privacy gates.
