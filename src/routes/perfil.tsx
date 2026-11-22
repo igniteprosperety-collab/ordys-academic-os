@@ -68,7 +68,7 @@ type BillingPlan = {
 type BillingSubscription = {
   planCode: string;
   status: "pending" | "active" | "past_due" | "cancelled" | "suspended";
-  amountCents: number;
+  amountCents: number | null;
   currency: "BRL";
   currentPeriodEnd: string | null;
   graceUntil: string | null;
@@ -174,6 +174,7 @@ function Perfil() {
         subscription: result.subscription ?? null,
       });
     } catch (error) {
+      setBillingOverview(null);
       setBillingError(
         await billingErrorMessage(error, "Não foi possível consultar sua assinatura."),
       );
