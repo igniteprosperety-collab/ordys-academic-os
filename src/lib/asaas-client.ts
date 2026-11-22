@@ -130,7 +130,7 @@ function responsePayload(response: Response): Promise<JsonObject> {
  * explicit VITE_PUBLIC_APP_URL origin, with redirects disabled so the Bearer
  * token can never be forwarded to another host.
  */
-export async function requestOrdysAsaasApi<T extends JsonObject>(
+export async function requestOrdysAsaasApi<T = JsonObject>(
   path: OrdysAsaasApiPath,
   body: JsonObject,
 ): Promise<T> {
