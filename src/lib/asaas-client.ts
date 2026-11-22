@@ -46,7 +46,7 @@ export class OrdysApiTransportError extends Error {
 }
 
 function nativeAppOrigin(): string {
-  const raw = import.meta.env.VITE_PUBLIC_APP_URL?.trim() ?? "";
+  const raw = import.meta.env["VITE_PUBLIC_APP_URL"]?.trim() ?? "";
   if (!raw) {
     throw new Error("A origem HTTPS do Ordys não foi configurada para esta versão do aplicativo.");
   }
