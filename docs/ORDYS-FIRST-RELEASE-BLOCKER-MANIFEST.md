@@ -174,3 +174,15 @@ This section supersedes time-sensitive counts and runtime-state descriptions in 
 7. Complete end-to-end Sandbox checks for creation, payment confirmation, renewal, cancellation, duplicate/out-of-order webhooks, refund/chargeback, ambiguous provider responses and the first-charge due-time interpretation.
 
 No production migration, Edge Function deployment, secret change, SQL Job creation, Asaas API call, or live charge was performed during this recheck.
+
+
+## 8. CI result for the current PR HEAD — 2026-11-22
+
+This addendum supersedes earlier CI commit references in this manifest and the PR description. It does not supersede the separate Lovable Cloud database, runtime, email-confirmation, age-assurance, privacy, or commercial release gates above.
+
+- Current public PR #10 HEAD at verification: `a449a21e82440c6c113ff129318c6aba269eca65`.
+- GitHub Actions run #771: `45038028489`, event `pull_request`, ran against that exact HEAD and completed with conclusion `success`. Both workflow jobs succeeded.
+- Application job: TypeScript passed; the TanStack billing verifier passed with 5 routes, 15 required migrations, 34 public tables, 18 Asaas inbox pgTAP assertions and 9 public API ACL pgTAP assertions; unit suite reported 19 test files passed and 2 skipped, with 135 tests passed and 50 skipped; lint reported 0 errors and 7 React Fast Refresh warnings; production build completed successfully.
+- Disposable database job: Supabase local services started; `supabase db reset --local --no-seed` applied the complete checked-in migration chain from an empty disposable database; Data API integration reported 49/49 isolation tests passed; Auth integration reported signup/profile creation/login/session refresh/password update passed; pgTAP reported 44 tests passed across the Asaas webhook inbox, public API ACL, and student core RLS test files. Local Supabase services were stopped in the cleanup step.
+- This is CI evidence for source code and an ephemeral local database only. It does not apply any migration to the connected Lovable Cloud database, reconcile its existing 18-version ledger or 28 missing migration files, deploy the TanStack server runtime, configure secrets, install the production webhook worker, call Asaas, or perform a Sandbox/live charge.
+- PR #10 remains Draft. Keep billing and Plus disabled until the separate Lovable source handoff, remote migration reconciliation, deploy/runtime, Sandbox, age-assurance, privacy, and release gates are evidenced.
