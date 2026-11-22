@@ -128,3 +128,48 @@ PR #320 adds these 11 migrations:
 - The official recurring Checkout example currently formats `subscription.nextDueDate` as a date-time string, but does not define timezone interpretation. The code currently calculates the value from UTC and removes the UTC marker. Keep first-charge timing as an explicit Sandbox acceptance test against `America/Sao_Paulo`; do not infer the timezone or enable live billing before observing the resulting Asaas subscription and first payment due date.
 - Asaas reference pages: https://docs.asaas.com/docs/checkout-with-subscription-recurring ; https://docs.asaas.com/docs/checkout-events ; https://docs.asaas.com/docs/subscription-events ; https://docs.asaas.com/docs/webhook-para-cobrancas .
 - The Lovable Cloud database query allowance was exhausted on 2026-11-13. No query from that blocked attempt executed. Wait for the quota reset before performing the read-only schema/migration reconciliation again; do not try writes or use the production database as a test target.
+
+
+## 7. Direct recheck of the connected Lovable project — 2026-11-22
+
+This section supersedes time-sensitive counts and runtime-state descriptions in the 2026-11-13 snapshot above. Historical findings remain preserved for audit context.
+
+### Runtime and source handoff
+
+- The existing Lovable project `39199358-13e3-4271-8e84-5e658f272186` is still connected to the public `igniteprosperety-collab/ordys-academic-os` source, not the private `ordys-academy.app` repository.
+- Lovable reports `is_published = true`, but the project agent is stopped with `status = needs_attention` and `attentionReason = out_of_credits`; `agentFinished = true`. No agent task is continuing in the background.
+- The currently published project snapshot is commit `970154e4e46bc1ba8841c13c895a88f0e67ad6a9`. It is the base SHA of public Draft PR #10, so the billing-client rewiring in that PR is not present in the published snapshot.
+- Direct read-back of `src/routes/perfil.tsx` and `src/routes/excluir-conta.tsx` at that snapshot confirms the older `supabase.functions.invoke("ordys-billing-…")` and `ordys-delete-account` calls remain in the UI. Do not treat PR #10 as deployed.
+- The workspace is on the Free plan. The Lovable project database remains enabled and is the existing Supabase-backed database; do not create a replacement project or database.
+
+### Current migration and database state
+
+- The live migration ledger still contains 18 versions and ends at `20260927013000`.
+- The connected public source tree now contains 46 SQL migration files. Exactly 28 file versions are not present in the live ledger; the full list is:
+  - `20260927014000`, `20260927014500`, `20260927020000`, `20260927023000`, `20260927024000`, `20260927110000`, `20260927120000`, `20260927130000`;
+  - `20261029232900`, `20261029232950`, `20261029233000`, `20261031010000`, `20261031020000`, `20261031030000`, `20261031040000`, `20261031050000`, `20261102010000`;
+  - `20261103010000`, `20261103020000`, `20261103030000`, `20261105010000`, `20261105020000`, `20261105030000`, `20261105040000`, `20261105050000`, `20261105060000`, `20261111010000`, `20261112010000`.
+- Read-only catalog checks find no `ordys_billing_*` tables or readiness RPCs. The public schema currently contains the student tables, but no deployed billing schema.
+- `pg_cron` is not installed (only `pgcrypto` is installed among the extensions checked); `supabase_realtime` currently has no published tables.
+- RLS is enabled on all 25 public tables inspected. The currently visible per-user policies are owner-scoped; two service-owned tables have no client policy. This is a point-in-time structural check, not a substitute for the full advisors/privilege review after reconciliation.
+- No migration was applied and no database write was executed in this recheck.
+
+### Current billing and CI gates
+
+- The source keeps the commercial Plus gate closed: `assertBillingEnabled()` throws with the age-assurance blocker and `isOrdysPlusEligible()` returns `false`. The status handler also reports `enabled = false`. Configuring an Asaas key alone must not unlock Checkout or entitlement.
+- Private PR #320 remains Draft. Its latest recorded GitHub Actions jobs ended before the first step, with empty step lists; there is no execution evidence for its typecheck, lint, tests, Deno checks, Actionlint or PostgreSQL integration suite.
+- Public PR #10 passed the complete two-job CI on code HEAD `4e1bc56eef3bbc0137fb896ed062cec67cef6469` (run `44983835903`). A subsequent documentation-only change to `.env.example` was committed as `5da7b1eea21076bb266143fb0929c5c11ba4de88`; its new Verify ORDYS run `44985675658` was still in progress at the time of this snapshot. Do not claim that newer HEAD is CI-green until that run finishes successfully.
+- The `.env.example` update documents the server-only Sandbox variables `ASAAS_ENVIRONMENT`, `ASAAS_API_KEY` and `ASAAS_WEBHOOK_TOKEN`, plus supported server-side Supabase key names. No secret values were added or configured.
+- The API routes and handlers existing in Git are not evidence of deployed handlers, a configured webhook, a scheduled SQL worker, or a successful Sandbox payment.
+
+### Required sequence remains unchanged
+
+1. Resolve the supported Lovable source handoff without overwriting generated preview/Auth integration.
+2. Obtain and verify a recoverable backup; reconcile all 28 missing migration versions and actual schema drift in timestamp order. Preserve the existing 18 ledger entries; never reset the database or edit the ledger manually.
+3. Resolve the blocked Gmail confirmation step before releasing `20261029233000`; do not apply later timestamps first and then attempt to replay an earlier migration.
+4. Keep Asaas lifecycle migrations paired with their matching SQL functions, account-deletion guards and webhook handlers. Apply/deploy only through a supported Lovable Cloud path, not the GitHub Supabase CLI workflow that explicitly rejects this managed project.
+5. After migrations and source are aligned, deploy the handlers, configure the server-only Sandbox secrets, configure the SQL-only worker as a separate gated operation, and verify its readiness heartbeat before accepting webhook receipts.
+6. Resolve Issue #323 with trusted age assurance appropriate to the product's intended audience. Keep Plus, paid Checkout and OpenAI-restricted access blocked until this gate is satisfied.
+7. Complete end-to-end Sandbox checks for creation, payment confirmation, renewal, cancellation, duplicate/out-of-order webhooks, refund/chargeback, ambiguous provider responses and the first-charge due-time interpretation.
+
+No production migration, Edge Function deployment, secret change, SQL Job creation, Asaas API call, or live charge was performed during this recheck.
