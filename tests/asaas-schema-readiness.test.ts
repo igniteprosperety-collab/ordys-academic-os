@@ -53,16 +53,12 @@ describe("Asaas runtime environment gate", () => {
 
   it("rejects the Production environment in this release", () => {
     vi.stubEnv("ASAAS_ENVIRONMENT", "production");
-    expect(() => getAsaasApiBase()).toThrow(
-      "ASAAS_ENVIRONMENT deve ser sandbox nesta etapa.",
-    );
+    expect(() => getAsaasApiBase()).toThrow("ASAAS_ENVIRONMENT deve ser sandbox nesta etapa.");
   });
 
   it("rejects a missing or unsupported Asaas environment", () => {
     vi.stubEnv("ASAAS_ENVIRONMENT", "");
-    expect(() => getAsaasApiBase()).toThrow(
-      "ASAAS_ENVIRONMENT deve ser sandbox nesta etapa.",
-    );
+    expect(() => getAsaasApiBase()).toThrow("ASAAS_ENVIRONMENT deve ser sandbox nesta etapa.");
   });
 
   it("requires an API key even when Sandbox is selected", () => {
