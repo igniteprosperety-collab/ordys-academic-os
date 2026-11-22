@@ -3,7 +3,7 @@ import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { requestOrdysAsaasApi } from "@/lib/asaas-client";
 import { useAuth } from "@/hooks/use-auth";
 import {
   deleteLocalProfile,
@@ -93,10 +93,10 @@ function DeleteAccountPage() {
         return;
       }
 
-      const { data, error } = await withAuthRequestTimeout(() =>
-        supabase.functions.invoke("ordys-delete-account", { body: {} }),
+      const data = await withAuthRequestTimeout(
+        () => requestOrdysAsaasApi<{ deleted?: boolean }>("/api/asaas/delete-account", {}),
+        120_000,
       );
-      if (error) throw error;
       if (!isConfirmedAccountDeletionResponse(data)) {
         // A 2xx envelope without the endpoint's explicit deleted=true contract
         // cannot be treated as proof of completed destructive cleanup.
