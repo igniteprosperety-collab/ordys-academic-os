@@ -6,6 +6,14 @@ const deletionSource = readFileSync(
   new URL("../src/routes/excluir-conta.tsx", import.meta.url),
   "utf8",
 );
+const webhookRouteSource = readFileSync(
+  new URL("../src/routes/api/public/asaas/webhook.ts", import.meta.url),
+  "utf8",
+);
+const webhookHandlerSource = readFileSync(
+  new URL("../src/lib/asaas/webhook.server.ts", import.meta.url),
+  "utf8",
+);
 
 describe("ORDYS TanStack billing route wiring", () => {
   it("routes subscription status, checkout and cancellation through the server API", () => {
@@ -16,6 +24,13 @@ describe("ORDYS TanStack billing route wiring", () => {
     expect(profileSource).not.toContain('supabase.functions.invoke("ordys-billing-status"');
     expect(profileSource).not.toContain('supabase.functions.invoke("ordys-billing-checkout"');
     expect(profileSource).not.toContain('supabase.functions.invoke("ordys-billing-manage"');
+  });
+
+  it("publishes the provider webhook through the public TanStack server route", () => {
+    expect(webhookRouteSource).toContain('createFileRoute("/api/public/asaas/webhook")');
+    expect(webhookRouteSource).toContain("handleWebhook(request)");
+    expect(webhookHandlerSource).toContain('"rpc/ordys_billing_core_schema_status"');
+    expect(webhookHandlerSource).not.toContain('"rpc/ordys_billing_schema_status"');
   });
 
   it("renders authenticated payment history and labels the payment states", () => {
