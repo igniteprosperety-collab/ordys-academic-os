@@ -111,8 +111,14 @@ requireIncludes(deletePath, deleteAccount, [
   "getBillingCoreSchemaStatus",
   "cancelOrdysBillingBeforeAccountDeletion",
   "releaseOrdysAccountDeletionProcessing",
-  "ordys_claim_account_deletion_processing",
   "account_data_deletion_unconfirmed",
+]);
+const deletionBillingPath = "src/lib/asaas/ordys-delete-account-billing.server.ts";
+const deletionBilling = read(deletionBillingPath);
+requireIncludes(deletionBillingPath, deletionBilling, [
+  "rpc/ordys_reserve_account_deletion",
+  "rpc/ordys_claim_account_deletion_processing",
+  "rpc/ordys_release_account_deletion_processing",
 ]);
 
 const webhookPath = "src/lib/asaas/webhook.server.ts";
@@ -125,7 +131,7 @@ requireIncludes(webhookPath, webhook, [
   "WEBHOOK_RECEIPT_DATABASE_DEADLINE_MS",
   '"rpc/ordys_billing_core_schema_status"',
   '"rpc/ordys_receive_asaas_billing_webhook"',
-  "queued: true",
+  'queued: receipt["processing_status"] === "received"',
   "processed: false",
 ]);
 requireAbsent(webhookPath, webhook, [
@@ -308,7 +314,8 @@ requireIncludes(docsPath, billingDocs, [
   "src/lib/asaas/webhook.server.ts",
   "src/routes/api/public/asaas/webhook.ts",
   "ordys_billing_core_schema_status()",
-  "não depende da saúde operacional do cron",
+  "sem exigir que o cron esteja vivo",
+  "sem depender do heartbeat do worker",
   "HTTP 200 somente depois que a transação de recepção confirmou o registro",
   "Asaas Sandbox",
   "CI verde em banco descartável não equivale a produção pronta",
