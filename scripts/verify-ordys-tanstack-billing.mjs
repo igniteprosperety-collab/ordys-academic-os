@@ -254,10 +254,19 @@ for (const table of createdPublicTables.keys()) {
       "gi",
     );
     const ownerColumn = table === "profiles" ? "id" : "user_id";
-    const ownerPolicy = [...completeMigrationText.matchAll(policy)].some(([statement]) =>
-      /\bTO\s+authenticated\b/i.test(statement) &&
-      new RegExp(`auth\\.uid\\s*\\(\\s*\\)\\s*=\\s*${ownerColumn}\\b`, "i").test(statement),
-    );
+    const ownerPolicy = [...completeMigrationText.matchAll(policy)].some(([statement]) => {
+      const ownerPredicate = new RegExp(
+        `\\bauth\\.uid\\s*\\(\\s*\\)\\s*=\\s*${ownerColumn}\\b`,
+        "i",
+      );
+      const usingClause = statement.match(/\\bUSING\\s*\\([\\s\\S]*$/i)?.[0] ?? "";
+      const checkClause = statement.match(/\\bWITH\\s+CHECK\\s*\\([\\s\\S]*$/i)?.[0] ?? "";
+      return (
+        /\\bTO\\s+authenticated\\b/i.test(statement) &&
+        ownerPredicate.test(usingClause) &&
+        ownerPredicate.test(checkClause)
+      );
+    });
     if (!authenticatedGrant) failures.push(`public.${table} lacks explicit authenticated CRUD grant`);
     if (!ownerPolicy) failures.push(`public.${table} lacks owner-scoped authenticated policy`);
   }
@@ -291,7 +300,6 @@ requireIncludes(defaultAclPath, migrationSources.get(defaultAclPath) ?? "", [
   "REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC",
   "REVOKE ALL ON TABLES FROM PUBLIC, anon, authenticated",
   "REVOKE ALL ON SEQUENCES FROM PUBLIC, anon, authenticated",
-  "GRANT SELECT, INSERT ON TABLES TO service_role",
 ]);
 
 const docsPath = "docs/BILLING-ASAS.md";
