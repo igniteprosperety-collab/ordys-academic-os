@@ -95,7 +95,7 @@ function DeleteAccountPage() {
 
       const data = await withAuthRequestTimeout(
         () => requestOrdysAsaasApi<{ deleted?: boolean }>("/api/asaas/delete-account", {}),
-        120_000,
+        140_000,
       );
       if (!isConfirmedAccountDeletionResponse(data)) {
         // A 2xx envelope without the endpoint's explicit deleted=true contract
