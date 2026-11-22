@@ -45,7 +45,7 @@ describe("authenticated Asaas TanStack API client", () => {
   it("uses same-origin fetch for web and sends only the current user's bearer token", async () => {
     stubAuthenticatedSession();
     mocks.isNativePlatform.mockReturnValue(false);
-    const fetchMock = vi.fn(async () =>
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
       Response.json({ enabled: false, plans: [], subscription: null }),
     );
     vi.stubGlobal("fetch", fetchMock);
@@ -92,16 +92,16 @@ describe("authenticated Asaas TanStack API client", () => {
       "https://asaas.com/checkoutSession/show?id=checkout-1",
     );
     expect(mocks.nativeRequest).toHaveBeenCalledOnce();
-    const options = mocks.nativeRequest.mock.calls[0]?.[0];
-    expect(options.url).toBe("https://app.ordys.example/api/asaas/checkout");
-    expect(options.method).toBe("POST");
-    expect(options.disableRedirects).toBe(true);
-    expect(options.connectTimeout).toBe(8_000);
-    expect(options.readTimeout).toBeGreaterThanOrEqual(30_000);
-    expect(new Headers(options.headers).get("authorization")).toBe(
+    const options = mocks.nativeRequest.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(options["url"]).toBe("https://app.ordys.example/api/asaas/checkout");
+    expect(options["method"]).toBe("POST");
+    expect(options["disableRedirects"]).toBe(true);
+    expect(options["connectTimeout"]).toBe(8_000);
+    expect(options["readTimeout"]).toBeGreaterThanOrEqual(30_000);
+    expect(new Headers(options["headers"] as Record<string, string>).get("authorization")).toBe(
       "Bearer student-session-token",
     );
-    expect(options.data).toEqual({ planCode: "plus_monthly" });
+    expect(options["data"]).toEqual({ planCode: "plus_monthly" });
   });
 
   it("fails closed on a missing or non-HTTPS native app origin", async () => {
@@ -130,7 +130,8 @@ describe("authenticated Asaas TanStack API client", () => {
       requestOrdysAsaasApi("/api/asaas/status", {}),
     ).rejects.toBeInstanceOf(OrdysApiResponseError);
     expect(mocks.nativeRequest).toHaveBeenCalledOnce();
-    expect(mocks.nativeRequest.mock.calls[0]?.[0]?.disableRedirects).toBe(true);
+    const options = mocks.nativeRequest.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(options["disableRedirects"]).toBe(true);
   });
 
   it("preserves conflict responses for safe account-deletion handling", async () => {
@@ -147,9 +148,9 @@ describe("authenticated Asaas TanStack API client", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    const error = await requestOrdysAsaasApi("/api/asaas/delete-account", {}).catch(
+    const error = (await requestOrdysAsaasApi("/api/asaas/delete-account", {}).catch(
       (reason: unknown) => reason,
-    );
+    )) as OrdysApiResponseError;
 
     expect(error).toBeInstanceOf(OrdysApiResponseError);
     expect(error.context.status).toBe(409);
