@@ -141,6 +141,7 @@ This section supersedes time-sensitive counts and runtime-state descriptions in 
 - The currently published project snapshot is commit `970154e4e46bc1ba8841c13c895a88f0e67ad6a9`. It is the base SHA of public Draft PR #10, so the billing-client rewiring in that PR is not present in the published snapshot.
 - Direct read-back of `src/routes/perfil.tsx` and `src/routes/excluir-conta.tsx` at that snapshot confirms the older `supabase.functions.invoke("ordys-billing-…")` and `ordys-delete-account` calls remain in the UI. Do not treat PR #10 as deployed.
 - The workspace is on the Free plan. The Lovable project database remains enabled and is the existing Supabase-backed database; do not create a replacement project or database.
+- The connected Render workspace currently lists only two static sites for the separate Repertório de Confeitaria project; there is no Ordys Node web service or API runtime in that account. Private PR #325 proposes a Render Node Free deployment but remains Draft, stacked on PR #320, and explicitly does not create resources, set secrets, or deploy. Do not treat its `render.yaml` as a live server.
 
 ### Current migration and database state
 
