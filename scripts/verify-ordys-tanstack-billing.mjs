@@ -178,9 +178,8 @@ requireIncludes(routeTestsPath, routeTests, [
 
 const webhookPgtapPath = "supabase/tests/ordys_asaas_webhook_inbox_test.sql";
 const webhookPgtap = read(webhookPgtapPath);
-const pgTapAssertions = (
-  webhookPgtap.match(/^\s*SELECT\s+(?:is|ok|throws_ok)\s*\(/gim) ?? []
-).length;
+const pgTapAssertions = (webhookPgtap.match(/^\s*SELECT\s+(?:is|ok|throws_ok)\s*\(/gim) ?? [])
+  .length;
 if (!webhookPgtap.includes("SELECT plan(18);") || pgTapAssertions !== 18) {
   failures.push(
     `${webhookPgtapPath} must declare and contain exactly 18 pgTAP assertions (found ${pgTapAssertions})`,
