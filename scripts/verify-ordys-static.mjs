@@ -3721,7 +3721,8 @@ requireIncludes("supabase/functions/ordys-billing-return/index.ts", [
   "O redirecionamento, sozinho, não libera o acesso.",
 ]);
 const asaasWebhookPath = "supabase/functions/ordys-billing-webhook/index.ts";
-const asaasWebhook = requireFile(asaasWebhookPath);
+requireFile(asaasWebhookPath);
+const asaasWebhook = read(asaasWebhookPath);
 requireIncludes(asaasWebhookPath, [
   'request.headers.get("asaas-access-token")',
   "constantTimeEqual(expectedToken, receivedToken)",
