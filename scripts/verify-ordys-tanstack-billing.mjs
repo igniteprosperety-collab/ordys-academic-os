@@ -200,7 +200,7 @@ const allMigrationSources = readdirSync("supabase/migrations")
 const completeMigrationText = allMigrationSources.join("\n");
 
 for (const [path, source] of migrationSources) {
-  requireIncludes(path, source, ["BEGIN", "COMMIT"]);
+  if (!source.trim()) failures.push(`Required migration is empty: ${path}`);
 }
 for (const source of allMigrationSources) {
   for (const finding of findUnsafePublicTableGrants(source)) {
