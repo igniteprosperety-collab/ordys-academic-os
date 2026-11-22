@@ -200,9 +200,8 @@ requireIncludes(webhookPgtapPath, webhookPgtap, [
 
 const publicAclPgtapPath = "supabase/tests/ordys_public_api_acl_test.sql";
 const publicAclPgtap = read(publicAclPgtapPath);
-const publicAclAssertions = (
-  publicAclPgtap.match(/^\s*SELECT\s+(?:is|ok|throws_ok)\s*\(/gim) ?? []
-).length;
+const publicAclAssertions = (publicAclPgtap.match(/^\s*SELECT\s+(?:is|ok|throws_ok)\s*\(/gim) ?? [])
+  .length;
 if (!publicAclPgtap.includes("SELECT plan(9);") || publicAclAssertions !== 9) {
   failures.push(
     `${publicAclPgtapPath} must declare and contain exactly 9 pgTAP assertions (found ${publicAclAssertions})`,
