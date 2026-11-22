@@ -316,9 +316,7 @@ export function constantTimeEqual(a: string, b: string) {
   return difference === 0;
 }
 
-async function detectBillingSchemaFromTables(
-  signal?: AbortSignal,
-): Promise<"absent" | "partial"> {
+async function detectBillingSchemaFromTables(signal?: AbortSignal): Promise<"absent" | "partial"> {
   const presence = await Promise.all(
     BILLING_SCHEMA_SENTINEL_TABLES.map(async (table) => {
       try {
