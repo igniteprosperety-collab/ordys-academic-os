@@ -31,7 +31,7 @@ describe("ORDYS TanStack billing route wiring", () => {
       'requestOrdysAsaasApi<{ deleted?: boolean }>("/api/asaas/delete-account"',
     );
     expect(deletionSource).not.toContain('supabase.functions.invoke("ordys-delete-account"');
-    expect(deletionSource).toContain("120_000");
+    expect(deletionSource).toContain("140_000");
     expect(deletionSource).toContain("isInconclusiveFunctionRequestError(error)");
   });
 });
