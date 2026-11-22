@@ -69,15 +69,17 @@ describe("ORDYS TanStack billing status", () => {
     }));
     mocks.serviceRest.mockImplementation(async (path: string) => {
       if (path.startsWith("ordys_billing_subscriptions?")) {
-        return [{
-          plan_code: "plus_monthly",
-          status: "active",
-          amount_cents: 1_990,
-          currency: "BRL",
-          current_period_end: "2026-12-22T00:00:00.000Z",
-          grace_until: null,
-          cancelled_at: null,
-        }];
+        return [
+          {
+            plan_code: "plus_monthly",
+            status: "active",
+            amount_cents: 1_990,
+            currency: "BRL",
+            current_period_end: "2026-12-22T00:00:00.000Z",
+            grace_until: null,
+            cancelled_at: null,
+          },
+        ];
       }
       if (path.startsWith("ordys_billing_payments?")) return paymentRows;
       throw new Error(`Unexpected billing query: ${path}`);
