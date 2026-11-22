@@ -3,10 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AuthRequestTimeoutError } from "@/lib/auth-request-timeout";
 
 export type OrdysAsaasApiPath =
-  | "/api/asaas/status"
-  | "/api/asaas/checkout"
-  | "/api/asaas/manage"
-  | "/api/asaas/delete-account";
+  "/api/asaas/status" | "/api/asaas/checkout" | "/api/asaas/manage" | "/api/asaas/delete-account";
 
 type JsonObject = Record<string, unknown>;
 
@@ -40,7 +37,9 @@ export class OrdysApiResponseError extends Error {
 /** Matches the existing inconclusive-function handling for a transport failure. */
 export class OrdysApiTransportError extends Error {
   constructor() {
-    super("Não foi possível confirmar a resposta do servidor. Verifique a conexão antes de tentar novamente.");
+    super(
+      "Não foi possível confirmar a resposta do servidor. Verifique a conexão antes de tentar novamente.",
+    );
     this.name = "FunctionsFetchError";
   }
 }
@@ -116,12 +115,15 @@ async function withRequestDeadline<T>(
 }
 
 function responsePayload(response: Response): Promise<JsonObject> {
-  return response.clone().json().then((value: unknown) => {
-    if (!value || typeof value !== "object" || Array.isArray(value)) {
-      throw new Error("O servidor retornou uma resposta inválida.");
-    }
-    return value as JsonObject;
-  });
+  return response
+    .clone()
+    .json()
+    .then((value: unknown) => {
+      if (!value || typeof value !== "object" || Array.isArray(value)) {
+        throw new Error("O servidor retornou uma resposta inválida.");
+      }
+      return value as JsonObject;
+    });
 }
 
 /**
@@ -145,34 +147,29 @@ export async function requestOrdysAsaasApi<T = JsonObject>(
   }
 
   const timeoutMs =
-    path === "/api/asaas/delete-account"
-      ? DELETE_REQUEST_TIMEOUT_MS
-      : STANDARD_REQUEST_TIMEOUT_MS;
+    path === "/api/asaas/delete-account" ? DELETE_REQUEST_TIMEOUT_MS : STANDARD_REQUEST_TIMEOUT_MS;
 
   let response: Response;
   try {
     if (Capacitor.isNativePlatform()) {
       const origin = nativeAppOrigin();
-      const result = await withRequestDeadline(
-        async () => {
-          const nativeResult = await CapacitorHttp.request({
-            url: `${origin}${path}`,
-            method: "POST",
-            headers: {
-              Accept: "application/json",
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${accessToken}`,
-            },
-            data: body,
-            connectTimeout: CONNECT_TIMEOUT_MS,
-            readTimeout: timeoutMs,
-            disableRedirects: true,
-            responseType: "json",
-          });
-          return nativeResult as NativeHttpResult;
-        },
-        timeoutMs,
-      );
+      const result = await withRequestDeadline(async () => {
+        const nativeResult = await CapacitorHttp.request({
+          url: `${origin}${path}`,
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          data: body,
+          connectTimeout: CONNECT_TIMEOUT_MS,
+          readTimeout: timeoutMs,
+          disableRedirects: true,
+          responseType: "json",
+        });
+        return nativeResult as NativeHttpResult;
+      }, timeoutMs);
       response = asWebResponse(result);
     } else {
       response = await withRequestDeadline(
