@@ -67,9 +67,7 @@ describe("authenticated Asaas TanStack API client", () => {
     expect(init?.method).toBe("POST");
     expect(init?.redirect).toBe("manual");
     expect(init?.credentials).toBe("same-origin");
-    expect(new Headers(init?.headers).get("authorization")).toBe(
-      "Bearer student-session-token",
-    );
+    expect(new Headers(init?.headers).get("authorization")).toBe("Bearer student-session-token");
     expect(JSON.parse(String(init?.body))).toEqual({});
   });
 
@@ -88,9 +86,7 @@ describe("authenticated Asaas TanStack API client", () => {
       checkoutUrl: string;
     }>("/api/asaas/checkout", { planCode: "plus_monthly" });
 
-    expect(result.checkoutUrl).toBe(
-      "https://asaas.com/checkoutSession/show?id=checkout-1",
-    );
+    expect(result.checkoutUrl).toBe("https://asaas.com/checkoutSession/show?id=checkout-1");
     expect(mocks.nativeRequest).toHaveBeenCalledOnce();
     const options = mocks.nativeRequest.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(options["url"]).toBe("https://app.ordys.example/api/asaas/checkout");
@@ -109,9 +105,9 @@ describe("authenticated Asaas TanStack API client", () => {
     mocks.isNativePlatform.mockReturnValue(true);
     vi.stubEnv("VITE_PUBLIC_APP_URL", "http://localhost:3000");
 
-    await expect(
-      requestOrdysAsaasApi("/api/asaas/status", {}),
-    ).rejects.toThrow("VITE_PUBLIC_APP_URL somente com a origem HTTPS oficial");
+    await expect(requestOrdysAsaasApi("/api/asaas/status", {})).rejects.toThrow(
+      "VITE_PUBLIC_APP_URL somente com a origem HTTPS oficial",
+    );
     expect(mocks.nativeRequest).not.toHaveBeenCalled();
   });
 
@@ -126,9 +122,9 @@ describe("authenticated Asaas TanStack API client", () => {
       url: "https://app.ordys.example/api/asaas/status",
     });
 
-    await expect(
-      requestOrdysAsaasApi("/api/asaas/status", {}),
-    ).rejects.toBeInstanceOf(OrdysApiResponseError);
+    await expect(requestOrdysAsaasApi("/api/asaas/status", {})).rejects.toBeInstanceOf(
+      OrdysApiResponseError,
+    );
     expect(mocks.nativeRequest).toHaveBeenCalledOnce();
     const options = mocks.nativeRequest.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(options["disableRedirects"]).toBe(true);
@@ -169,9 +165,7 @@ describe("authenticated Asaas TanStack API client", () => {
       }),
     );
 
-    await expect(
-      requestOrdysAsaasApi("/api/asaas/delete-account", {}),
-    ).rejects.toMatchObject({
+    await expect(requestOrdysAsaasApi("/api/asaas/delete-account", {})).rejects.toMatchObject({
       name: "FunctionsFetchError",
     });
     expect(new OrdysApiTransportError()).toBeInstanceOf(Error);
@@ -183,9 +177,9 @@ describe("authenticated Asaas TanStack API client", () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(
-      requestOrdysAsaasApi("/api/unknown" as never, {}),
-    ).rejects.toThrow("Rota de API não permitida.");
+    await expect(requestOrdysAsaasApi("/api/unknown" as never, {})).rejects.toThrow(
+      "Rota de API não permitida.",
+    );
     expect(fetchMock).not.toHaveBeenCalled();
     expect(mocks.nativeRequest).not.toHaveBeenCalled();
   });
