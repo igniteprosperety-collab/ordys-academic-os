@@ -151,7 +151,7 @@ This section supersedes time-sensitive counts and runtime-state descriptions in 
   - `20261103010000`, `20261103020000`, `20261103030000`, `20261105010000`, `20261105020000`, `20261105030000`, `20261105040000`, `20261105050000`, `20261105060000`, `20261111010000`, `20261112010000`.
 - Read-only catalog checks find no `ordys_billing_*` tables or readiness RPCs. The public schema currently contains the student tables, but no deployed billing schema.
 - `pg_cron` is not installed (only `pgcrypto` is installed among the extensions checked); `supabase_realtime` currently has no published tables.
-- RLS is enabled on all 25 public tables inspected. The currently visible per-user policies are owner-scoped; two service-owned tables have no client policy. This is a point-in-time structural check, not a substitute for the full advisors/privilege review after reconciliation.
+- RLS is enabled on all 25 public tables inspected. The catalog returned 23 policies; every returned policy is scoped to the owning authenticated user. Two public tables have no row in `pg_policies`; table grants were not re-audited in this pass, so do not infer their complete effective-access model from policy absence alone. This is a point-in-time structural check, not a substitute for the full advisors/privilege review after reconciliation.
 - No migration was applied and no database write was executed in this recheck.
 
 ### Current billing and CI gates
