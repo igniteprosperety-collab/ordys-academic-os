@@ -203,7 +203,7 @@ export async function serviceRest(path: string, init: RequestInit = {}) {
   if (!result.ok) {
     const status = result.status;
     console.error("ORDYS billing database request failed:", status);
-    throw new Error("Não foi possível consultar o serviço de assinaturas.");
+    throw new SupabaseRestError(status);
   }
   if (result.status === 204 || result.body === null) return null;
   try {
