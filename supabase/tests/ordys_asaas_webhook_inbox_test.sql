@@ -1,6 +1,6 @@
 BEGIN;
 
-SELECT plan(17);
+SELECT plan(18);
 
 -- Run against a fresh disposable Supabase database after the complete
 -- migration chain. No provider network calls or production records are used.
