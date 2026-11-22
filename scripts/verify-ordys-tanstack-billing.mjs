@@ -259,10 +259,10 @@ for (const table of createdPublicTables.keys()) {
         `\\bauth\\.uid\\s*\\(\\s*\\)\\s*=\\s*${ownerColumn}\\b`,
         "i",
       );
-      const usingClause = statement.match(/\\bUSING\\s*\\([\\s\\S]*$/i)?.[0] ?? "";
-      const checkClause = statement.match(/\\bWITH\\s+CHECK\\s*\\([\\s\\S]*$/i)?.[0] ?? "";
+      const usingClause = statement.match(/\bUSING\s*\([\s\S]*$/i)?.[0] ?? "";
+      const checkClause = statement.match(/\bWITH\s+CHECK\s*\([\s\S]*$/i)?.[0] ?? "";
       return (
-        /\\bTO\\s+authenticated\\b/i.test(statement) &&
+        /\bTO\s+authenticated\b/i.test(statement) &&
         ownerPredicate.test(usingClause) &&
         ownerPredicate.test(checkClause)
       );
