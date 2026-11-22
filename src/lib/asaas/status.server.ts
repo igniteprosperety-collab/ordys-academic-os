@@ -56,15 +56,17 @@ export async function handleStatus(request: Request): Promise<Response> {
     const paymentHistory = (payments ?? []).flatMap((payment) => {
       const amountCents = safeAmountCents(payment["amount_cents"]);
       if (amountCents === null || typeof payment["status"] !== "string") return [];
-      return [{
-        amountCents,
-        currency: "BRL",
-        status: payment["status"],
-        dueDate: payment["due_date"] ?? null,
-        confirmedAt: payment["confirmed_at"] ?? null,
-        refundedAt: payment["refunded_at"] ?? null,
-        createdAt: payment["created_at"] ?? null,
-      }];
+      return [
+        {
+          amountCents,
+          currency: "BRL",
+          status: payment["status"],
+          dueDate: payment["due_date"] ?? null,
+          confirmedAt: payment["confirmed_at"] ?? null,
+          refundedAt: payment["refunded_at"] ?? null,
+          createdAt: payment["created_at"] ?? null,
+        },
+      ];
     });
 
     return billingResponse({
