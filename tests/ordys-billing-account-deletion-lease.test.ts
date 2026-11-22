@@ -9,6 +9,44 @@ afterEach(() => {
 });
 
 describe("account deletion processing lease cleanup", () => {
+  it("allows Free-only account deletion when no billing schema exists", async () => {
+    const serviceRest = vi.fn();
+    const asaasRequest = vi.fn();
+    const assertAsaasConfigured = vi.fn();
+
+    await expect(
+      cancelOrdysBillingBeforeAccountDeletion("free-user-1", {
+        getBillingSchemaStatus: async () => "absent",
+        serviceRest,
+        asaasRequest,
+        assertAsaasConfigured,
+      }),
+    ).resolves.toBeNull();
+
+    expect(serviceRest).not.toHaveBeenCalled();
+    expect(asaasRequest).not.toHaveBeenCalled();
+    expect(assertAsaasConfigured).not.toHaveBeenCalled();
+  });
+
+  it("blocks account deletion when only part of the billing schema exists", async () => {
+    const serviceRest = vi.fn();
+    const asaasRequest = vi.fn();
+    const assertAsaasConfigured = vi.fn();
+
+    await expect(
+      cancelOrdysBillingBeforeAccountDeletion("partial-user-1", {
+        getBillingSchemaStatus: async () => "partial",
+        serviceRest,
+        asaasRequest,
+        assertAsaasConfigured,
+      }),
+    ).rejects.toThrow("A estrutura de assinaturas está incompleta");
+
+    expect(serviceRest).not.toHaveBeenCalled();
+    expect(asaasRequest).not.toHaveBeenCalled();
+    expect(assertAsaasConfigured).not.toHaveBeenCalled();
+  });
+
   it("preserves the original billing reconciliation error when lease release fails", async () => {
     const serviceRest = vi.fn(async (path: string) => {
       if (path === "rpc/ordys_reserve_account_deletion") return "reserved";
