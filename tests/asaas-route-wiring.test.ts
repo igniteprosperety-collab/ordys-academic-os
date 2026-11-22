@@ -18,6 +18,14 @@ describe("ORDYS TanStack billing route wiring", () => {
     expect(profileSource).not.toContain('supabase.functions.invoke("ordys-billing-manage"');
   });
 
+  it("renders authenticated payment history and labels the payment states", () => {
+    expect(profileSource).toContain("payments: Array.isArray(result.payments)");
+    expect(profileSource).toContain("billingOverview?.payments.length");
+    expect(profileSource).toContain('title="Histórico de pagamentos"');
+    expect(profileSource).toContain("billingPaymentStatusLabel(payment.status)");
+    expect(profileSource).toContain("billingPaymentStatusTone(payment.status)");
+  });
+
   it("routes account deletion through the billing-aware server endpoint", () => {
     expect(deletionSource).toContain(
       'requestOrdysAsaasApi<{ deleted?: boolean }>("/api/asaas/delete-account"',
