@@ -90,7 +90,8 @@ SELECT is(
         'id', 'chk_ordys_pgtap_receipt_001',
         'sensitive_blob', 'must-not-be-persisted'
       )
-    ) ->> 'processing_status',
+    )
+  ) ->> 'processing_status',
   'received',
   'a valid Asaas event is durably admitted as received while the worker is offline'
 );
@@ -115,35 +116,25 @@ SELECT ok(
   'the receipt stores only allowlisted provider fields, not arbitrary payload data'
 );
 
+WITH duplicate_receipt AS (
+  SELECT public.ordys_receive_asaas_billing_webhook(
+    jsonb_build_object(
+      'id', 'evt_ordys_pgtap_receipt_001',
+      'event', 'CHECKOUT_CREATED',
+      'provider_secret', 'must-not-be-persisted',
+      'checkout', jsonb_build_object(
+        'id', 'chk_ordys_pgtap_receipt_001',
+        'sensitive_blob', 'must-not-be-persisted'
+      )
+    )
+  ) AS result
+)
 SELECT ok(
-  (
-    public.ordys_receive_asaas_billing_webhook(
-      jsonb_build_object(
-        'id', 'evt_ordys_pgtap_receipt_001',
-        'event', 'CHECKOUT_CREATED',
-        'provider_secret', 'must-not-be-persisted',
-        'checkout', jsonb_build_object(
-          'id', 'chk_ordys_pgtap_receipt_001',
-          'sensitive_blob', 'must-not-be-persisted'
-        )
-      )
-    ) ->> 'duplicate'
-  )::boolean
-  AND (
-    public.ordys_receive_asaas_billing_webhook(
-      jsonb_build_object(
-        'id', 'evt_ordys_pgtap_receipt_001',
-        'event', 'CHECKOUT_CREATED',
-        'provider_secret', 'must-not-be-persisted',
-        'checkout', jsonb_build_object(
-          'id', 'chk_ordys_pgtap_receipt_001',
-          'sensitive_blob', 'must-not-be-persisted'
-        )
-      )
-    ) ->> 'processing_status'
-  ) = 'received',
+  (result ->> 'duplicate')::boolean
+  AND result ->> 'processing_status' = 'received',
   'a repeated identical provider event is idempotent and remains queued'
-);
+)
+FROM duplicate_receipt;
 
 SELECT ok(
   (
