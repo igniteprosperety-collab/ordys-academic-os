@@ -198,6 +198,25 @@ requireIncludes(webhookPgtapPath, webhookPgtap, [
   "the SQL worker processes the exact durable receipt without an HTTP request",
 ]);
 
+const publicAclPgtapPath = "supabase/tests/ordys_public_api_acl_test.sql";
+const publicAclPgtap = read(publicAclPgtapPath);
+const publicAclAssertions = (
+  publicAclPgtap.match(/^\\s*SELECT\\s+(?:is|ok|throws_ok)\\s*\\(/gim) ?? []
+).length;
+if (!publicAclPgtap.includes("SELECT plan(9);") || publicAclAssertions !== 9) {
+  failures.push(
+    `${publicAclPgtapPath} must declare and contain exactly 9 pgTAP assertions (found ${publicAclAssertions})`,
+  );
+}
+requireIncludes(publicAclPgtapPath, publicAclPgtap, [
+  "anon and authenticated have no structural privileges on public tables",
+  "PUBLIC has no structural privilege on public tables",
+  "future public tables, sequences and functions have no unsafe client/PUBLIC defaults",
+  "service_role retains the table defaults required by trusted server operations",
+  "the existing subjects RLS boundary remains enabled",
+  "service_role retains access to the internal durable Asaas receipt inbox",
+]);
+
 const migrationPaths = [
   "supabase/migrations/20261029232950_ordys_billing_schema_status.sql",
   "supabase/migrations/20261031010000_ordys_plus_billing_foundation.sql",
