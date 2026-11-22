@@ -63,21 +63,26 @@ O Asaas recomenda verificar se o Checkout original já foi criado antes de recri
 
 A tabela de eventos guarda metadados e identificadores de cobrança, não o payload bruto do webhook nem dados de cartão.
 
-## Secrets do ambiente
+## Configuração server-side
 
-Configurar somente no gerenciador de secrets do projeto Lovable Cloud / Supabase correto; nunca em `VITE_*`, código versionado ou mensagens.
+Os valores devem existir somente no ambiente server-side do projeto Lovable Cloud / Supabase correto. Nunca colocar chave secreta em `VITE_*`, código versionado ou mensagens.
 
-Sandbox:
+Integração Supabase usada pelas rotas TanStack:
+- `SUPABASE_URL`: URL do projeto conectado.
+- `SUPABASE_PUBLISHABLE_KEYS` (JSON com a chave `default`) ou, no formato legado, `SUPABASE_PUBLISHABLE_KEY` / `SUPABASE_ANON_KEY`.
+- `SUPABASE_SECRET_KEYS` (JSON com a chave `default`) ou, no formato legado, `SUPABASE_SERVICE_ROLE_KEY`. Essa credencial só pode existir no runtime de servidor; nunca expor ao navegador.
+
+Aplicativo:
+- `ORDYS_PUBLIC_APP_URL`: origem HTTPS canônica do app, sem caminho, query ou fragmento. O Checkout usa essa origem para retornar a `/perfil`. Não usar URL de preview `id-preview--...`.
+
+Asaas nesta etapa:
 - `ASAAS_ENVIRONMENT=sandbox`
 - `ASAAS_API_KEY`: API key gerada no ambiente Sandbox do Asaas.
 - `ASAAS_WEBHOOK_TOKEN`: token aleatório forte, com 32–255 caracteres, sem espaços.
 
-Produção:
-- `ASAAS_ENVIRONMENT=production`
-- `ASAAS_API_KEY`: API key independente gerada no ambiente de Produção.
-- `ASAAS_WEBHOOK_TOKEN`: token independente de produção.
+**Produção ainda não é suportada por este código.** `getAsaasApiBase()` rejeita qualquer valor de `ASAAS_ENVIRONMENT` diferente de `sandbox` e usa somente `https://api-sandbox.asaas.com/v3`. Não configurar chave ou token de Produção nem trocar `ASAAS_ENVIRONMENT` para `production`. Uma futura habilitação exige alteração explícita do código, testes separados, aprovação de idade/consentimento, domínio canônico publicado e homologação completa antes da mudança de credenciais.
 
-Não reutilizar a chave nem o token do Sandbox em Produção. Não enviar valores desses secrets pelo chat.
+Não reutilizar chave nem token de Sandbox em Produção futura. Nunca enviar valores desses secrets pelo chat.
 
 ## Webhook Asaas
 
