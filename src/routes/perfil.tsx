@@ -76,11 +76,72 @@ type BillingSubscription = {
   hasAccess: boolean;
 };
 
+type BillingPayment = {
+  amountCents: number;
+  currency: "BRL";
+  status: string;
+  dueDate: string | null;
+  confirmedAt: string | null;
+  refundedAt: string | null;
+  createdAt: string | null;
+};
+
 type BillingOverview = {
   enabled: boolean;
   plans: BillingPlan[];
   subscription: BillingSubscription | null;
+  payments: BillingPayment[];
 };
+
+function billingPaymentStatusLabel(status: string) {
+  switch (status) {
+    case "PAYMENT_CONFIRMED":
+    case "PAYMENT_RECEIVED":
+      return "Pago";
+    case "PAYMENT_PENDING":
+      return "Pendente";
+    case "PAYMENT_OVERDUE":
+      return "Vencido";
+    case "PAYMENT_CREDIT_CARD_CAPTURE_REFUSED":
+      return "Cartão recusado";
+    case "PAYMENT_REPROVED_BY_RISK_ANALYSIS":
+      return "Não aprovado na análise de risco";
+    case "PAYMENT_REFUNDED":
+      return "Estornado";
+    case "PAYMENT_PARTIALLY_REFUNDED":
+      return "Parcialmente estornado";
+    case "PAYMENT_REFUND_IN_PROGRESS":
+      return "Estorno em processamento";
+    case "PAYMENT_CHARGEBACK_REQUESTED":
+      return "Contestação aberta";
+    case "PAYMENT_CHARGEBACK_DISPUTE":
+      return "Em contestação";
+    case "PAYMENT_RECEIVED_IN_CASH_UNDONE":
+      return "Pagamento desfeito";
+    default:
+      return "Atualização de pagamento";
+  }
+}
+
+function billingPaymentStatusTone(status: string): "success" | "danger" | "muted" {
+  if (status === "PAYMENT_CONFIRMED" || status === "PAYMENT_RECEIVED") return "success";
+  if (
+    status.includes("REFUND") ||
+    status.includes("CHARGEBACK") ||
+    status === "PAYMENT_RECEIVED_IN_CASH_UNDONE" ||
+    status === "PAYMENT_OVERDUE" ||
+    status === "PAYMENT_CREDIT_CARD_CAPTURE_REFUSED" ||
+    status === "PAYMENT_REPROVED_BY_RISK_ANALYSIS"
+  ) {
+    return "danger";
+  }
+  return "muted";
+}
+
+function billingPaymentDate(payment: BillingPayment) {
+  // created_at is when the webhook record entered Ordys, not provider settlement time.
+  return payment.createdAt ? new Date(payment.createdAt) : null;
+}
 
 async function billingErrorMessage(error: unknown, fallback: string) {
   const context =
@@ -172,6 +233,7 @@ function Perfil() {
         enabled: result.enabled,
         plans: Array.isArray(result.plans) ? result.plans : [],
         subscription: result.subscription ?? null,
+        payments: Array.isArray(result.payments) ? result.payments.slice(0, 10) : [],
       });
     } catch (error) {
       setBillingOverview(null);
@@ -1050,6 +1112,44 @@ function Perfil() {
                   </div>
                 ) : null}
               </Panel>
+              {billingOverview?.payments.length ? (
+                <Panel className="px-5 py-4">
+                  <PanelHeader
+                    title="Histórico de pagamentos"
+                    hint="Últimas 10 cobranças registradas pelo Ordys."
+                  />
+                  <div className="mt-3 divide-y divide-border">
+                    {billingOverview.payments.map((payment, index) => {
+                      const paidAt = billingPaymentDate(payment);
+                      return (
+                        <div
+                          key={`${payment.createdAt ?? payment.dueDate ?? "payment"}-${index}`}
+                          className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                        >
+                          <div className="min-w-0">
+                            <p className="text-[12px] font-semibold">
+                              {new Intl.NumberFormat("pt-BR", {
+                                style: "currency",
+                                currency: payment.currency,
+                              }).format(payment.amountCents / 100)}
+                            </p>
+                            <p className="mt-0.5 text-[10.5px] text-muted-foreground">
+                              {paidAt && Number.isFinite(paidAt.getTime())
+                                ? `Registrado em ${new Intl.DateTimeFormat("pt-BR", {
+                                    dateStyle: "medium",
+                                  }).format(paidAt)}`
+                                : "Data não informada"}
+                            </p>
+                          </div>
+                          <Chip tone={billingPaymentStatusTone(payment.status)}>
+                            {billingPaymentStatusLabel(payment.status)}
+                          </Chip>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Panel>
+              ) : null}
               {billingOverview?.enabled && billingOverview.plans.length ? (
                 <div className="grid gap-3 md:grid-cols-2">
                   {billingOverview.plans.map((plan) => (
