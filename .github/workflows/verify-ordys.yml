@@ -47,6 +47,9 @@ jobs:
       - name: Check TypeScript types
         run: bun run typecheck
 
+      - name: Run ORDYS static security and billing verification
+        run: node scripts/verify-ordys-static.mjs
+
       - name: Run unit tests
         run: bun run test
 
