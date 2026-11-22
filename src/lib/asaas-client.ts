@@ -140,7 +140,10 @@ export async function requestOrdysAsaasApi<T = JsonObject>(
     throw new Error("Rota de API não permitida.");
   }
 
-  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  const { data: sessionData, error: sessionError } = await withRequestDeadline(
+    () => supabase.auth.getSession(),
+    CONNECT_TIMEOUT_MS,
+  );
   const accessToken = sessionData.session?.access_token;
   if (sessionError || !accessToken) {
     throw new Error("Sua sessão não está disponível. Entre novamente no ORDYS.");
