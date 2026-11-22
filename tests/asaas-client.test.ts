@@ -180,9 +180,9 @@ describe("authenticated Asaas TanStack API client", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const pending = requestOrdysAsaasApi("/api/asaas/status", {});
+    const timedOut = expect(pending).rejects.toBeInstanceOf(AuthRequestTimeoutError);
     await vi.advanceTimersByTimeAsync(8_000);
-
-    await expect(pending).rejects.toBeInstanceOf(AuthRequestTimeoutError);
+    await timedOut;
     expect(fetchMock).not.toHaveBeenCalled();
     expect(mocks.nativeRequest).not.toHaveBeenCalled();
   });
