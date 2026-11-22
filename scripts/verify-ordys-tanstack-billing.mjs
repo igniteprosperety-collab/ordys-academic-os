@@ -91,6 +91,8 @@ requireIncludes(billingSharedPath, billingShared, [
   "age assurance #323 pendente",
   "export async function isOrdysPlusEligible(_userId: string): Promise<boolean>",
   "return false;",
+  'process.env["ASAAS_ENVIRONMENT"]?.trim().toLowerCase() !== "sandbox"',
+  "https://api-sandbox.asaas.com/v3",
 ]);
 
 const checkoutPath = "src/lib/asaas/checkout.server.ts";
