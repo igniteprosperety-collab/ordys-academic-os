@@ -86,16 +86,10 @@ export async function handleWebhook(request: Request): Promise<Response> {
         WEBHOOK_RECEIPT_DATABASE_DEADLINE_MS,
       );
     } catch {
-      return billingResponse(
-        { error: "A estrutura financeira ainda não está disponível." },
-        503,
-      );
+      return billingResponse({ error: "A estrutura financeira ainda não está disponível." }, 503);
     }
     if (coreSchemaStatus !== "ready") {
-      return billingResponse(
-        { error: "A estrutura financeira ainda não está disponível." },
-        503,
-      );
+      return billingResponse({ error: "A estrutura financeira ainda não está disponível." }, 503);
     }
 
     // Commit a minimal allowlisted receipt before any billing-state processing.
