@@ -1,10 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const profileSource = readFileSync(
-  new URL("../src/routes/perfil.tsx", import.meta.url),
-  "utf8",
-);
+const profileSource = readFileSync(new URL("../src/routes/perfil.tsx", import.meta.url), "utf8");
 const deletionSource = readFileSync(
   new URL("../src/routes/excluir-conta.tsx", import.meta.url),
   "utf8",
@@ -22,7 +19,9 @@ describe("ORDYS TanStack billing route wiring", () => {
   });
 
   it("routes account deletion through the billing-aware server endpoint", () => {
-    expect(deletionSource).toContain('requestOrdysAsaasApi<{ deleted?: boolean }>("/api/asaas/delete-account"');
+    expect(deletionSource).toContain(
+      'requestOrdysAsaasApi<{ deleted?: boolean }>("/api/asaas/delete-account"',
+    );
     expect(deletionSource).not.toContain('supabase.functions.invoke("ordys-delete-account"');
     expect(deletionSource).toContain("120_000");
     expect(deletionSource).toContain("isInconclusiveFunctionRequestError(error)");
