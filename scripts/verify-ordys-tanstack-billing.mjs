@@ -30,11 +30,31 @@ const requireAbsent = (path, source, fragments) => {
 // Audit the current public/Lovable TanStack runtime, not the private Android
 // release workflow. The latter belongs to the separate private repository.
 const routes = [
-  ["src/routes/api/asaas/checkout.ts", 'createFileRoute("/api/asaas/checkout")', "handleCheckout(request)"],
-  ["src/routes/api/asaas/status.ts", 'createFileRoute("/api/asaas/status")', "handleStatus(request)"],
-  ["src/routes/api/asaas/manage.ts", 'createFileRoute("/api/asaas/manage")', "handleManage(request)"],
-  ["src/routes/api/asaas/delete-account.ts", 'createFileRoute("/api/asaas/delete-account")', "handleDeleteAccount(request)"],
-  ["src/routes/api/public/asaas/webhook.ts", 'createFileRoute("/api/public/asaas/webhook")', "handleWebhook(request)"],
+  [
+    "src/routes/api/asaas/checkout.ts",
+    'createFileRoute("/api/asaas/checkout")',
+    "handleCheckout(request)",
+  ],
+  [
+    "src/routes/api/asaas/status.ts",
+    'createFileRoute("/api/asaas/status")',
+    "handleStatus(request)",
+  ],
+  [
+    "src/routes/api/asaas/manage.ts",
+    'createFileRoute("/api/asaas/manage")',
+    "handleManage(request)",
+  ],
+  [
+    "src/routes/api/asaas/delete-account.ts",
+    'createFileRoute("/api/asaas/delete-account")',
+    "handleDeleteAccount(request)",
+  ],
+  [
+    "src/routes/api/public/asaas/webhook.ts",
+    'createFileRoute("/api/public/asaas/webhook")',
+    "handleWebhook(request)",
+  ],
 ];
 for (const [path, ...fragments] of routes) {
   requireIncludes(path, read(path), fragments);
@@ -47,7 +67,7 @@ requireIncludes(profilePath, profile, [
   '}>("/api/asaas/checkout"',
   '}>("/api/asaas/manage"',
   "billingOverview?.enabled && billingOverview.plans.length",
-  'billingOverview?.enabled === false',
+  "billingOverview?.enabled === false",
 ]);
 requireAbsent(profilePath, profile, [
   'supabase.functions.invoke("ordys-billing-status"',
@@ -60,9 +80,7 @@ const accountPage = read(accountPagePath);
 requireIncludes(accountPagePath, accountPage, [
   'requestOrdysAsaasApi<{ deleted?: boolean }>("/api/asaas/delete-account"',
 ]);
-requireAbsent(accountPagePath, accountPage, [
-  'supabase.functions.invoke("ordys-delete-account"',
-]);
+requireAbsent(accountPagePath, accountPage, ['supabase.functions.invoke("ordys-delete-account"']);
 
 const billingSharedPath = "src/lib/asaas/ordys-billing.server.ts";
 const billingShared = read(billingSharedPath);
@@ -90,7 +108,7 @@ const statusPath = "src/lib/asaas/status.server.ts";
 const status = read(statusPath);
 requireIncludes(statusPath, status, [
   "getBillingSchemaStatus",
-  'const billingEnabled = false;',
+  "const billingEnabled = false;",
   "hasAccess: false",
   "ordys_billing_subscriptions",
   "ordys_billing_payments",
@@ -160,7 +178,9 @@ requireIncludes(routeTestsPath, routeTests, [
 
 const webhookPgtapPath = "supabase/tests/ordys_asaas_webhook_inbox_test.sql";
 const webhookPgtap = read(webhookPgtapPath);
-const pgTapAssertions = (webhookPgtap.match(/^\s*SELECT\s+(?:is|ok|throws_ok)\s*\(/gim) ?? []).length;
+const pgTapAssertions = (
+  webhookPgtap.match(/^\s*SELECT\s+(?:is|ok|throws_ok)\s*\(/gim) ?? []
+).length;
 if (!webhookPgtap.includes("SELECT plan(18);") || pgTapAssertions !== 18) {
   failures.push(
     `${webhookPgtapPath} must declare and contain exactly 18 pgTAP assertions (found ${pgTapAssertions})`,
@@ -196,9 +216,7 @@ const migrationPaths = [
   "supabase/migrations/20261111010000_ordys_bound_asaas_webhook_replay.sql",
   "supabase/migrations/20261112010000_ordys_asaas_cron_worker.sql",
 ];
-const migrationSources = new Map(
-  migrationPaths.map((path) => [path, read(path)]),
-);
+const migrationSources = new Map(migrationPaths.map((path) => [path, read(path)]));
 const allMigrationSources = readdirSync("supabase/migrations")
   .filter((name) => /^\d{14}_.+\.sql$/.test(name))
   .sort()
@@ -213,9 +231,7 @@ for (const source of allMigrationSources) {
     failures.push(`Unsafe public table grant found: ${finding.statement}`);
   }
   for (const finding of findUnsafePublicDefaultPrivileges(source)) {
-    failures.push(
-      `Unsafe public default ${finding.objectType} grant found: ${finding.statement}`,
-    );
+    failures.push(`Unsafe public default ${finding.objectType} grant found: ${finding.statement}`);
   }
 }
 
@@ -273,7 +289,9 @@ for (const table of createdPublicTables.keys()) {
         ownerPredicate.test(checkClause)
       );
     });
-    if (!authenticatedGrant) failures.push(`public.${table} lacks explicit authenticated CRUD grant`);
+    if (!authenticatedGrant) {
+      failures.push(`public.${table} lacks explicit authenticated CRUD grant`);
+    }
     if (!ownerPolicy) failures.push(`public.${table} lacks owner-scoped authenticated policy`);
   }
 }
@@ -294,7 +312,8 @@ requireIncludes(cronMigrationPath, cronMigration, [
 ]);
 requireAbsent(cronMigrationPath, cronMigration, ["cron.schedule("]);
 
-const structuralAclPath = "supabase/migrations/20261102010000_revoke_excess_client_table_privileges.sql";
+const structuralAclPath =
+  "supabase/migrations/20261102010000_revoke_excess_client_table_privileges.sql";
 requireIncludes(structuralAclPath, migrationSources.get(structuralAclPath) ?? "", [
   "REVOKE TRUNCATE, REFERENCES, TRIGGER",
   "FROM PUBLIC, anon, authenticated",
