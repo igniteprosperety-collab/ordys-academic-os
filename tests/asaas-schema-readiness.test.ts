@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  assertAsaasConfigured,
+  getAsaasApiBase,
   getBillingCoreSchemaStatus,
   getBillingSchemaStatus,
 } from "../src/lib/asaas/ordys-billing.server";
@@ -42,6 +44,41 @@ function missingSchemaFetch(availableTable?: string) {
     return Response.json({ code: "PGRST205" }, { status: 404 });
   });
 }
+
+describe("Asaas runtime environment gate", () => {
+  it("uses only the Sandbox API base", () => {
+    vi.stubEnv("ASAAS_ENVIRONMENT", "sandbox");
+    expect(getAsaasApiBase()).toBe("https://api-sandbox.asaas.com/v3");
+  });
+
+  it("rejects the Production environment in this release", () => {
+    vi.stubEnv("ASAAS_ENVIRONMENT", "production");
+    expect(() => getAsaasApiBase()).toThrow(
+      "ASAAS_ENVIRONMENT deve ser sandbox nesta etapa.",
+    );
+  });
+
+  it("rejects a missing or unsupported Asaas environment", () => {
+    vi.stubEnv("ASAAS_ENVIRONMENT", "");
+    expect(() => getAsaasApiBase()).toThrow(
+      "ASAAS_ENVIRONMENT deve ser sandbox nesta etapa.",
+    );
+  });
+
+  it("requires an API key even when Sandbox is selected", () => {
+    vi.stubEnv("ASAAS_ENVIRONMENT", "sandbox");
+    vi.stubEnv("ASAAS_API_KEY", "");
+    expect(() => assertAsaasConfigured()).toThrow(
+      "O provedor de pagamentos ainda não está configurado.",
+    );
+  });
+
+  it("accepts a configured Sandbox API key", () => {
+    vi.stubEnv("ASAAS_ENVIRONMENT", "sandbox");
+    vi.stubEnv("ASAAS_API_KEY", "asaas-sandbox-test-key");
+    expect(assertAsaasConfigured()).toBeUndefined();
+  });
+});
 
 describe("ORDYS optional billing schema readiness", () => {
   it("returns absent when the billing RPCs and all known billing tables are missing", async () => {
