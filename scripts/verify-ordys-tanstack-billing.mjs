@@ -106,6 +106,16 @@ requireIncludes(checkoutPath, checkout, [
   "billingResponse",
 ]);
 
+const asaasEnvironmentTestsPath = "tests/asaas-schema-readiness.test.ts";
+const asaasEnvironmentTests = read(asaasEnvironmentTestsPath);
+requireIncludes(asaasEnvironmentTestsPath, asaasEnvironmentTests, [
+  "uses only the Sandbox API base",
+  "rejects the Production environment in this release",
+  "rejects a missing or unsupported Asaas environment",
+  "requires an API key even when Sandbox is selected",
+  "accepts a configured Sandbox API key",
+]);
+
 const statusPath = "src/lib/asaas/status.server.ts";
 const status = read(statusPath);
 requireIncludes(statusPath, status, [
