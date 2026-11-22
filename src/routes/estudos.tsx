@@ -1,6 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Pause, Play, RefreshCw, RotateCcw, Sparkles, X } from "lucide-react";
+import {
+  Check,
+  Pause,
+  Pencil,
+  Play,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  Sparkles,
+  Trash2,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Shell } from "@/components/ordys/shell";
 import {
@@ -13,7 +24,15 @@ import {
   Ring,
   Stat,
 } from "@/components/ordys/primitives";
-import { Button, Field, Select, TextArea, TextInput } from "@/components/ordys/form";
+import {
+  Button,
+  ConfirmDialog,
+  Field,
+  Modal,
+  Select,
+  TextArea,
+  TextInput,
+} from "@/components/ordys/form";
 import {
   minutesLabel,
   useAttendance,
@@ -31,6 +50,7 @@ import {
   useTasks,
   useTopics,
   type PlanSession,
+  type Review,
 } from "@/lib/ordys-db";
 import {
   addDays,
@@ -43,6 +63,17 @@ import {
   summarize,
   planStatusLabel,
 } from "@/lib/ordys-engine";
+import {
+  clearFocusTimerState,
+  getFocusTimerRemainingSeconds,
+  readFocusTimerState,
+  writeFocusTimerState,
+  type FocusTimerStatus,
+} from "@/lib/focus-timer-state";
+import {
+  cancelNativeFocusTimerAlarm,
+  scheduleNativeFocusTimerAlarm,
+} from "@/lib/native-notifications";
 
 export const Route = createFileRoute("/estudos")({
   head: () => ({
@@ -66,6 +97,28 @@ export const Route = createFileRoute("/estudos")({
 });
 
 const groups = [{ items: ["Plano", "Foco", "Revisões", "Check-in"] }];
+
+type PlanSessionDraft = {
+  session_date: string;
+  start_time: string;
+  duration_minutes: string;
+  subject_id: string;
+  reason: string;
+  kind: string;
+};
+
+function emptyPlanSessionDraft(): PlanSessionDraft {
+  const startAt = new Date(Date.now() + 60 * 60_000);
+  startAt.setMinutes(Math.ceil(startAt.getMinutes() / 15) * 15, 0, 0);
+  return {
+    session_date: dateKey(startAt),
+    start_time: `${String(startAt.getHours()).padStart(2, "0")}:${String(startAt.getMinutes()).padStart(2, "0")}`,
+    duration_minutes: "45",
+    subject_id: "",
+    reason: "",
+    kind: "estudo",
+  };
+}
 
 function checkinPlanLabel(value: string | null) {
   return value === "sim"
@@ -92,8 +145,22 @@ function Estudos() {
   const { data: checkins = [] } = useCheckins();
   const { data: schedules = [] } = useSchedules();
   const { data: calendarEvents = [] } = useCalendarEvents();
-  const { insert, update, userId, refresh } = useOrdysMutations();
+  const { insert, update, remove, userId, refresh } = useOrdysMutations();
   const [busy, setBusy] = useState(false);
+  const [planModal, setPlanModal] = useState<{ open: boolean; editing?: PlanSession }>({
+    open: false,
+  });
+  const [planDraft, setPlanDraft] = useState<PlanSessionDraft>(emptyPlanSessionDraft);
+  const [planSaving, setPlanSaving] = useState(false);
+  const [sessionToDelete, setSessionToDelete] = useState<PlanSession | null>(null);
+  const [sessionDeleting, setSessionDeleting] = useState(false);
+  const [reviewModal, setReviewModal] = useState<{ open: boolean; editing?: Review }>({
+    open: false,
+  });
+  const [reviewDraft, setReviewDraft] = useState({ due_on: dateKey(new Date()), reason: "" });
+  const [reviewSaving, setReviewSaving] = useState(false);
+  const [reviewToDelete, setReviewToDelete] = useState<Review | null>(null);
+  const [reviewDeleting, setReviewDeleting] = useState(false);
 
   const todayKey = dateKey(new Date());
   const todayCheckin = checkins.find((c) => c.checkin_date === todayKey) ?? null;
@@ -179,6 +246,144 @@ function Estudos() {
     }
   }
 
+  function openCreatePlanSession() {
+    setPlanDraft(emptyPlanSessionDraft());
+    setPlanModal({ open: true });
+  }
+
+  function openEditPlanSession(session: PlanSession) {
+    setPlanDraft({
+      session_date: session.session_date,
+      start_time: session.start_time?.slice(0, 5) ?? "",
+      duration_minutes: String(session.duration_minutes),
+      subject_id: session.subject_id ?? "",
+      reason: session.reason ?? "",
+      kind: session.kind,
+    });
+    setPlanModal({ open: true, editing: session });
+  }
+
+  async function savePlanSession() {
+    const title = planDraft.reason.trim();
+    const duration = Number(planDraft.duration_minutes);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(planDraft.session_date)) {
+      toast.error("Selecione uma data válida.");
+      return;
+    }
+    const parsedDate = new Date(`${planDraft.session_date}T12:00:00`);
+    if (!Number.isFinite(parsedDate.getTime()) || dateKey(parsedDate) !== planDraft.session_date) {
+      toast.error("Selecione uma data válida.");
+      return;
+    }
+    if (planDraft.session_date < todayKey) {
+      toast.error("Uma nova sessão precisa ser marcada para hoje ou uma data futura.");
+      return;
+    }
+    if (planDraft.start_time && !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(planDraft.start_time)) {
+      toast.error("Informe um horário válido.");
+      return;
+    }
+    if (!Number.isInteger(duration) || duration < 5 || duration > 1440) {
+      toast.error("A duração deve ficar entre 5 e 1.440 minutos.");
+      return;
+    }
+
+    setPlanSaving(true);
+    try {
+      const payload = {
+        session_date: planDraft.session_date,
+        start_time: planDraft.start_time || null,
+        duration_minutes: duration,
+        subject_id: planDraft.subject_id || null,
+        reason: title || null,
+        kind: planDraft.kind,
+        status: "planejada",
+        generated: false,
+        priority: planModal.editing?.priority ?? 3,
+      };
+      if (planModal.editing) {
+        await update("plan_sessions", planModal.editing.id, payload);
+        toast.success("Sessão atualizada. Ela foi preservada como sessão manual.");
+      } else {
+        await insert("plan_sessions", payload);
+        toast.success("Sessão adicionada ao plano.");
+      }
+      setPlanModal({ open: false });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível salvar a sessão.");
+    } finally {
+      setPlanSaving(false);
+    }
+  }
+
+  function openEditReview(review: Review) {
+    setReviewDraft({
+      due_on: review.due_on,
+      reason: review.reason ?? "",
+    });
+    setReviewModal({ open: true, editing: review });
+  }
+
+  async function saveReview() {
+    const dueDate = new Date(`${reviewDraft.due_on}T12:00:00`);
+    if (
+      !/^\d{4}-\d{2}-\d{2}$/.test(reviewDraft.due_on) ||
+      !Number.isFinite(dueDate.getTime()) ||
+      dateKey(dueDate) !== reviewDraft.due_on
+    ) {
+      toast.error("Selecione uma data válida para a revisão.");
+      return;
+    }
+    if (reviewDraft.reason.trim().length > 500) {
+      toast.error("O motivo deve ter no máximo 500 caracteres.");
+      return;
+    }
+    if (!reviewModal.editing) return;
+
+    setReviewSaving(true);
+    try {
+      await update("reviews", reviewModal.editing.id, {
+        due_on: reviewDraft.due_on,
+        reason: reviewDraft.reason.trim() || null,
+        source: "manual",
+      });
+      setReviewModal({ open: false });
+      toast.success("Revisão atualizada.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível atualizar a revisão.");
+    } finally {
+      setReviewSaving(false);
+    }
+  }
+
+  async function confirmDeleteReview() {
+    if (!reviewToDelete || reviewDeleting) return;
+    setReviewDeleting(true);
+    try {
+      await remove("reviews", reviewToDelete.id);
+      setReviewToDelete(null);
+      toast.success("Revisão excluída.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível excluir a revisão.");
+    } finally {
+      setReviewDeleting(false);
+    }
+  }
+
+  async function confirmDeletePlanSession() {
+    if (!sessionToDelete || sessionDeleting) return;
+    setSessionDeleting(true);
+    try {
+      await remove("plan_sessions", sessionToDelete.id);
+      toast.success("Sessão removida do plano.");
+      setSessionToDelete(null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível remover a sessão.");
+    } finally {
+      setSessionDeleting(false);
+    }
+  }
+
   const subjectName = (id: string | null) =>
     subjects.find((s) => s.id === id)?.name ?? "Estudo geral";
   const subjectColor = (id: string | null) =>
@@ -256,6 +461,11 @@ function Estudos() {
           <PanelHeader
             title="Plano de estudos"
             hint="gerado a partir de provas, tarefas e domínio"
+            action={
+              <Button variant="ghost" onClick={openCreatePlanSession}>
+                <Plus className="size-[13px]" strokeWidth={2} /> Nova sessão
+              </Button>
+            }
           />
           <div className="border-t border-border">
             {planByDay.length ? (
@@ -300,29 +510,49 @@ function Estudos() {
                       >
                         {planStatusLabel(s.status)}
                       </Chip>
-                      <button
-                        type="button"
-                        className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-success sm:size-8"
-                        aria-label="Concluir sessão"
-                        onClick={() =>
-                          run("Sessão concluída", () =>
-                            update("plan_sessions", s.id, { status: "concluida" }),
-                          )
-                        }
-                      >
-                        <Check className="size-[14px]" strokeWidth={1.8} />
-                      </button>
+                      {s.status === "planejada" ? (
+                        <>
+                          <button
+                            type="button"
+                            className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground sm:size-8"
+                            aria-label="Editar sessão"
+                            onClick={() => openEditPlanSession(s)}
+                          >
+                            <Pencil className="size-[13px]" strokeWidth={1.8} />
+                          </button>
+                          <button
+                            type="button"
+                            className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-success sm:size-8"
+                            aria-label="Concluir sessão"
+                            onClick={() =>
+                              run("Sessão concluída", () =>
+                                update("plan_sessions", s.id, { status: "concluida" }),
+                              )
+                            }
+                          >
+                            <Check className="size-[14px]" strokeWidth={1.8} />
+                          </button>
+                          <button
+                            type="button"
+                            className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-destructive sm:size-8"
+                            aria-label="Pular sessão"
+                            onClick={() =>
+                              run("Sessão cancelada", () =>
+                                update("plan_sessions", s.id, { status: "cancelada" }),
+                              )
+                            }
+                          >
+                            <X className="size-[14px]" strokeWidth={1.8} />
+                          </button>
+                        </>
+                      ) : null}
                       <button
                         type="button"
                         className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-destructive sm:size-8"
-                        aria-label="Pular sessão"
-                        onClick={() =>
-                          run("Sessão cancelada", () =>
-                            update("plan_sessions", s.id, { status: "cancelada" }),
-                          )
-                        }
+                        aria-label="Excluir sessão do plano"
+                        onClick={() => setSessionToDelete(s)}
                       >
-                        <X className="size-[14px]" strokeWidth={1.8} />
+                        <Trash2 className="size-[13px]" strokeWidth={1.8} />
                       </button>
                     </div>
                   ))}
@@ -340,6 +570,8 @@ function Estudos() {
 
       {active === "Foco" ? (
         <FocusPanel
+          key={userId ?? "no-user"}
+          userId={userId}
           subjects={subjects}
           topics={topics}
           plan={plan.filter((p) => p.session_date === todayKey && p.status === "planejada")}
@@ -400,6 +632,22 @@ function Estudos() {
                       </Chip>
                       <button
                         type="button"
+                        className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground sm:size-8"
+                        aria-label="Editar revisão"
+                        onClick={() => openEditReview(r)}
+                      >
+                        <Pencil className="size-[13px]" strokeWidth={1.8} />
+                      </button>
+                      <button
+                        type="button"
+                        className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-destructive sm:size-8"
+                        aria-label="Excluir revisão"
+                        onClick={() => setReviewToDelete(r)}
+                      >
+                        <Trash2 className="size-[13px]" strokeWidth={1.8} />
+                      </button>
+                      <button
+                        type="button"
                         className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-success sm:size-8"
                         aria-label="Concluir revisão"
                         disabled={busy}
@@ -444,6 +692,180 @@ function Estudos() {
         </Panel>
       ) : null}
 
+      <Modal
+        open={reviewModal.open}
+        onClose={() => {
+          if (!reviewSaving) setReviewModal({ open: false });
+        }}
+        title="Editar revisão"
+        subtitle="Ajuste a data e o motivo deste lembrete de estudo."
+        width={440}
+      >
+        <div className="space-y-3">
+          <Field label="Data da revisão">
+            <TextInput
+              type="date"
+              value={reviewDraft.due_on}
+              onChange={(event) =>
+                setReviewDraft((current) => ({ ...current, due_on: event.target.value }))
+              }
+            />
+          </Field>
+          <Field label="Motivo">
+            <TextArea
+              maxLength={500}
+              value={reviewDraft.reason}
+              onChange={(event) =>
+                setReviewDraft((current) => ({ ...current, reason: event.target.value }))
+              }
+              placeholder="O que precisa ser revisto?"
+            />
+          </Field>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button
+              variant="ghost"
+              disabled={reviewSaving}
+              onClick={() => setReviewModal({ open: false })}
+            >
+              Cancelar
+            </Button>
+            <Button disabled={reviewSaving} onClick={() => void saveReview()}>
+              {reviewSaving ? "Salvando…" : "Salvar revisão"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+      <ConfirmDialog
+        open={reviewToDelete !== null}
+        title="Excluir revisão?"
+        description={
+          reviewToDelete
+            ? `A revisão de “${reviewToDelete.reason ?? "conteúdo"}” será removida da sua lista.`
+            : ""
+        }
+        confirmLabel="Excluir revisão"
+        loading={reviewDeleting}
+        loadingLabel="Excluindo…"
+        onClose={() => {
+          if (!reviewDeleting) setReviewToDelete(null);
+        }}
+        onConfirm={() => void confirmDeleteReview()}
+      />
+      <Modal
+        open={planModal.open}
+        onClose={() => {
+          if (!planSaving) setPlanModal({ open: false });
+        }}
+        title={planModal.editing ? "Editar sessão" : "Nova sessão"}
+        subtitle="Sessões editadas ficam manuais e não serão substituídas pelo gerador automático."
+        width={520}
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Disciplina">
+            <Select
+              value={planDraft.subject_id}
+              onChange={(event) =>
+                setPlanDraft((current) => ({ ...current, subject_id: event.target.value }))
+              }
+            >
+              <option value="">Estudo geral</option>
+              {subjects.map((subject) => (
+                <option key={subject.id} value={subject.id}>
+                  {subject.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Tipo">
+            <Select
+              value={planDraft.kind}
+              onChange={(event) =>
+                setPlanDraft((current) => ({ ...current, kind: event.target.value }))
+              }
+            >
+              <option value="estudo">Estudo</option>
+              <option value="revisao">Revisão</option>
+              <option value="exercicios">Exercícios</option>
+              <option value="trabalho">Trabalho</option>
+              <option value="outro">Outro</option>
+            </Select>
+          </Field>
+          <Field label="Data">
+            <TextInput
+              type="date"
+              value={planDraft.session_date}
+              onChange={(event) =>
+                setPlanDraft((current) => ({ ...current, session_date: event.target.value }))
+              }
+            />
+          </Field>
+          <Field label="Horário (opcional)">
+            <TextInput
+              type="time"
+              value={planDraft.start_time}
+              onChange={(event) =>
+                setPlanDraft((current) => ({ ...current, start_time: event.target.value }))
+              }
+            />
+          </Field>
+          <Field label="Duração (minutos)">
+            <TextInput
+              type="number"
+              min={5}
+              max={1440}
+              value={planDraft.duration_minutes}
+              onChange={(event) =>
+                setPlanDraft((current) => ({
+                  ...current,
+                  duration_minutes: event.target.value,
+                }))
+              }
+            />
+          </Field>
+          <Field label="Objetivo da sessão" className="sm:col-span-2">
+            <TextArea
+              maxLength={500}
+              value={planDraft.reason}
+              onChange={(event) =>
+                setPlanDraft((current) => ({ ...current, reason: event.target.value }))
+              }
+              placeholder="Ex.: revisar integrais e resolver 10 exercícios"
+            />
+          </Field>
+        </div>
+        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button
+            variant="ghost"
+            disabled={planSaving}
+            onClick={() => setPlanModal({ open: false })}
+          >
+            Cancelar
+          </Button>
+          <Button disabled={planSaving} onClick={() => void savePlanSession()}>
+            {planSaving
+              ? "Salvando…"
+              : planModal.editing
+                ? "Salvar alterações"
+                : "Adicionar sessão"}
+          </Button>
+        </div>
+      </Modal>
+      <ConfirmDialog
+        open={sessionToDelete !== null}
+        title="Excluir sessão do plano?"
+        description={
+          sessionToDelete
+            ? `A sessão de ${subjectName(sessionToDelete.subject_id)} em ${formatDay(`${sessionToDelete.session_date}T12:00:00`)} será removida.`
+            : ""
+        }
+        confirmLabel="Excluir sessão"
+        loading={sessionDeleting}
+        loadingLabel="Excluindo…"
+        onClose={() => {
+          if (!sessionDeleting) setSessionToDelete(null);
+        }}
+        onConfirm={() => void confirmDeletePlanSession()}
+      />
       {active === "Check-in" ? (
         <CheckinPanel
           subjects={subjects}
@@ -466,6 +888,7 @@ function Estudos() {
 }
 
 function FocusPanel({
+  userId,
   subjects,
   topics,
   plan,
@@ -474,6 +897,7 @@ function FocusPanel({
   weekMinutes,
   target,
 }: {
+  userId: string | null;
   subjects: { id: string; name: string; color: string }[];
   topics: { id: string; title: string; subject_id: string }[];
   plan: PlanSession[];
@@ -489,17 +913,67 @@ function FocusPanel({
   const [left, setLeft] = useState(50 * 60);
   const [running, setRunning] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
   const startedAt = useRef<string | null>(null);
   const timerEndAt = useRef<number | null>(null);
+  const finishing = useRef(false);
+
+  useEffect(() => {
+    if (!userId) {
+      setHydrated(true);
+      return;
+    }
+
+    const saved = readFocusTimerState(userId);
+    if (saved) {
+      setMinutes(saved.minutes);
+      setSubjectId(saved.subjectId ?? "");
+      setTopicId(saved.topicId ?? "");
+      setPlanId(saved.planId ?? "");
+      setLeft(getFocusTimerRemainingSeconds(saved));
+      startedAt.current = saved.startedAt;
+      timerEndAt.current = saved.endsAtMs;
+      setRunning(saved.status === "running");
+      if (saved.status === "running" && saved.endsAtMs !== null) {
+        void scheduleNativeFocusTimerAlarm(userId, saved.endsAtMs).catch((error) => {
+          console.error("[focus] could not restore Android timer alarm", error);
+        });
+      }
+    }
+    setHydrated(true);
+  }, [userId]);
 
   const sessionStarted = startedAt.current !== null;
   const elapsedMinutes = Math.max(0, Math.round((minutes * 60 - left) / 60));
 
+  const persistTimer = useCallback(
+    (status: FocusTimerStatus, remainingSeconds: number, endsAtMs: number | null) => {
+      if (!userId || !startedAt.current) return;
+      writeFocusTimerState(userId, {
+        version: 1,
+        userId,
+        minutes,
+        startedAt: startedAt.current,
+        status,
+        endsAtMs,
+        remainingSeconds,
+        subjectId: subjectId || null,
+        topicId: topicId || null,
+        planId: planId || null,
+      });
+    },
+    [minutes, planId, subjectId, topicId, userId],
+  );
+
   const finish = useCallback(
     async (status: "concluida" | "cancelada") => {
-      if (saving || !startedAt.current) return;
+      if (saving || finishing.current || !startedAt.current) return;
+      finishing.current = true;
       setRunning(false);
       setSaving(true);
+      void cancelNativeFocusTimerAlarm(userId ?? "").catch((error) => {
+        console.error("[focus] could not cancel Android timer alarm", error);
+      });
       const actualMinutes = status === "concluida" ? Math.max(1, elapsedMinutes) : elapsedMinutes;
       try {
         await onSave({
@@ -512,6 +986,7 @@ function FocusPanel({
           ended_at: new Date().toISOString(),
           status,
         });
+        if (userId) clearFocusTimerState(userId);
         startedAt.current = null;
         timerEndAt.current = null;
         setLeft(minutes * 60);
@@ -522,12 +997,28 @@ function FocusPanel({
         const message =
           error instanceof Error ? error.message : "Não foi possível salvar a sessão.";
         toast.error(message);
-        setLeft((current) => Math.max(1, current));
+        const remaining = Math.max(1, left);
+        timerEndAt.current = null;
+        setRunning(false);
+        setLeft(remaining);
+        persistTimer("paused", remaining, null);
       } finally {
+        finishing.current = false;
         setSaving(false);
       }
     },
-    [elapsedMinutes, minutes, onSave, planId, saving, subjectId, topicId],
+    [
+      elapsedMinutes,
+      left,
+      minutes,
+      onSave,
+      persistTimer,
+      planId,
+      saving,
+      subjectId,
+      topicId,
+      userId,
+    ],
   );
 
   useEffect(() => {
@@ -541,10 +1032,6 @@ function FocusPanel({
     const id = window.setInterval(tick, 500);
     return () => window.clearInterval(id);
   }, [running]);
-
-  useEffect(() => {
-    setLeft(minutes * 60);
-  }, [minutes]);
 
   useEffect(() => {
     if (!running || left > 0) return;
@@ -566,8 +1053,11 @@ function FocusPanel({
               <button
                 type="button"
                 key={m}
-                disabled={sessionStarted}
-                onClick={() => setMinutes(m)}
+                disabled={!hydrated || sessionStarted}
+                onClick={() => {
+                  setMinutes(m);
+                  setLeft(m * 60);
+                }}
                 className={`min-h-11 rounded-lg border px-3 py-1.5 text-[12px] transition-colors disabled:opacity-40 ${
                   minutes === m
                     ? "border-primary/40 bg-primary-soft"
@@ -581,7 +1071,7 @@ function FocusPanel({
           <Field label="Disciplina">
             <Select
               value={subjectId}
-              disabled={sessionStarted}
+              disabled={!hydrated || sessionStarted}
               onChange={(e) => {
                 setSubjectId(e.target.value);
                 setTopicId("");
@@ -598,7 +1088,7 @@ function FocusPanel({
           <Field label="Conteúdo">
             <Select
               value={topicId}
-              disabled={sessionStarted}
+              disabled={!hydrated || sessionStarted}
               onChange={(e) => setTopicId(e.target.value)}
             >
               <option value="">Sem conteúdo</option>
@@ -615,7 +1105,7 @@ function FocusPanel({
             <Field label="Vincular a uma sessão do plano">
               <Select
                 value={planId}
-                disabled={sessionStarted}
+                disabled={!hydrated || sessionStarted}
                 onChange={(e) => setPlanId(e.target.value)}
               >
                 <option value="">Sem vínculo</option>
@@ -634,11 +1124,17 @@ function FocusPanel({
                   variant="ghost"
                   disabled={saving}
                   onClick={() => {
-                    if (timerEndAt.current !== null) {
-                      setLeft(Math.max(0, Math.ceil((timerEndAt.current - Date.now()) / 1000)));
-                    }
+                    const remaining =
+                      timerEndAt.current === null
+                        ? left
+                        : Math.max(0, Math.ceil((timerEndAt.current - Date.now()) / 1000));
                     timerEndAt.current = null;
+                    setLeft(remaining);
                     setRunning(false);
+                    void cancelNativeFocusTimerAlarm(userId ?? "").catch((error) => {
+                      console.error("[focus] could not cancel Android timer alarm", error);
+                    });
+                    persistTimer("paused", remaining, null);
                   }}
                 >
                   <Pause className="size-[13px]" strokeWidth={1.8} /> Pausar
@@ -652,13 +1148,20 @@ function FocusPanel({
               </>
             ) : (
               <Button
+                disabled={!hydrated}
                 onClick={() => {
                   startedAt.current = startedAt.current ?? new Date().toISOString();
-                  timerEndAt.current = Date.now() + left * 1000;
+                  const deadline = Date.now() + left * 1000;
+                  timerEndAt.current = deadline;
+                  persistTimer("running", left, deadline);
+                  void scheduleNativeFocusTimerAlarm(userId ?? "", deadline).catch((error) => {
+                    console.error("[focus] could not schedule Android timer alarm", error);
+                  });
                   setRunning(true);
                 }}
               >
-                <Play className="size-[13px]" strokeWidth={2} /> Iniciar foco
+                <Play className="size-[13px]" strokeWidth={2} />{" "}
+                {sessionStarted ? "Retomar foco" : "Iniciar foco"}
               </Button>
             )}
           </div>

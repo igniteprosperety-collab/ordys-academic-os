@@ -107,7 +107,7 @@ const prefFields: { key: string; label: string; hint: string }[] = [
   { key: "exams", label: "Provas e simulados", hint: "avisos 3, 1 e 0 dias antes" },
   { key: "tasks", label: "Tarefas", hint: "vencimento hoje e amanhã" },
   { key: "overdue", label: "Atrasos", hint: "tarefas vencidas sem conclusão" },
-  { key: "classes", label: "Aulas", hint: "início das aulas do dia" },
+  { key: "classes", label: "Aulas e compromissos", hint: "início das aulas do dia" },
   { key: "study_sessions", label: "Sessões de estudo", hint: "plano do dia e replanejamentos" },
   { key: "goals", label: "Metas e desempenho", hint: "média e frequência fora da meta" },
   { key: "daily_summary", label: "Resumo diário", hint: "fechamento do dia" },
@@ -873,9 +873,9 @@ function Perfil() {
           <PanelHeader title="Integrações de agenda" hint="eventos externos" />
           <div className="border-t border-border px-5 py-4">
             <p className="text-[12px] text-muted-foreground">
-              Eventos importados aparecem na agenda junto das aulas, provas e sessões de estudo. As
-              conexões disponíveis ficam vinculadas à sua conta e podem ser removidas a qualquer
-              momento.
+              A conexão automática com Google Agenda e Outlook ainda não está habilitada nesta
+              versão. Conexões já vinculadas à conta podem ser consultadas e removidas aqui. Para
+              cadastrar compromissos pessoais, use a seção Eventos da Agenda do Ordys.
             </p>
             <div className="mt-3 space-y-2">
               {connections.length ? (
@@ -901,7 +901,9 @@ function Perfil() {
                   </div>
                 ))
               ) : (
-                <p className="text-[12px] text-muted-foreground">Nenhuma conexão ativa.</p>
+                <p className="text-[12px] text-muted-foreground">
+                  Nenhum calendário externo vinculado.
+                </p>
               )}
             </div>
           </div>

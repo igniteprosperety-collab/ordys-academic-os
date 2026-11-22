@@ -1,14 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { CalendarPlus, Pencil, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { Shell } from "@/components/ordys/shell";
 import { Chip, Dot, Panel, PanelHeader, PageTitle, Stat } from "@/components/ordys/primitives";
-import { Button } from "@/components/ordys/form";
+import { Button, ConfirmDialog, Field, Modal, Select, TextInput } from "@/components/ordys/form";
 import {
   subjectAttendance,
   subjectAverage,
   useAttendance,
   useCalendarEvents,
   useExams,
+  useOrdysMutations,
+  type CalendarEvent,
   useGrades,
   usePlanSessions,
   useProfile,
@@ -55,6 +59,33 @@ export const Route = createFileRoute("/agenda")({
 const groups = [{ items: ["Dia", "Semana", "Mês", "Provas", "Prazos", "Eventos"] }];
 type SubjectSection = "resumo" | "horarios" | "academico" | "desempenho";
 
+type CalendarEventDraft = {
+  title: string;
+  startsAt: string;
+  endsAt: string;
+  kind: string;
+  location: string;
+  subjectId: string;
+};
+
+function toLocalDateTimeInput(value?: string | null) {
+  const date = value ? new Date(value) : new Date(Date.now() + 30 * 60_000);
+  if (!Number.isFinite(date.getTime())) return "";
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
+}
+
+function emptyCalendarEventDraft(): CalendarEventDraft {
+  return {
+    title: "",
+    startsAt: toLocalDateTimeInput(),
+    endsAt: "",
+    kind: "compromisso",
+    location: "",
+    subjectId: "",
+  };
+}
+
 type Item = {
   key: string;
   time: string;
@@ -86,6 +117,97 @@ function Agenda() {
   const { data: grades = [] } = useGrades();
   const { data: profile } = useProfile();
   const { data: topics = [] } = useTopics(selectedSubjectId);
+  const { insert, update, remove } = useOrdysMutations();
+  const [eventEditorOpen, setEventEditorOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
+  const [eventDraft, setEventDraft] = useState<CalendarEventDraft>(emptyCalendarEventDraft);
+  const [eventSaving, setEventSaving] = useState(false);
+  const [eventToDelete, setEventToDelete] = useState<CalendarEvent | null>(null);
+  const [eventDeleting, setEventDeleting] = useState(false);
+
+  function openNewEvent() {
+    setEditingEvent(null);
+    setEventDraft(emptyCalendarEventDraft());
+    setEventEditorOpen(true);
+  }
+
+  function openEditEvent(event: CalendarEvent) {
+    setEditingEvent(event);
+    setEventDraft({
+      title: event.title,
+      startsAt: toLocalDateTimeInput(event.starts_at),
+      endsAt: event.ends_at ? toLocalDateTimeInput(event.ends_at) : "",
+      kind: event.kind || "compromisso",
+      location: event.location ?? "",
+      subjectId: event.subject_id ?? "",
+    });
+    setEventEditorOpen(true);
+  }
+
+  async function saveCalendarEvent() {
+    const title = eventDraft.title.trim();
+    const startsAt = new Date(eventDraft.startsAt);
+    const endsAt = eventDraft.endsAt ? new Date(eventDraft.endsAt) : null;
+
+    if (!title) {
+      toast.error("Informe o título do compromisso.");
+      return;
+    }
+    if (!eventDraft.startsAt || !Number.isFinite(startsAt.getTime())) {
+      toast.error("Informe uma data e um horário válidos.");
+      return;
+    }
+    if (endsAt && (!Number.isFinite(endsAt.getTime()) || endsAt <= startsAt)) {
+      toast.error("O horário final precisa ser posterior ao início.");
+      return;
+    }
+
+    setEventSaving(true);
+    const payload = {
+      title,
+      starts_at: startsAt.toISOString(),
+      ends_at: endsAt?.toISOString() ?? null,
+      kind: eventDraft.kind,
+      location: eventDraft.location.trim() || null,
+      subject_id: eventDraft.subjectId || null,
+      source: editingEvent?.source ?? "manual",
+      external_id: editingEvent?.external_id ?? null,
+    };
+
+    try {
+      if (editingEvent) {
+        await update("calendar_events", editingEvent.id, payload);
+        toast.success("Compromisso atualizado.");
+      } else {
+        await insert("calendar_events", payload);
+        toast.success("Compromisso adicionado à agenda.");
+      }
+      setEventEditorOpen(false);
+      setEditingEvent(null);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Não foi possível salvar o compromisso.",
+      );
+    } finally {
+      setEventSaving(false);
+    }
+  }
+
+  async function deleteCalendarEvent() {
+    if (!eventToDelete) return;
+    setEventDeleting(true);
+    try {
+      await remove("calendar_events", eventToDelete.id);
+      toast.success("Compromisso excluído.");
+      setEventToDelete(null);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Não foi possível excluir o compromisso.",
+      );
+    } finally {
+      setEventDeleting(false);
+    }
+  }
 
   const from = addDays(startOfWeek(new Date()), offset * 7);
   const days = Array.from({ length: 7 }, (_, i) => addDays(from, i));
@@ -1461,40 +1583,195 @@ function Agenda() {
           ) : null}
           {active === "Eventos" ? (
             <Panel className="mt-4">
-              <PanelHeader title="Eventos" hint="importados ou criados manualmente" />
+              <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+                <div>
+                  <p className="text-[13px] font-semibold">Eventos e compromissos</p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    {events.length} compromisso(s) na sua agenda
+                  </p>
+                </div>
+                <Button onClick={openNewEvent}>
+                  <CalendarPlus className="size-[14px]" strokeWidth={1.8} />
+                  Novo compromisso
+                </Button>
+              </div>
               <div className="border-t border-border">
                 {events.length ? (
                   events.map((e) => (
-                    <button
+                    <div
                       key={e.id}
-                      type="button"
-                      onClick={() =>
-                        e.subject_id ? openSubject(e.subject_id) : openAgendaDate(e.starts_at)
-                      }
-                      className="ordys-pressable flex w-full items-center gap-3 px-5 py-2.5 text-left hover:bg-surface"
+                      className="flex min-w-0 items-center gap-2 border-b border-border px-4 py-2.5 last:border-b-0 sm:gap-3 sm:px-5"
                     >
-                      <Dot color={color(e.subject_id, "var(--muted-foreground)")} />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-[12.5px] font-medium">{e.title}</p>
-                        <p className="truncate text-[11px] text-muted-foreground">
-                          {e.location ?? e.source}
-                        </p>
-                      </div>
-                      <span className="num shrink-0 text-[11px] text-muted-foreground">
-                        {formatDateTime(e.starts_at)}
-                      </span>
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          e.subject_id ? openSubject(e.subject_id) : openAgendaDate(e.starts_at)
+                        }
+                        className="ordys-pressable flex min-w-0 flex-1 items-center gap-3 rounded-md py-1 text-left hover:bg-surface"
+                      >
+                        <Dot color={color(e.subject_id, "var(--muted-foreground)")} />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[12.5px] font-medium">
+                            {e.title}
+                          </span>
+                          <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
+                            {e.location ?? (e.kind === "compromisso" ? "Compromisso" : e.kind)}
+                            {e.subject_id ? ` · ${name(e.subject_id)}` : ""}
+                          </span>
+                        </span>
+                        <span className="num shrink-0 text-right text-[10.5px] text-muted-foreground">
+                          {formatDateTime(e.starts_at)}
+                        </span>
+                      </button>
+                      {e.source === "manual" ? (
+                        <>
+                          <Button
+                            variant="ghost"
+                            onClick={() => openEditEvent(e)}
+                            aria-label={`Editar ${e.title}`}
+                          >
+                            <Pencil className="size-[13px]" strokeWidth={1.8} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            onClick={() => setEventToDelete(e)}
+                            aria-label={`Excluir ${e.title}`}
+                          >
+                            <Trash2 className="size-[13px]" strokeWidth={1.8} />
+                          </Button>
+                        </>
+                      ) : (
+                        <Chip className="shrink-0" tone="muted">
+                          Somente leitura
+                        </Chip>
+                      )}
+                    </div>
                   ))
                 ) : (
-                  <p className="px-5 py-6 text-[12px] text-muted-foreground">
-                    Nenhum evento encontrado.
-                  </p>
+                  <div className="px-5 py-7 text-center">
+                    <p className="text-[12px] font-medium">Sua agenda de eventos está vazia.</p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      Cadastre provas, compromissos pessoais, entregas externas ou atividades
+                      importantes.
+                    </p>
+                  </div>
                 )}
               </div>
             </Panel>
           ) : null}
         </>
       )}
+      <Modal
+        open={eventEditorOpen}
+        onClose={() => {
+          if (!eventSaving) setEventEditorOpen(false);
+        }}
+        title={editingEvent ? "Editar compromisso" : "Novo compromisso"}
+        subtitle="O compromisso ficará vinculado somente à sua conta."
+        width={560}
+      >
+        <div className="space-y-3">
+          <Field label="Título">
+            <TextInput
+              autoComplete="off"
+              maxLength={120}
+              placeholder="Ex.: Entrega do trabalho de biologia"
+              value={eventDraft.title}
+              onChange={(event) =>
+                setEventDraft((current) => ({ ...current, title: event.target.value }))
+              }
+            />
+          </Field>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Início">
+              <TextInput
+                type="datetime-local"
+                value={eventDraft.startsAt}
+                onChange={(event) =>
+                  setEventDraft((current) => ({ ...current, startsAt: event.target.value }))
+                }
+              />
+            </Field>
+            <Field label="Término (opcional)">
+              <TextInput
+                type="datetime-local"
+                value={eventDraft.endsAt}
+                onChange={(event) =>
+                  setEventDraft((current) => ({ ...current, endsAt: event.target.value }))
+                }
+              />
+            </Field>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Tipo">
+              <Select
+                value={eventDraft.kind}
+                onChange={(event) =>
+                  setEventDraft((current) => ({ ...current, kind: event.target.value }))
+                }
+              >
+                <option value="compromisso">Compromisso</option>
+                <option value="estudo">Estudo</option>
+                <option value="pessoal">Pessoal</option>
+                <option value="outro">Outro</option>
+              </Select>
+            </Field>
+            <Field label="Disciplina (opcional)">
+              <Select
+                value={eventDraft.subjectId}
+                onChange={(event) =>
+                  setEventDraft((current) => ({ ...current, subjectId: event.target.value }))
+                }
+              >
+                <option value="">Sem disciplina</option>
+                {subjects.map((subject) => (
+                  <option key={subject.id} value={subject.id}>
+                    {subject.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+          <Field label="Local (opcional)">
+            <TextInput
+              maxLength={160}
+              placeholder="Sala, endereço ou link"
+              value={eventDraft.location}
+              onChange={(event) =>
+                setEventDraft((current) => ({ ...current, location: event.target.value }))
+              }
+            />
+          </Field>
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+            <Button
+              variant="ghost"
+              disabled={eventSaving}
+              onClick={() => setEventEditorOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button disabled={eventSaving} onClick={() => void saveCalendarEvent()}>
+              {eventSaving
+                ? "Salvando…"
+                : editingEvent
+                  ? "Salvar alterações"
+                  : "Adicionar à agenda"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+      <ConfirmDialog
+        open={!!eventToDelete}
+        title="Excluir compromisso?"
+        description={eventToDelete ? `“${eventToDelete.title}” será removido da sua agenda.` : ""}
+        confirmLabel="Excluir compromisso"
+        loading={eventDeleting}
+        loadingLabel="Excluindo…"
+        onClose={() => {
+          if (!eventDeleting) setEventToDelete(null);
+        }}
+        onConfirm={() => void deleteCalendarEvent()}
+      />
     </Shell>
   );
 }

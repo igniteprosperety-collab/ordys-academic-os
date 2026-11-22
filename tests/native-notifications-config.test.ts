@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { nativeNotificationsEnabledForBuild } from "@/lib/native-notifications-config";
+import {
+  hasNativeNotificationSyncErrors,
+  nativeNotificationsEnabledForBuild,
+} from "@/lib/native-notifications-config";
 
 describe("native notification build flags", () => {
   it("keeps native notifications disabled when no distribution opts in", () => {
@@ -15,5 +18,13 @@ describe("native notification build flags", () => {
 
   it("lets an explicit disable switch override an enable flag", () => {
     expect(nativeNotificationsEnabledForBuild("1", "1")).toBe(false);
+  });
+});
+
+describe("native notification sync completeness", () => {
+  it("aborts reconciliation when any required query fails", () => {
+    expect(hasNativeNotificationSyncErrors([])).toBe(false);
+    expect(hasNativeNotificationSyncErrors([null, undefined, false])).toBe(false);
+    expect(hasNativeNotificationSyncErrors([null, new Error("calendar unavailable")])).toBe(true);
   });
 });

@@ -3,6 +3,7 @@ import { getOrdysDataClient } from "@/lib/demo-supabase";
 import { getActiveLocalProfileId, isDemoMode } from "@/lib/demo-mode";
 import type {
   AttendanceRecord,
+  CalendarEvent,
   Exam,
   FocusSession,
   Grade,
@@ -348,15 +349,13 @@ export async function generateWeeklyPlan(input: PlanInput) {
     Math.min(1440, Number(input.profile?.daily_load_limit_minutes ?? 240)),
   );
 
-  const { error: clearError } = await dataClient()
-    .from("plan_sessions")
-    .delete()
-    .eq("user_id", input.userId)
-    .eq("generated", true)
-    .eq("status", "planejada")
-    .gte("session_date", rangeStart)
-    .lte("session_date", rangeEnd);
-  if (clearError) throw new Error(clearError.message);
+  const generatedToReplace = input.existing.filter(
+    (session) =>
+      session.generated &&
+      session.status === "planejada" &&
+      session.session_date >= rangeStart &&
+      session.session_date <= rangeEnd,
+  );
 
   const manual = input.existing.filter(
     (s) =>
@@ -482,11 +481,35 @@ export async function generateWeeklyPlan(input: PlanInput) {
     }
   }
 
+  // Build the replacement before touching the current plan. If the new insert
+  // fails after the delete succeeds, restore the previous generated sessions.
+  const { error: clearError } = await dataClient()
+    .from("plan_sessions")
+    .delete()
+    .eq("user_id", input.userId)
+    .eq("generated", true)
+    .eq("status", "planejada")
+    .gte("session_date", rangeStart)
+    .lte("session_date", rangeEnd);
+  if (clearError) throw new Error(clearError.message);
+
   if (rows.length) {
     const { error } = await dataClient()
       .from("plan_sessions")
       .insert(rows as never);
-    if (error) throw new Error(error.message);
+    if (error) {
+      if (generatedToReplace.length) {
+        const { error: restoreError } = await dataClient()
+          .from("plan_sessions")
+          .insert(generatedToReplace as never);
+        if (restoreError) {
+          throw new Error(
+            `Não foi possível salvar o novo plano (${error.message}) nem restaurar o plano anterior (${restoreError.message}).`,
+          );
+        }
+      }
+      throw new Error(error.message);
+    }
   }
   return rows.length;
 }
@@ -590,6 +613,7 @@ type NotifyInput = {
   plan: PlanSession[];
   grades: Grade[];
   attendance: AttendanceRecord[];
+  events?: CalendarEvent[];
   focus?: FocusSession[];
   profile: Profile | null;
   prefs: {
@@ -615,6 +639,7 @@ export function buildNotificationRules(input: NotifyInput) {
     plan,
     grades,
     attendance,
+    events = [],
     focus = [],
     profile,
     prefs,
@@ -669,6 +694,31 @@ export function buildNotificationRules(input: NotifyInput) {
           : (exam.content ?? "Revise os conteúdos da avaliação."),
         link: "/agenda",
         dedupe_key: `exam:${exam.id}:${left}`,
+      });
+    }
+  }
+
+  if (!prefs || prefs.classes) {
+    for (const event of events) {
+      const startsAt = new Date(event.starts_at);
+      const distance = startsAt.getTime() - now.getTime();
+      if (!Number.isFinite(startsAt.getTime()) || distance <= 0 || distance > 24 * 60 * 60 * 1000) {
+        continue;
+      }
+      const when =
+        distance < 60 * 60 * 1000
+          ? `em ${Math.max(1, Math.ceil(distance / 60_000))} minuto(s)`
+          : dateKey(startsAt) === dateKey(now)
+            ? "hoje"
+            : "amanhã";
+      rows.push({
+        category: "agenda",
+        title: `${event.title} — compromisso ${when}`,
+        body:
+          event.location ??
+          (event.kind === "compromisso" ? "Seu compromisso está chegando." : event.kind),
+        link: "/agenda",
+        dedupe_key: `event:${event.id}:${startsAt.toISOString()}`,
       });
     }
   }
@@ -809,13 +859,77 @@ export function buildNotificationRules(input: NotifyInput) {
   return rows;
 }
 
+const MANAGED_NOTIFICATION_DEDUPE_PREFIXES = [
+  "exam:",
+  "event:",
+  "task:",
+  "task-late:",
+  "replan:",
+  "plan-today:",
+  "summary-day:",
+  "summary-week:",
+  "summary-month:",
+  "goal-grade:",
+  "att:",
+] as const;
+
+export function isManagedOrdysNotificationKey(value: string | null | undefined) {
+  return (
+    typeof value === "string" &&
+    MANAGED_NOTIFICATION_DEDUPE_PREFIXES.some((prefix) => value.startsWith(prefix))
+  );
+}
+
 export async function syncNotifications(input: NotifyInput) {
-  const rows = buildNotificationRules(input).map((r) => ({ ...r, user_id: input.userId }));
-  if (!rows.length) return 0;
-  const { error } = await dataClient()
+  const client = dataClient();
+  const rows = buildNotificationRules(input).map((row) => ({
+    ...row,
+    user_id: input.userId,
+  }));
+  const activeKeys = new Set(rows.map((row) => row.dedupe_key));
+
+  if (rows.length) {
+    const { error } = await client.from("notifications").upsert(rows as never, {
+      onConflict: "user_id,dedupe_key",
+      ignoreDuplicates: true,
+    });
+    if (error) throw new Error(error.message);
+  }
+
+  // Reconcile only automatic ORDYS keys. User-created or already dismissed
+  // notifications are preserved, while completed/deleted academic items and
+  // disabled preference categories stop leaving stale alerts in the center.
+  const { data: activeRows, error: readError } = await client
     .from("notifications")
-    .upsert(rows as never, { onConflict: "user_id,dedupe_key", ignoreDuplicates: true });
-  if (error) throw new Error(error.message);
+    .select("id,dedupe_key")
+    .eq("user_id", input.userId)
+    .is("dismissed_at", null);
+  if (readError) throw new Error(readError.message);
+
+  const staleIds = (
+    (activeRows ?? []) as Array<{
+      id: string;
+      dedupe_key: string | null;
+    }>
+  )
+    .filter(
+      (notification) =>
+        isManagedOrdysNotificationKey(notification.dedupe_key) &&
+        !activeKeys.has(notification.dedupe_key ?? ""),
+    )
+    .map((notification) => notification.id)
+    .filter((id): id is string => typeof id === "string" && id.length > 0);
+
+  if (staleIds.length) {
+    const { error } = await client
+      .from("notifications")
+      .update({ dismissed_at: new Date().toISOString() })
+      .eq("user_id", input.userId)
+      .is("dismissed_at", null)
+      .in("id", staleIds);
+    if (error) throw new Error(error.message);
+  }
+
   return rows.length;
 }
 
