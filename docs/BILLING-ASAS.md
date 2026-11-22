@@ -83,7 +83,7 @@ Não reutilizar a chave nem o token do Sandbox em Produção. Não enviar valore
 
 URL do endpoint:
 
-`https://<dominio-https-canonico-do-Ordys>/api/public/asaas/webhook`
+`https://seu-dominio-canonico.example/api/public/asaas/webhook` (substituir pelo domínio HTTPS real do Ordys antes da configuração)
 
 O endpoint pertence ao runtime TanStack Start do Ordys (`src/routes/api/public/asaas/webhook.ts`), não a uma Supabase Edge Function. Substitua o placeholder somente depois de confirmar o domínio HTTPS canônico e um smoke test da rota publicada; não use URL de preview `id-preview--...` nem o antigo endereço `/functions/v1/ordys-billing-webhook`.
 
