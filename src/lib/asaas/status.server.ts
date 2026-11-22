@@ -16,12 +16,14 @@ export async function handleStatus(request: Request): Promise<Response> {
   const user = authentication.user;
 
   try {
-    const schemaReady = (await getBillingSchemaStatus()) === "ready";
-    const settings = schemaReady
-      ? ((await serviceRest(
-          "ordys_billing_settings?select=billing_enabled&id=eq.1&limit=1",
-        )) as Array<Record<string, unknown>> | null)
-      : [];
+    const schemaStatus = await getBillingSchemaStatus();
+    if (schemaStatus === "partial") {
+      return billingResponse(
+        { error: "A estrutura de assinaturas está incompleta. Nenhuma contratação foi iniciada." },
+        503,
+      );
+    }
+    const schemaReady = schemaStatus === "ready";
     const billingEnabled = false; // Local gate, regardless of remote settings (#323).
     const [plans, subscriptions] = await Promise.all([
       billingEnabled
@@ -36,25 +38,6 @@ export async function handleStatus(request: Request): Promise<Response> {
         : Promise.resolve([]),
     ]);
     const subscription = subscriptions?.[0] ?? null;
-    const now = Date.now();
-    const status = typeof subscription?.["status"] === "string" ? subscription["status"] : "";
-    const periodEnd =
-      typeof subscription?.["current_period_end"] === "string"
-        ? Date.parse(subscription["current_period_end"])
-        : 0;
-    const graceUntil =
-      typeof subscription?.["grace_until"] === "string"
-        ? Date.parse(subscription["grace_until"])
-        : 0;
-    const hasAccess =
-      ((status === "active" || status === "cancelled") &&
-        Number.isFinite(periodEnd) &&
-        periodEnd > now) ||
-      (status === "past_due" &&
-        Number.isFinite(periodEnd) &&
-        periodEnd > 0 &&
-        Number.isFinite(graceUntil) &&
-        graceUntil > now);
 
     return billingResponse({
       enabled: billingEnabled,
