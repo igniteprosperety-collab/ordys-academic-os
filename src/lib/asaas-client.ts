@@ -24,7 +24,7 @@ const ALLOWED_PATHS = new Set<OrdysAsaasApiPath>([
 ]);
 
 const CONNECT_TIMEOUT_MS = 8_000;
-const STANDARD_REQUEST_TIMEOUT_MS = 35_000;
+const STANDARD_REQUEST_TIMEOUT_MS = 90_000;
 const DELETE_REQUEST_TIMEOUT_MS = 115_000;
 
 export class OrdysApiResponseError extends Error {
