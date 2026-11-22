@@ -11,6 +11,24 @@ const SUPABASE_RESPONSE_BODY_TIMEOUT_MS = 3_000;
 const ASAAS_REQUEST_TIMEOUT_MS = 12_000;
 const ASAAS_RESPONSE_BODY_TIMEOUT_MS = 5_000;
 
+export class SupabaseRestError extends Error {
+  constructor(readonly status: number) {
+    super("Não foi possível consultar o serviço de assinaturas.");
+    this.name = "SupabaseRestError";
+  }
+}
+
+const BILLING_SCHEMA_SENTINEL_TABLES = [
+  "ordys_billing_settings",
+  "ordys_billing_plans",
+  "ordys_billing_checkout_attempts",
+  "ordys_billing_subscriptions",
+  "ordys_billing_payments",
+  "ordys_billing_webhook_events",
+  "ordys_billing_webhook_inbox",
+  "ordys_account_deletion_reservations",
+] as const;
+
 export const billingCorsHeaders = {};
 
 export function billingResponse(body: unknown, status = 200) {
@@ -154,7 +172,7 @@ export async function serviceRestWithDeadline(
   );
   if (!result.ok) {
     console.error("ORDYS billing database request failed:", result.status);
-    throw new Error("Não foi possível consultar o serviço de assinaturas.");
+    throw new SupabaseRestError(result.status);
   }
   if (result.status === 204 || result.body === null) return null;
 
@@ -298,12 +316,52 @@ export function constantTimeEqual(a: string, b: string) {
   return difference === 0;
 }
 
+async function detectBillingSchemaFromTables(
+  signal?: AbortSignal,
+): Promise<"absent" | "partial"> {
+  const presence = await Promise.all(
+    BILLING_SCHEMA_SENTINEL_TABLES.map(async (table) => {
+      try {
+        await serviceRest(`${table}?select=*&limit=0`, signal ? { signal } : {});
+        return true;
+      } catch (error) {
+        if (error instanceof SupabaseRestError && error.status === 404) return false;
+        throw error;
+      }
+    }),
+  );
+  return presence.some(Boolean) ? "partial" : "absent";
+}
+
 export async function getBillingSchemaStatus(): Promise<"absent" | "ready" | "partial"> {
-  const result = await serviceRest("rpc/ordys_billing_schema_status", {
-    method: "POST",
-    body: "{}",
-  });
-  return result === "absent" || result === "ready" ? result : "partial";
+  try {
+    const result = await serviceRest("rpc/ordys_billing_schema_status", {
+      method: "POST",
+      body: "{}",
+    });
+    return result === "absent" || result === "ready" ? result : "partial";
+  } catch (error) {
+    if (!(error instanceof SupabaseRestError) || error.status !== 404) throw error;
+    // A missing status RPC is Free-only only when every known billing table is
+    // absent. Any surviving table means a partial schema, which must fail closed.
+    return detectBillingSchemaFromTables();
+  }
+}
+
+export async function getBillingCoreSchemaStatus(
+  signal: AbortSignal,
+): Promise<"absent" | "ready" | "partial"> {
+  try {
+    const result = await serviceRest("rpc/ordys_billing_core_schema_status", {
+      method: "POST",
+      body: "{}",
+      signal,
+    });
+    return result === "absent" || result === "ready" ? result : "partial";
+  } catch (error) {
+    if (!(error instanceof SupabaseRestError) || error.status !== 404) throw error;
+    return detectBillingSchemaFromTables(signal);
+  }
 }
 
 /** Local release gate: cannot be opened by a database setting or self-declared age. */
