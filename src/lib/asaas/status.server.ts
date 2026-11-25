@@ -7,6 +7,16 @@ import {
   authenticateBillingRequest,
 } from "./ordys-billing.server";
 
+function safeAmountCents(value: unknown): number | null {
+  const amount =
+    typeof value === "number"
+      ? value
+      : typeof value === "string" && /^\d+$/.test(value)
+        ? Number(value)
+        : Number.NaN;
+  return Number.isSafeInteger(amount) && amount > 0 ? amount : null;
+}
+
 export async function handleStatus(request: Request): Promise<Response> {
   if (request.method === "OPTIONS") return new Response("ok", { headers: billingCorsHeaders });
   if (request.method !== "POST") return billingResponse({ error: "Método não permitido." }, 405);
@@ -16,14 +26,16 @@ export async function handleStatus(request: Request): Promise<Response> {
   const user = authentication.user;
 
   try {
-    const schemaReady = (await getBillingSchemaStatus()) === "ready";
-    const settings = schemaReady
-      ? ((await serviceRest(
-          "ordys_billing_settings?select=billing_enabled&id=eq.1&limit=1",
-        )) as Array<Record<string, unknown>> | null)
-      : [];
+    const schemaStatus = await getBillingSchemaStatus();
+    if (schemaStatus === "partial") {
+      return billingResponse(
+        { error: "A estrutura de assinaturas está incompleta. Nenhuma contratação foi iniciada." },
+        503,
+      );
+    }
+    const schemaReady = schemaStatus === "ready";
     const billingEnabled = false; // Local gate, regardless of remote settings (#323).
-    const [plans, subscriptions] = await Promise.all([
+    const [plans, subscriptions, payments] = await Promise.all([
       billingEnabled
         ? (serviceRest(
             "ordys_billing_plans?select=plan_code,title,description,billing_cycle,price_cents,currency&enabled=eq.true&price_cents=gt.0&order=sort_order.asc",
@@ -34,27 +46,28 @@ export async function handleStatus(request: Request): Promise<Response> {
             `ordys_billing_subscriptions?select=plan_code,status,amount_cents,currency,current_period_end,grace_until,cancelled_at&user_id=eq.${encodeURIComponent(user.id)}&order=created_at.desc&limit=1`,
           ) as Promise<Array<Record<string, unknown>> | null>)
         : Promise.resolve([]),
+      schemaReady
+        ? (serviceRest(
+            `ordys_billing_payments?select=amount_cents,status,due_date,confirmed_at,refunded_at,created_at&user_id=eq.${encodeURIComponent(user.id)}&order=created_at.desc&limit=10`,
+          ) as Promise<Array<Record<string, unknown>> | null>)
+        : Promise.resolve([]),
     ]);
     const subscription = subscriptions?.[0] ?? null;
-    const now = Date.now();
-    const status = typeof subscription?.["status"] === "string" ? subscription["status"] : "";
-    const periodEnd =
-      typeof subscription?.["current_period_end"] === "string"
-        ? Date.parse(subscription["current_period_end"])
-        : 0;
-    const graceUntil =
-      typeof subscription?.["grace_until"] === "string"
-        ? Date.parse(subscription["grace_until"])
-        : 0;
-    const hasAccess =
-      ((status === "active" || status === "cancelled") &&
-        Number.isFinite(periodEnd) &&
-        periodEnd > now) ||
-      (status === "past_due" &&
-        Number.isFinite(periodEnd) &&
-        periodEnd > 0 &&
-        Number.isFinite(graceUntil) &&
-        graceUntil > now);
+    const paymentHistory = (payments ?? []).flatMap((payment) => {
+      const amountCents = safeAmountCents(payment["amount_cents"]);
+      if (amountCents === null || typeof payment["status"] !== "string") return [];
+      return [
+        {
+          amountCents,
+          currency: "BRL",
+          status: payment["status"],
+          dueDate: payment["due_date"] ?? null,
+          confirmedAt: payment["confirmed_at"] ?? null,
+          refundedAt: payment["refunded_at"] ?? null,
+          createdAt: payment["created_at"] ?? null,
+        },
+      ];
+    });
 
     return billingResponse({
       enabled: billingEnabled,
@@ -63,7 +76,7 @@ export async function handleStatus(request: Request): Promise<Response> {
         ? {
             planCode: subscription["plan_code"],
             status: subscription["status"],
-            amountCents: null,
+            amountCents: safeAmountCents(subscription["amount_cents"]),
             currency: subscription["currency"],
             currentPeriodEnd: subscription["current_period_end"],
             graceUntil: subscription["grace_until"],
@@ -71,6 +84,7 @@ export async function handleStatus(request: Request): Promise<Response> {
             hasAccess: false,
           }
         : null,
+      payments: paymentHistory,
     });
   } catch (error) {
     console.error(

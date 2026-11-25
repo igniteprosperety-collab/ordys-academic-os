@@ -1,5 +1,10 @@
 import "@tanstack/react-start/server-only";
-import { asaasRequest, assertAsaasConfigured, serviceRest } from "./ordys-billing.server";
+import {
+  asaasRequest,
+  assertAsaasConfigured,
+  getBillingCoreSchemaStatus,
+  serviceRest,
+} from "./ordys-billing.server";
 import {
   createOutboundRequestDeadline,
   fetchWithOutboundTimeout,
@@ -39,17 +44,7 @@ function response(body: unknown, status = 200) {
 }
 
 async function getBillingSchemaStatus(signal: AbortSignal): Promise<string> {
-  const status = await serviceRest("rpc/ordys_billing_core_schema_status", {
-    method: "POST",
-    body: "{}",
-    signal,
-  });
-  if (typeof status !== "string") {
-    throw new Error(
-      "Não foi possível confirmar a estrutura de assinaturas. Nenhum dado foi apagado.",
-    );
-  }
-  return status;
+  return getBillingCoreSchemaStatus(signal);
 }
 
 export async function handleDeleteAccount(request: Request): Promise<Response> {

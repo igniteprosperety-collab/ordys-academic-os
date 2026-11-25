@@ -63,27 +63,34 @@ O Asaas recomenda verificar se o Checkout original já foi criado antes de recri
 
 A tabela de eventos guarda metadados e identificadores de cobrança, não o payload bruto do webhook nem dados de cartão.
 
-## Secrets do ambiente
+## Configuração server-side
 
-Configurar somente no gerenciador de secrets do projeto Lovable Cloud / Supabase correto; nunca em `VITE_*`, código versionado ou mensagens.
+Os valores devem existir somente no ambiente server-side do projeto Lovable Cloud / Supabase correto. Nunca colocar chave secreta em `VITE_*`, código versionado ou mensagens.
 
-Sandbox:
+Integração Supabase usada pelas rotas TanStack:
+- `SUPABASE_URL`: URL do projeto conectado.
+- `SUPABASE_PUBLISHABLE_KEYS` (JSON com a chave `default`) ou, no formato legado, `SUPABASE_PUBLISHABLE_KEY` / `SUPABASE_ANON_KEY`.
+- `SUPABASE_SECRET_KEYS` (JSON com a chave `default`) ou, no formato legado, `SUPABASE_SERVICE_ROLE_KEY`. Essa credencial só pode existir no runtime de servidor; nunca expor ao navegador.
+
+Aplicativo:
+- `ORDYS_PUBLIC_APP_URL`: origem HTTPS canônica do app, sem caminho, query ou fragmento. O Checkout usa essa origem para retornar a `/perfil`. Não usar URL de preview `id-preview--...`.
+
+Asaas nesta etapa:
 - `ASAAS_ENVIRONMENT=sandbox`
 - `ASAAS_API_KEY`: API key gerada no ambiente Sandbox do Asaas.
 - `ASAAS_WEBHOOK_TOKEN`: token aleatório forte, com 32–255 caracteres, sem espaços.
 
-Produção:
-- `ASAAS_ENVIRONMENT=production`
-- `ASAAS_API_KEY`: API key independente gerada no ambiente de Produção.
-- `ASAAS_WEBHOOK_TOKEN`: token independente de produção.
+**Produção ainda não é suportada por este código.** `getAsaasApiBase()` rejeita qualquer valor de `ASAAS_ENVIRONMENT` diferente de `sandbox` e usa somente `https://api-sandbox.asaas.com/v3`. Não configurar chave ou token de Produção nem trocar `ASAAS_ENVIRONMENT` para `production`. Uma futura habilitação exige alteração explícita do código, testes separados, aprovação de idade/consentimento, domínio canônico publicado e homologação completa antes da mudança de credenciais.
 
-Não reutilizar a chave nem o token do Sandbox em Produção. Não enviar valores desses secrets pelo chat.
+Não reutilizar chave nem token de Sandbox em Produção futura. Nunca enviar valores desses secrets pelo chat.
 
 ## Webhook Asaas
 
 URL do endpoint:
 
-`https://yqljcoukgpqdoxiispyn.supabase.co/functions/v1/ordys-billing-webhook`
+`https://seu-dominio-canonico.example/api/public/asaas/webhook` (substituir pelo domínio HTTPS real do Ordys antes da configuração)
+
+O endpoint pertence ao runtime TanStack Start do Ordys (`src/routes/api/public/asaas/webhook.ts`), não a uma Supabase Edge Function. Substitua o placeholder somente depois de confirmar o domínio HTTPS canônico e um smoke test da rota publicada; não use URL de preview `id-preview--...` nem o antigo endereço `/functions/v1/ordys-billing-webhook`.
 
 Configurar a autenticação do webhook pelo campo `authToken`, usando exatamente o valor de `ASAAS_WEBHOOK_TOKEN`.
 
@@ -121,16 +128,17 @@ O Asaas espera a resposta do endpoint por até **10 segundos** e considera a ent
 
 ### Contrato de recebimento e processamento assíncrono
 
-O handler versionado em `supabase/functions/ordys-billing-webhook/index.ts` agora executa somente a recepção:
+O handler `src/lib/asaas/webhook.server.ts`, exposto pela rota TanStack `src/routes/api/public/asaas/webhook.ts`, executa somente a recepção:
 1. valida `asaas-access-token`, JSON e limites do corpo;
-2. persiste a recepção idempotente pela RPC `ordys_receive_asaas_billing_webhook`, com prazo de **1,5 segundo**;
-3. valida o contrato exato do recibo e devolve **HTTP 200 somente depois que a transação de recepção confirmou o registro**.
+2. confirma a integridade estrutural da inbox por `ordys_billing_core_schema_status()`;
+3. persiste a recepção idempotente pela RPC `ordys_receive_asaas_billing_webhook`, com prazo de **1,5 segundo**;
+4. valida o contrato exato do recibo e devolve **HTTP 200 somente depois que a transação de recepção confirmou o registro**.
 
 O endpoint não chama mais a RPC financeira antes de responder. Um recibo novo ou duplicado ainda em `received` retorna `queued=true`; eventos já terminais/quarentenados são reconhecidos sem reabertura. Se o banco não confirmar um recibo válido, o endpoint devolve erro não-2xx e permite a retentativa do Asaas. A confirmação HTTP não concede acesso nem altera assinatura por conta própria.
 
-Antes de persistir o recibo, o endpoint consulta `ordys_billing_schema_status()`. Enquanto o schema estiver `partial`, `absent` ou a consulta falhar, responde **HTTP 503** e não reconhece o evento ao Asaas. Isso evita confirmar uma entrega quando não existe um worker operacional para processá-la. O Checkout também exige `schema_status = 'ready'` além de `billing_enabled = true`; o status da assinatura mantém o registro para permitir cancelamento, mas esconde a oferta e informa `hasAccess = false` enquanto a fila não estiver operacional. A função server-side `isOrdysPlusEligible()` também falha fechada antes de consultar o ledger de pagamentos. Assim, um estorno/chargeback pendente não deixa Plus liberado se o processamento automático parar. A função SQL base de elegibilidade permanece focada no estado financeiro e continua testável isoladamente; o gate operacional fica na camada server-side.
+Antes de persistir o recibo, o endpoint consulta `ordys_billing_core_schema_status()`, que verifica se a estrutura financeira necessária existe e está íntegra, sem exigir que o cron esteja vivo. Se o schema estiver `partial`, `absent` ou a consulta falhar, responde **HTTP 503** e não reconhece o evento ao Asaas. **A indisponibilidade do worker, por si só, não bloqueia a recepção:** quando a inbox estrutural está íntegra, o endpoint persiste o recibo e responde HTTP 200 mesmo que o heartbeat do cron esteja indisponível. O evento permanece em `received` até o worker voltar; nenhum acesso é concedido por causa desse ACK. Checkout e elegibilidade Plus continuam exigindo `ordys_billing_schema_status() = 'ready'` além dos demais gates; o status da assinatura mantém o histórico para permitir suporte/cancelamento, mas esconde a oferta e informa `hasAccess = false` enquanto a fila não estiver operacional. A função server-side `isOrdysPlusEligible()` também falha fechada antes de consultar o ledger de pagamentos. Assim, um estorno/chargeback pendente não deixa Plus liberado se o processamento automático parar.
 
-A mesma migration cria `ordys_billing_core_schema_status()`, uma leitura do status estrutural anterior ao worker. Somente o endpoint de exclusão usa essa RPC; ela permite verificar a integridade das tabelas/guardas sem exigir que o agendamento esteja vivo. A reserva transacional continua a verificar pendências reais por conta. O status operacional `ordys_billing_schema_status()` permanece obrigatório para Checkout, webhook e Plus.
+A mesma migration cria `ordys_billing_core_schema_status()`, uma leitura do status estrutural anterior ao worker. Essa RPC é usada pelos endpoints de exclusão de conta e de recebimento durável do webhook; ela permite verificar a integridade das tabelas/guardas sem exigir que o agendamento esteja vivo. A reserva transacional continua a verificar pendências reais por conta. O status operacional `ordys_billing_schema_status()` permanece obrigatório para Checkout e Plus.
 
 A migration `20261112010000_ordys_asaas_cron_worker.sql` instala `pg_cron` e cria o RPC protegido `ordys_process_next_asaas_billing_webhook()`. Cada chamada reabre no máximo um evento dependente com `ordys_requeue_asaas_billing_webhook_retries(1)`; o agendamento recomendado é a cada `5 seconds` (limite teórico de 12 recibos/minuto antes de considerar a duração real das transações), com monitoramento de carga, idade da fila e duração das execuções; se não houver retry elegível, seleciona o recibo novo mais antigo em `received`. O processador financeiro normal aplica todas as validações de identidade, valor, titularidade e idempotência. A função processa **um único recibo por transação** e libera o lock global ao concluir. Como `cron.job_run_details` não é limpo automaticamente, o runbook agenda uma limpeza diária com retenção de sete dias. Não há rota HTTP de worker nem secret `LOVABLE_CRON_SECRET` para este caminho.
 
@@ -157,13 +165,17 @@ A migration `20261111010000_ordys_bound_asaas_webhook_replay.sql` adiciona os í
 
 O requeue altera apenas a inbox de `quarantined` para `received` e restaura `user_id` somente quando ele pode ser resolvido por uma tentativa ou assinatura local exata. **O registro financeiro legado permanece `failed` até que o processador execute e confirme a aplicação do evento.** Isso é intencional: os bloqueios de nova contratação e exclusão de conta permanecem ativos durante a tentativa, inclusive se o processamento falhar. O processador normal faz a transição do evento legado e o trigger sincroniza o estado final na inbox. Erros permanentes de identidade, valor ou ambiguidade nunca entram na lista de requeue automático.
 
-**Cobertura adicionada, ainda não executada:** a integração já exercita backlog de 12 eventos, requeue concorrente e dependências de pagamento/estorno. A nova suite do worker SQL verifica processamento de um recibo exato por chamada, que o próximo recibo permanece em `received`, e que chamadas concorrentes para o mesmo recibo não duplicam o processamento. A suite de segurança exige que o RPC do worker não esteja acessível a `anon` nem a `authenticated`. A presença dos testes no repositório não equivale a aprovação; o CI privado ainda não alocou runner.
+**Cobertura automatizada executada em 22/11/2026:** o workflow Verify ORDYS `45036252157` concluiu os dois jobs com sucesso. No PostgreSQL descartável, as 46 migrations foram aplicadas a um banco vazio; Data API anônima passou em **49/49** testes, Auth em **1/1** fluxo de cadastro/login/refresh/troca de senha e pgTAP em **44/44** assertivas distribuídas por três arquivos: `ordys_student_core_rls_test.sql` (17), `ordys_asaas_webhook_inbox_test.sql` (18) e `ordys_public_api_acl_test.sql` (9). A suíte Asaas cobre integridade estrutural independente do heartbeat operacional, ausência de agendamento automático do cron, permissões das RPCs, rejeição de envelope inválido, gravação durável, remoção de campos não allowlisted, duplicidade idempotente, processamento de recibo exato e quarentena de payload divergente. A suíte ACL cobre privilégios estruturais de `anon`/`authenticated`/`PUBLIC`, defaults de tabelas/sequências/funções, preservação de service_role, CRUD autenticado e RLS. Na aplicação, TypeScript passou, Vitest concluiu com **130 testes aprovados e 50 ignorados**, o verificador estático TanStack/Asaas passou, lint/Prettier teve zero erros (sete avisos React Fast Refresh preexistentes) e o build client/SSR/Nitro Cloudflare passou.
 
-**Gate obrigatório antes de ativar o webhook ou o billing:** CI real para migration, integração, typecheck e verificador estático; prova de recuperação após falha, concorrência, backlog, quarentena e bloqueios de Checkout/exclusão; sincronizar a fonte oficial e aplicar schema pelo fluxo suportado do Lovable Cloud; só então criar o Job SQL-only, confirmar pelo menos duas execuções bem-sucedidas no histórico e validar recebimento/processamento real no Asaas Sandbox. Nenhum teste desta implementação deve ser considerado aprovado até execução efetiva.
+Em 22/11/2026, duas migrations de hardening já versionadas — `20261031040000_harden_public_default_privileges` e `20261102010000_revoke_excess_client_table_privileges` — também foram aplicadas ao banco Lovable Cloud em uma transação controlada e registradas no ledger. A verificação incluída na própria transação confirmou zero privilégios estruturais restantes para `anon`/`authenticated`, zero defaults inseguros para objetos públicos futuros e preservação dos defaults de tabela de service_role. Isso não significa que a cadeia financeira completa foi aplicada: as tabelas/RPCs Asaas e o pg_cron continuam pendentes no Cloud.
+
+Essa execução **não** valida um Asaas Sandbox real, requeue concorrente, backlog prolongado, recuperação após indisponibilidade real do cron, nem a rota publicada no domínio canônico. Esses pontos continuam gates separados.
+
+**Gate obrigatório antes de ativar o webhook ou o billing:** sincronizar a fonte oficial e reconciliar/aplicar o schema pelo fluxo suportado do Lovable Cloud; configurar e monitorar o Job SQL-only; confirmar pelo menos duas execuções bem-sucedidas no histórico; executar os testes de concorrência/backlog/recuperação e homologar eventos reais no Asaas Sandbox. Só então considerar a ativação de cobrança, após concluir os gates de idade/consentimento, operação e aprovação comercial. CI verde em banco descartável não equivale a produção pronta.
  
 **Antes de reativar uma fila interrompida:**
 1. Acesse **Integrações → Webhooks → Logs de Webhooks** no Asaas e identifique o código HTTP, mensagem, horário, payload e número de tentativas.
-2. Confira a URL, o token `ASAAS_WEBHOOK_TOKEN`, disponibilidade da Edge Function, logs de execução, tempo do PostgREST e locks/consultas da função `process_ordys_asaas_billing_event`.
+2. Confira a URL, o token `ASAAS_WEBHOOK_TOKEN`, disponibilidade da rota TanStack `/api/public/asaas/webhook`, logs do runtime, tempo do PostgREST e locks/consultas do worker SQL.
 3. Corrija a causa e valide um novo evento real de Sandbox, confirmando HTTP 200 e o registro correspondente no ledger do Ordys.
 4. Só então reative a fila em **Integrações → Webhooks** (ou atualize o Webhook pela API com `interrupted: false`).
 5. Confirme que a fila voltou a enviar os eventos acumulados, que as entregas retornam HTTP 200 e que reenvios com o mesmo ID continuam idempotentes.
@@ -229,7 +241,7 @@ A sequência abaixo é um roteiro condicionado. **Não executar em produção en
 
    **Ausência no ledger não prova ausência do objeto no banco.** A inspeção anterior encontrou estruturas equivalentes existentes fora do histórico. Para cada versão, compare tabelas, colunas, constraints, índices, triggers, funções e privilégios antes de aplicar; não use `migration repair` como substituto de prova e não reaplique DDL em bloco.
 
-4. **Preservar o gate de confirmação de e-mail.** A migration `20261029233000_remove_untracked_auto_confirm_email.sql` remove o trigger de auto-confirmação não rastreado. Ela e todas as migrations posteriores ficam bloqueadas até um teste real demonstrar que uma conta Gmail comum recebe e abre o e-mail de confirmação e conclui cadastro/login com Auto-confirm desativado. A migration `20261029232950_ordys_billing_schema_status.sql` deve estar efetivamente aplicada antes de publicar a Edge Function atualizada de exclusão de conta. O workflow GitHub encerra deliberadamente antes de deployar este projeto Lovable Cloud; portanto, não considere que o gate do workflow executará automaticamente no backend gerenciado.
+4. **Preservar o gate de confirmação de e-mail.** A migration `20261029233000_remove_untracked_auto_confirm_email.sql` remove o trigger de auto-confirmação não rastreado. Ela e todas as migrations posteriores ficam bloqueadas até um teste real demonstrar que uma conta Gmail comum recebe e abre o e-mail de confirmação e conclui cadastro/login com Auto-confirm desativado. A migration `20261029232950_ordys_billing_schema_status.sql` deve estar efetivamente aplicada antes de habilitar a rota TanStack `/api/asaas/delete-account`. O workflow GitHub encerra deliberadamente antes de deployar este projeto Lovable Cloud; portanto, não considere que o gate do workflow executará automaticamente no backend gerenciado.
 
 5. Depois de reconciliar as 17 versões da `main` e liberar o gate de e-mail, aplicar **as onze migrations novas da PR #320**, em ordem cronológica:
 
@@ -247,10 +259,10 @@ A sequência abaixo é um roteiro condicionado. **Não executar em produção en
 
    As migrations `20261104010000`, `20261104020000`, `20261104030000` e `20261105070000` citadas em runbooks antigos **não existem na `main` atual nem fazem parte da PR #320**. Não as procure nem tente aplicá-las; pertenciam à cadeia empilhada anterior, que foi substituída pela extração mínima.
 6. Antes de publicar as funções, conferir diretamente no histórico remoto todas as versões da cadeia, inclusive as migrations intermediárias. A RPC de estado do schema e as migrations de ciclo de vida têm gates adicionais para as funções que dependem delas; se faltar qualquer versão, a função dependente deve permanecer sem deploy.
-7. Na mesma janela coordenada, publicar pelo fluxo suportado do Lovable Cloud as Edge Functions atualizadas. `ordys-delete-account` depende da RPC de estado do schema e das três migrations de ciclo de vida; as funções de Checkout, gerenciamento e webhook também dependem do schema de billing e dos respectivos gates de ciclo de vida. Publicar ainda status/retorno, assistente e transcrição nas versões alinhadas ao controle de acesso Plus. Não usar o GitHub Action bloqueado nem o Supabase CLI como atalho. Não ativar nenhuma flag antes de todas as funções e do app web estarem publicados e verificados.
+7. Na mesma janela coordenada, publicar pelo fluxo suportado do Lovable Cloud o app TanStack com as rotas server-side `/api/asaas/checkout`, `/api/asaas/status`, `/api/asaas/manage`, `/api/asaas/delete-account` e `/api/public/asaas/webhook`; elas dependem do schema de billing e dos respectivos gates de ciclo de vida. Implantar também as Edge Functions de assistente/transcrição/status de IA nas versões alinhadas ao controle de acesso Plus. Não usar o GitHub Action bloqueado nem o Supabase CLI como atalho. Não ativar nenhuma flag antes do app, das funções necessárias e do runtime público estarem publicados e verificados.
 8. Configurar o webhook Sandbox numa conta Asaas dedicada ao Ordys, com a URL e o token correspondentes, usando obrigatoriamente `sendType = SEQUENTIALLY`. Validar nos eventos reais que os IDs de cliente, Checkout e assinatura correspondem exatamente; nunca conciliar por e-mail, valor ou nome.
 9. Manter `billing_enabled = false` e todos os planos com `enabled = false`. Definir preço mensal e anual em centavos somente depois de aprovar custos reais de IA, taxas do Asaas, margem e termos comerciais.
-**Nota da implementação na PR #320:** a migration `20261105060000` implementa a inbox durável em duas fases: o recebimento com campos allowlisted é confirmado antes do processamento, e o estado `received` ou `quarantined` bloqueia nova contratação e exclusão de conta. O finalizador do Checkout só libera a URL após revalidar o estado sob o mesmo bloqueio transacional; se surgir evento incompatível durante a chamada ao Asaas, o link não é exposto e o cancelamento remoto é reservado uma única vez. Isso ainda é código em PR, não prova de execução: faltam CI verde, integração PostgreSQL e homologação Sandbox antes de ativar cobrança. Ver `In-flight webhook and new Checkout concurrency` em `docs/ORDYS-BILLING-LIFECYCLE.md`.
+**Nota da implementação na PR #320:** a migration `20261105060000` implementa a inbox durável em duas fases: o recebimento com campos allowlisted é confirmado antes do processamento, e o estado `received` ou `quarantined` bloqueia nova contratação e exclusão de conta. O finalizador do Checkout só libera a URL após revalidar o estado sob o mesmo bloqueio transacional; se surgir evento incompatível durante a chamada ao Asaas, o link não é exposto e o cancelamento remoto é reservado uma única vez. A execução mais recente de CI da PR #10 no HEAD `658662dd290d148ef256e366170c5ddcfc472421` (run 45038394972, #774, 22/11/2026) passou nos dois jobs. O build/testes e o banco Supabase descartável foram aprovados: migrations aplicadas desde banco vazio, 49 testes de isolamento da Data API, fluxo de Auth e 44 testes pgTAP. O lint reportou zero erros e sete warnings de Fast Refresh. Isso valida o código e o banco descartável, não o backend remoto Lovable Cloud. Ainda faltam reconciliação/aplicação controlada das migrations remotas, deploy do runtime hospedado, configuração do worker e homologação Asaas Sandbox antes de ativar cobrança. Ver `In-flight webhook and new Checkout concurrency` em `docs/ORDYS-BILLING-LIFECYCLE.md`.
 10. Homologar, no mínimo: contratação aprovada; recusa; timeout e resposta ambígua; evento duplicado e fora de ordem; renovação; atraso; recuperação; cancelamento de Checkout; cancelamento de recorrência; acesso até o fim do período pago; estorno; chargeback; conta Free sem acesso Plus; e exclusão de conta com billing inexistente, pendente e conciliado.
 11. Confirmar que a resposta de pagamento, o webhook e a associação do titular são validados no backend. O redirecionamento de retorno do Checkout nunca concede Plus por si só.
 12. Concluir Termos de Uso, Política de Privacidade, identificação do fornecedor, canal de suporte, renovação automática, cancelamento, reembolso e regras para menores. A contratação inicial continua limitada a pessoas com 18 anos ou mais; o uso Free por menores exige análise própria.

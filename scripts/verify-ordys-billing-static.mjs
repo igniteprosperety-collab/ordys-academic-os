@@ -33,6 +33,22 @@ const migrationPaths = [
 ];
 const migrations = new Map(migrationPaths.map((path) => [path, requireFile(path)]));
 
+const durableWebhookPgtapPath = "supabase/tests/ordys_asaas_webhook_inbox_test.sql";
+const durableWebhookPgtap = requireFile(durableWebhookPgtapPath);
+requireIncludes(durableWebhookPgtapPath, durableWebhookPgtap, [
+  "SELECT plan(18);",
+  "public.ordys_billing_core_schema_status()",
+  "public.ordys_billing_schema_status()",
+  "public.ordys_receive_asaas_billing_webhook(jsonb)",
+  "public.ordys_process_next_asaas_billing_webhook(text)",
+  "evt_ordys_pgtap_receipt_001",
+  "evt_ordys_pgtap_conflict_001",
+  "event_id_payload_mismatch",
+  "durably admitted as received while the worker is offline",
+  "anonymous and authenticated clients cannot write durable Asaas receipts",
+  "the SQL worker processes the exact durable receipt without an HTTP request",
+]);
+
 requireIncludes(migrationPaths[2], migrations.get(migrationPaths[2]), [
   "pg_advisory_xact_lock",
   "ordys_begin_billing_checkout_attempt",

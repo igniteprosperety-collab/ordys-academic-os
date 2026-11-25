@@ -73,26 +73,23 @@ export async function handleWebhook(request: Request): Promise<Response> {
       return billingResponse({ error: "Serviço temporariamente indisponível." }, 503);
     }
 
-    // Never acknowledge a provider event while the durable SQL worker is
-    // absent/disabled. A non-200 response allows Asaas to retry delivery.
-    let schemaStatus: unknown;
+    // Receipt admission needs a structurally complete inbox, not a live
+    // cron heartbeat. Persist the event while the asynchronous SQL worker is
+    // unavailable so Asaas does not exhaust retries for an operational outage.
+    // Checkout and Plus eligibility remain gated by worker readiness; a stored
+    // receipt alone never grants access.
+    let coreSchemaStatus: unknown;
     try {
-      schemaStatus = await serviceRestWithDeadline(
-        "rpc/ordys_billing_schema_status",
+      coreSchemaStatus = await serviceRestWithDeadline(
+        "rpc/ordys_billing_core_schema_status",
         { method: "POST", body: "{}" },
         WEBHOOK_RECEIPT_DATABASE_DEADLINE_MS,
       );
     } catch {
-      return billingResponse(
-        { error: "O processamento financeiro ainda não está disponível." },
-        503,
-      );
+      return billingResponse({ error: "A estrutura financeira ainda não está disponível." }, 503);
     }
-    if (schemaStatus !== "ready") {
-      return billingResponse(
-        { error: "O processamento financeiro ainda não está disponível." },
-        503,
-      );
+    if (coreSchemaStatus !== "ready") {
+      return billingResponse({ error: "A estrutura financeira ainda não está disponível." }, 503);
     }
 
     // Commit a minimal allowlisted receipt before any billing-state processing.

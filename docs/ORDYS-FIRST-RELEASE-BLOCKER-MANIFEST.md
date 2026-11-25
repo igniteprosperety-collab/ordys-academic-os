@@ -128,3 +128,74 @@ PR #320 adds these 11 migrations:
 - The official recurring Checkout example currently formats `subscription.nextDueDate` as a date-time string, but does not define timezone interpretation. The code currently calculates the value from UTC and removes the UTC marker. Keep first-charge timing as an explicit Sandbox acceptance test against `America/Sao_Paulo`; do not infer the timezone or enable live billing before observing the resulting Asaas subscription and first payment due date.
 - Asaas reference pages: https://docs.asaas.com/docs/checkout-with-subscription-recurring ; https://docs.asaas.com/docs/checkout-events ; https://docs.asaas.com/docs/subscription-events ; https://docs.asaas.com/docs/webhook-para-cobrancas .
 - The Lovable Cloud database query allowance was exhausted on 2026-11-13. No query from that blocked attempt executed. Wait for the quota reset before performing the read-only schema/migration reconciliation again; do not try writes or use the production database as a test target.
+
+
+## 7. Direct recheck of the connected Lovable project — 2026-11-22
+
+This section supersedes time-sensitive counts and runtime-state descriptions in the 2026-11-13 snapshot above. Historical findings remain preserved for audit context.
+
+### Runtime and source handoff
+
+- The existing Lovable project `39199358-13e3-4271-8e84-5e658f272186` is still connected to the public `igniteprosperety-collab/ordys-academic-os` source, not the private `ordys-academy.app` repository.
+- Lovable reports `is_published = true`, but the project agent is stopped with `status = needs_attention` and `attentionReason = out_of_credits`; `agentFinished = true`. No agent task is continuing in the background.
+- The currently published project snapshot is commit `970154e4e46bc1ba8841c13c895a88f0e67ad6a9`. It is the base SHA of public Draft PR #10, so the billing-client rewiring in that PR is not present in the published snapshot.
+- Direct read-back of `src/routes/perfil.tsx` and `src/routes/excluir-conta.tsx` at that snapshot confirms the older `supabase.functions.invoke("ordys-billing-…")` and `ordys-delete-account` calls remain in the UI. Do not treat PR #10 as deployed.
+- The workspace is on the Free plan. The Lovable project database remains enabled and is the existing Supabase-backed database; do not create a replacement project or database.
+- The connected Render workspace currently lists only two static sites for the separate Repertório de Confeitaria project; there is no Ordys Node web service or API runtime in that account. Private PR #325 proposes a Render Node Free deployment but remains Draft, stacked on PR #320, and explicitly does not create resources, set secrets, or deploy. Do not treat its `render.yaml` as a live server.
+
+### Current migration and database state
+
+- The live migration ledger still contains 18 versions and ends at `20260927013000`.
+- The connected public source tree now contains 46 SQL migration files. Exactly 28 file versions are not present in the live ledger; the full list is:
+  - `20260927014000`, `20260927014500`, `20260927020000`, `20260927023000`, `20260927024000`, `20260927110000`, `20260927120000`, `20260927130000`;
+  - `20261029232900`, `20261029232950`, `20261029233000`, `20261031010000`, `20261031020000`, `20261031030000`, `20261031040000`, `20261031050000`, `20261102010000`;
+  - `20261103010000`, `20261103020000`, `20261103030000`, `20261105010000`, `20261105020000`, `20261105030000`, `20261105040000`, `20261105050000`, `20261105060000`, `20261111010000`, `20261112010000`.
+- Read-only catalog checks find no `ordys_billing_*` tables or readiness RPCs. The public schema currently contains the student tables, but no deployed billing schema.
+- `pg_cron` is not installed (only `pgcrypto` is installed among the extensions checked); `supabase_realtime` currently has no published tables.
+- RLS is enabled on all 25 public tables inspected. The catalog returned 23 policies; every returned policy is scoped to the owning authenticated user. Two public tables have no row in `pg_policies`; table grants were not re-audited in this pass, so do not infer their complete effective-access model from policy absence alone. This is a point-in-time structural check, not a substitute for the full advisors/privilege review after reconciliation.
+- No migration was applied and no database write was executed in this recheck.
+
+### Current billing and CI gates
+
+- The source keeps the commercial Plus gate closed: `assertBillingEnabled()` throws with the age-assurance blocker and `isOrdysPlusEligible()` returns `false`. The status handler also reports `enabled = false`. Configuring an Asaas key alone must not unlock Checkout or entitlement.
+- Private PR #320 remains Draft. Its latest recorded GitHub Actions jobs ended before the first step, with empty step lists; there is no execution evidence for its typecheck, lint, tests, Deno checks, Actionlint or PostgreSQL integration suite.
+- Public PR #10 current HEAD `ef594bb4a75c91b0f924ea120a36392d74dc8e52` passed both complete CI runs: `44986474153` (pull_request) and `44986471348` (push). Both jobs succeeded: TypeScript, 122 unit tests, lint/format, production build, complete migration chain in disposable Supabase, anonymous Data API isolation, Auth lifecycle, and pgTAP. This validates code and disposable infrastructure only; it does not deploy the Lovable project, alter its remote database, create the Node runtime or homologate Asaas.
+- The `.env.example` update documents the server-only Sandbox variables `ASAAS_ENVIRONMENT`, `ASAAS_API_KEY` and `ASAAS_WEBHOOK_TOKEN`, plus supported server-side Supabase key names. No secret values were added or configured.
+- The API routes and handlers existing in Git are not evidence of deployed handlers, a configured webhook, a scheduled SQL worker, or a successful Sandbox payment.
+
+### Required sequence remains unchanged
+
+1. Resolve the supported Lovable source handoff without overwriting generated preview/Auth integration.
+2. Obtain and verify a recoverable backup; reconcile all 28 missing migration versions and actual schema drift in timestamp order. Preserve the existing 18 ledger entries; never reset the database or edit the ledger manually.
+3. Resolve the blocked Gmail confirmation step before releasing `20261029233000`; do not apply later timestamps first and then attempt to replay an earlier migration.
+4. Keep Asaas lifecycle migrations paired with their matching SQL functions, account-deletion guards and webhook handlers. Apply/deploy only through a supported Lovable Cloud path, not the GitHub Supabase CLI workflow that explicitly rejects this managed project.
+5. After migrations and source are aligned, deploy the handlers, configure the server-only Sandbox secrets, configure the SQL-only worker as a separate gated operation, and verify its readiness heartbeat before accepting webhook receipts.
+6. Resolve Issue #323 with trusted age assurance appropriate to the product's intended audience. Keep Plus, paid Checkout and OpenAI-restricted access blocked until this gate is satisfied.
+7. Complete end-to-end Sandbox checks for creation, payment confirmation, renewal, cancellation, duplicate/out-of-order webhooks, refund/chargeback, ambiguous provider responses and the first-charge due-time interpretation.
+
+No production migration, Edge Function deployment, secret change, SQL Job creation, Asaas API call, or live charge was performed during this recheck.
+
+
+## 8. CI result for the current PR HEAD — 2026-11-22
+
+This addendum supersedes earlier CI commit references in this manifest and the PR description. It does not supersede the separate Lovable Cloud database, runtime, email-confirmation, age-assurance, privacy, or commercial release gates above.
+
+- Current public PR #10 HEAD at verification: `a449a21e82440c6c113ff129318c6aba269eca65`.
+- GitHub Actions run #771: `45038028489`, event `pull_request`, ran against that exact HEAD and completed with conclusion `success`. Both workflow jobs succeeded.
+- Application job: TypeScript passed; the TanStack billing verifier passed with 5 routes, 15 required migrations, 34 public tables, 18 Asaas inbox pgTAP assertions and 9 public API ACL pgTAP assertions; unit suite reported 19 test files passed and 2 skipped, with 135 tests passed and 50 skipped; lint reported 0 errors and 7 React Fast Refresh warnings; production build completed successfully.
+- Disposable database job: Supabase local services started; `supabase db reset --local --no-seed` applied the complete checked-in migration chain from an empty disposable database; Data API integration reported 49/49 isolation tests passed; Auth integration reported signup/profile creation/login/session refresh/password update passed; pgTAP reported 44 tests passed across the Asaas webhook inbox, public API ACL, and student core RLS test files. Local Supabase services were stopped in the cleanup step.
+- This is CI evidence for source code and an ephemeral local database only. It does not apply any migration to the connected Lovable Cloud database, reconcile its existing 18-version ledger or 28 missing migration files, deploy the TanStack server runtime, configure secrets, install the production webhook worker, call Asaas, or perform a Sandbox/live charge.
+- PR #10 remains Draft. Keep billing and Plus disabled until the separate Lovable source handoff, remote migration reconciliation, deploy/runtime, Sandbox, age-assurance, privacy, and release gates are evidenced.
+
+
+## 9. Latest CI result after documentation sync — 2026-11-22
+
+This entry supersedes the previous public PR #10 CI reference in section 8 and in older PR-body notes.
+
+- Current public PR #10 HEAD: `658662dd290d148ef256e366170c5ddcfc472421`.
+- GitHub Actions run #774: `45038394972`, pull_request event against the exact HEAD above; both jobs completed with `success`.
+- Application job: TypeScript passed; TanStack billing static verification passed (5 routes, 15 required migrations, 34 public tables, 18 Asaas inbox pgTAP assertions and 9 public API ACL pgTAP assertions); unit tests reported 19 test files passed / 2 skipped and 135 tests passed / 50 skipped; lint reported 0 errors and 7 React Fast Refresh warnings; production build completed.
+- Disposable database job: all checked-in migrations applied via `supabase db reset --local --no-seed` from an empty local Supabase database; 49/49 Data API isolation tests passed; signup/profile creation/login/session refresh/password change passed; pgTAP passed all 44 tests in the 3 checked-in SQL test files (Asaas webhook inbox, public API ACL and student core RLS). Local Supabase services were stopped by the workflow.
+- The pgTAP image pull emitted transient registry `Data limit exceeded` messages, but the test command subsequently ran and reported `All tests successful`, `Files=3, Tests=44`, `Result: PASS`; the job completed successfully.
+- The result validates this public source commit and disposable local Supabase only. It does not migrate or inspect the Lovable Cloud production DB, deploy the Node runtime, configure any secret, install/schedule a production worker, configure an Asaas webhook, or test real Sandbox payment flows.
+- PR #10 remains Draft; billing and Plus remain blocked pending runtime/source handoff, live schema reconciliation, Sandbox and legal/age/privacy gates.

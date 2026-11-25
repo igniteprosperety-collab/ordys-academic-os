@@ -3721,8 +3721,9 @@ requireIncludes("supabase/functions/ordys-billing-return/index.ts", [
   "O redirecionamento, sozinho, não libera o acesso.",
 ]);
 const asaasWebhookPath = "supabase/functions/ordys-billing-webhook/index.ts";
-const asaasWebhook = requireFile(asaasWebhookPath);
-requireIncludes(asaasWebhookPath, asaasWebhook, [
+requireFile(asaasWebhookPath);
+const asaasWebhook = read(asaasWebhookPath);
+requireIncludes(asaasWebhookPath, [
   'request.headers.get("asaas-access-token")',
   "constantTimeEqual(expectedToken, receivedToken)",
   "expectedToken.length < 32",
@@ -3742,7 +3743,7 @@ if (
 
 const durableWebhookMigration =
   "supabase/migrations/20261105060000_ordys_block_checkout_with_unreconciled_webhooks.sql";
-requireIncludes(durableWebhookMigration, read(durableWebhookMigration), [
+requireIncludes(durableWebhookMigration, [
   "CREATE OR REPLACE FUNCTION public.ordys_receive_asaas_billing_webhook(p_event JSONB)",
   "CREATE OR REPLACE FUNCTION public.ordys_process_asaas_billing_webhook(p_event_id TEXT)",
   "public.ordys_apply_asaas_billing_event(v_inbox.event_payload)",
