@@ -1,5 +1,14 @@
 import { Capacitor } from "@capacitor/core";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  focusTimerStorageKey,
+  restoreFocusTimerState,
+  type FocusTimerSnapshot,
+} from "@/lib/focus-timer-state";
+import {
+  buildFocusTimerCompletionReminder,
+  focusTimerNotificationId,
+} from "@/lib/focus-timer-notification";
 import { dateKey, ordysWeekdayToJsDay, parseTimeOfDay } from "@/lib/ordys-engine";
 import { nativeNotificationsEnabledForBuild } from "@/lib/native-notifications-config";
 
@@ -29,8 +38,13 @@ const NOTIFICATION_IDS = {
   study: 300000,
   class: 400000,
   summary: 500000,
+  event: 600000,
+  focusTimer: 900000,
 };
 const NOTIFICATION_PREFIXES = Object.values(NOTIFICATION_IDS);
+const ACADEMIC_NOTIFICATION_PREFIXES = NOTIFICATION_PREFIXES.filter(
+  (prefix) => prefix !== NOTIFICATION_IDS.focusTimer,
+);
 
 function stableId(prefix: number, value: string) {
   let hash = 0;
@@ -165,6 +179,140 @@ export async function cancelNativeNotifications(ids: number[]) {
   await notifications.cancel({ notifications: ids.map((id) => ({ id })) });
 }
 
+let focusTimerNotificationQueue: Promise<void> = Promise.resolve();
+
+function enqueueFocusTimerNotificationOperation(task: () => Promise<void>): Promise<void> {
+  const result = focusTimerNotificationQueue.then(task);
+  focusTimerNotificationQueue = result.then(
+    () => undefined,
+    () => undefined,
+  );
+  return result;
+}
+
+async function cancelAllPendingFocusTimerNotifications(notificationsApi: LocalNotificationsApi) {
+  const pending = await notificationsApi.getPending();
+  const ids = pending.notifications
+    .map((notification) => notification.id)
+    .filter((id) => id >= NOTIFICATION_IDS.focusTimer && id < NOTIFICATION_IDS.focusTimer + 90000);
+  await cancelNativeNotifications(ids);
+}
+
+export function cancelNativeFocusTimerNotification(
+  userId: string,
+  startedAt: string,
+): Promise<void> {
+  return enqueueFocusTimerNotificationOperation(async () => {
+    if (!userId.trim() || !startedAt) return;
+    await cancelNativeNotifications([focusTimerNotificationId(userId, startedAt)]);
+  });
+}
+
+export function scheduleNativeFocusTimerNotification(snapshot: FocusTimerSnapshot): Promise<void> {
+  return enqueueFocusTimerNotificationOperation(async () => {
+    if (NATIVE_NOTIFICATIONS_DISABLED || !isNativeAndroid()) return;
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (sessionData.session?.user.id !== snapshot.userId) return;
+
+    const prefsResult = await supabase
+      .from("notification_preferences")
+      .select("enabled")
+      .eq("user_id", snapshot.userId)
+      .maybeSingle();
+    if (prefsResult.error) {
+      console.error(
+        "[notifications] focus timer scheduling skipped because preferences could not be read",
+      );
+      return;
+    }
+    if (prefsResult.data?.enabled === false) {
+      await cancelNativeNotifications([
+        focusTimerNotificationId(snapshot.userId, snapshot.startedAt),
+      ]);
+      return;
+    }
+
+    const reminder = buildFocusTimerCompletionReminder(snapshot);
+    if (!reminder) {
+      await cancelNativeNotifications([
+        focusTimerNotificationId(snapshot.userId, snapshot.startedAt),
+      ]);
+      return;
+    }
+
+    const notificationsApi = await getLocalNotifications();
+    if (!notificationsApi) return;
+    await cancelAllPendingFocusTimerNotifications(notificationsApi);
+    const scheduled = await scheduleNativeNotification(reminder);
+    if (!scheduled) {
+      await cancelAllPendingFocusTimerNotifications(notificationsApi);
+    }
+  });
+}
+
+export function syncNativeFocusTimerNotification(): Promise<void> {
+  return enqueueFocusTimerNotificationOperation(async () => {
+    if (NATIVE_NOTIFICATIONS_DISABLED || !isNativeAndroid()) return;
+    const notificationsApi = await getLocalNotifications();
+    if (!notificationsApi) return;
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const userId = sessionData.session?.user.id;
+    if (!userId) {
+      await cancelAllPendingFocusTimerNotifications(notificationsApi);
+      return;
+    }
+
+    const prefsResult = await supabase
+      .from("notification_preferences")
+      .select("enabled")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (prefsResult.error) {
+      console.error("[notifications] timer sync aborted because preferences could not be read");
+      return;
+    }
+    if (prefsResult.data?.enabled === false) {
+      await cancelAllPendingFocusTimerNotifications(notificationsApi);
+      return;
+    }
+
+    let raw: string | null = null;
+    try {
+      if (typeof window === "undefined") return;
+      raw = window.localStorage.getItem(focusTimerStorageKey(userId));
+    } catch {
+      // Preserve the pending reminder when local storage is temporarily unavailable.
+      return;
+    }
+
+    const restored = restoreFocusTimerState(raw, userId);
+    const reminder = buildFocusTimerCompletionReminder(restored);
+    if (!reminder) {
+      await cancelAllPendingFocusTimerNotifications(notificationsApi);
+      return;
+    }
+
+    await cancelNativeNotifications([reminder.id]);
+    const scheduled = await scheduleNativeNotification(reminder);
+    if (!scheduled) {
+      await cancelAllPendingFocusTimerNotifications(notificationsApi);
+      return;
+    }
+
+    const pending = await notificationsApi.getPending();
+    const staleIds = pending.notifications
+      .map((notification) => notification.id)
+      .filter(
+        (id) =>
+          id >= NOTIFICATION_IDS.focusTimer &&
+          id < NOTIFICATION_IDS.focusTimer + 90000 &&
+          id !== reminder.id,
+      );
+    await cancelNativeNotifications(staleIds);
+  });
+}
+
 type NativeNotificationPrefs = {
   enabled: boolean;
   exams: boolean;
@@ -190,7 +338,15 @@ export async function syncNativeAcademicNotifications() {
 
   const { data: sessionData } = await supabase.auth.getSession();
   const userId = sessionData.session?.user.id;
-  if (!userId) return;
+  if (!userId) {
+    // Do not leave a previous account's academic details visible after sign-out.
+    const pending = await notificationsApi.getPending();
+    const staleIds = pending.notifications
+      .map((notification) => notification.id)
+      .filter((id) => NOTIFICATION_PREFIXES.some((prefix) => id >= prefix && id < prefix + 90000));
+    await cancelNativeNotifications(staleIds);
+    return;
+  }
 
   const [
     prefsResult,
@@ -200,6 +356,7 @@ export async function syncNativeAcademicNotifications() {
     schedulesResult,
     focusResult,
     subjectsResult,
+    calendarEventsResult,
   ] = await Promise.all([
     supabase.from("notification_preferences").select("*").eq("user_id", userId).maybeSingle(),
     supabase
@@ -237,6 +394,13 @@ export async function syncNativeAcademicNotifications() {
       .order("started_at", { ascending: false })
       .limit(120),
     supabase.from("subjects").select("id,name").eq("user_id", userId),
+    supabase
+      .from("calendar_events")
+      .select("id,subject_id,title,starts_at,location,kind")
+      .eq("user_id", userId)
+      .gte("starts_at", new Date().toISOString())
+      .order("starts_at")
+      .limit(120),
   ]);
 
   const queryErrors = [
@@ -247,6 +411,7 @@ export async function syncNativeAcademicNotifications() {
     schedulesResult.error,
     focusResult.error,
     subjectsResult.error,
+    calendarEventsResult.error,
   ].filter(Boolean);
 
   // Never delete already scheduled reminders when a transient data query fails.
@@ -262,8 +427,9 @@ export async function syncNativeAcademicNotifications() {
   const schedules = schedulesResult.data;
   const focus = focusResult.data;
   const subjects = subjectsResult.data;
+  const calendarEvents = calendarEventsResult.data;
 
-  const prefixes = NOTIFICATION_PREFIXES;
+  const prefixes = ACADEMIC_NOTIFICATION_PREFIXES;
   const pending = await notificationsApi.getPending();
   const scheduledIds = new Set<number>();
 
@@ -271,7 +437,9 @@ export async function syncNativeAcademicNotifications() {
     await cancelNativeNotifications(
       pending.notifications
         .map((notification) => notification.id)
-        .filter((id) => prefixes.some((prefix) => id >= prefix && id < prefix + 90000)),
+        .filter((id) =>
+          NOTIFICATION_PREFIXES.some((prefix) => id >= prefix && id < prefix + 90000),
+        ),
     );
     return;
   }
@@ -509,6 +677,28 @@ export async function syncNativeAcademicNotifications() {
           }
           return out;
         })),
+    ...(calendarEvents ?? []).flatMap((event) => {
+      const startsAt = new Date(event.starts_at);
+      if (
+        !Number.isFinite(startsAt.getTime()) ||
+        startsAt.getTime() <= now ||
+        startsAt.getTime() > horizon.getTime()
+      ) {
+        return [];
+      }
+      const reminder = new Date(startsAt.getTime() - 10 * 60 * 1000);
+      if (reminder.getTime() <= now || isWithinQuietHours(reminder, quietStart, quietEnd)) {
+        return [];
+      }
+      return [
+        {
+          id: stableId(NOTIFICATION_IDS.event, `${event.id}:10m`),
+          title: `${event.title} começa em 10 minutos`,
+          body: event.location ?? event.kind ?? "Evento na sua agenda",
+          at: reminder,
+        },
+      ];
+    }),
   ];
 
   const seen = new Set<number>();
@@ -534,4 +724,5 @@ export async function setupNativeNotifications() {
   // explicitly from Perfil before any Android notification is scheduled.
   await ensureNativeNotificationChannel();
   await syncNativeAcademicNotifications();
+  await syncNativeFocusTimerNotification();
 }
