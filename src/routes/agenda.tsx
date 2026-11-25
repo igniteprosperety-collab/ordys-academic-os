@@ -1,8 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { toast } from "sonner";
+import { isNativeAndroid, syncNativeAcademicNotifications } from "@/lib/native-notifications";
+import { isDemoMode } from "@/lib/demo-mode";
+import { buildCalendarIcs } from "@/lib/calendar-ics";
+import { buildCalendarEventPayload } from "@/lib/calendar-event-form";
 import { Shell } from "@/components/ordys/shell";
 import { Chip, Dot, Panel, PanelHeader, PageTitle, Stat } from "@/components/ordys/primitives";
-import { Button } from "@/components/ordys/form";
+import { Button, ConfirmDialog, Field, Modal, Select, TextInput } from "@/components/ordys/form";
 import {
   subjectAttendance,
   subjectAverage,
@@ -16,6 +21,7 @@ import {
   useSubjects,
   useTasks,
   useTopics,
+  useOrdysMutations,
 } from "@/lib/ordys-db";
 import {
   addDays,
@@ -66,6 +72,25 @@ type Item = {
   scheduleId?: string;
 };
 
+function localDateTimeValue(date: Date) {
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return localDate.toISOString().slice(0, 16);
+}
+
+function createDefaultEventForm() {
+  const startsAt = new Date(Date.now() + 30 * 60_000);
+  startsAt.setSeconds(0, 0);
+  const endsAt = new Date(startsAt.getTime() + 60 * 60_000);
+  return {
+    title: "",
+    startsAt: localDateTimeValue(startsAt),
+    endsAt: localDateTimeValue(endsAt),
+    location: "",
+    kind: "evento",
+    subjectId: "",
+  };
+}
+
 function Agenda() {
   const [active, setActive] = useState("Semana");
   const [offset, setOffset] = useState(0);
@@ -75,6 +100,12 @@ function Agenda() {
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
   const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
   const [subjectSection, setSubjectSection] = useState<SubjectSection>("resumo");
+  const [eventModalOpen, setEventModalOpen] = useState(false);
+  const [eventToDelete, setEventToDelete] = useState<string | null>(null);
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
+  const [savingEvent, setSavingEvent] = useState(false);
+  const [eventForm, setEventForm] = useState(createDefaultEventForm);
+  const { insert, update, remove } = useOrdysMutations();
 
   const { data: subjects = [] } = useSubjects();
   const { data: schedules = [] } = useSchedules();
@@ -160,7 +191,7 @@ function Agenda() {
         key: `v${ev.id}`,
         time: new Date(ev.starts_at).toTimeString().slice(0, 5),
         label: ev.title,
-        meta: ev.location ?? ev.source,
+        meta: ev.location ?? ev.kind,
         color: "var(--muted-foreground)",
         tone: "evento",
         subjectId: ev.subject_id,
@@ -242,6 +273,90 @@ function Agenda() {
     })
     .sort((a, b) => a.occurrence.getTime() - b.occurrence.getTime())
     .slice(0, 6);
+
+  async function saveManualEvent() {
+    const validation = buildCalendarEventPayload(eventForm);
+    if (!validation.valid) {
+      toast.error(validation.error);
+      return;
+    }
+
+    setSavingEvent(true);
+    try {
+      const values = validation.values;
+      if (editingEventId) {
+        await update("calendar_events", editingEventId, values);
+      } else {
+        await insert("calendar_events", values);
+      }
+      if (isNativeAndroid() && !isDemoMode()) {
+        void syncNativeAcademicNotifications().catch((error) => {
+          console.error("Could not refresh event reminders:", error);
+        });
+      }
+      setEventModalOpen(false);
+      setEditingEventId(null);
+      setEventForm(createDefaultEventForm());
+      toast.success(editingEventId ? "Evento atualizado." : "Evento adicionado à agenda.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível salvar o evento.");
+    } finally {
+      setSavingEvent(false);
+    }
+  }
+
+  function editManualEvent(event: (typeof events)[number]) {
+    if (event.source !== "ordys") return;
+    setEditingEventId(event.id);
+    setEventForm({
+      title: event.title,
+      startsAt: localDateTimeValue(new Date(event.starts_at)),
+      endsAt: event.ends_at ? localDateTimeValue(new Date(event.ends_at)) : "",
+      location: event.location ?? "",
+      kind: event.kind,
+      subjectId: event.subject_id ?? "",
+    });
+    setEventModalOpen(true);
+  }
+
+  async function deleteManualEvent() {
+    if (!eventToDelete) return;
+    try {
+      await remove("calendar_events", eventToDelete);
+      if (isNativeAndroid() && !isDemoMode()) {
+        void syncNativeAcademicNotifications().catch((error) => {
+          console.error("Could not refresh event reminders:", error);
+        });
+      }
+      setEventToDelete(null);
+      toast.success("Evento removido da agenda.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível remover o evento.");
+    }
+  }
+
+  function exportCalendarIcs() {
+    if (!events.length) {
+      toast.error("Não há eventos para exportar.");
+      return;
+    }
+    if (isNativeAndroid()) {
+      toast.error("A exportação .ics está disponível ao abrir o ORDYS no navegador.");
+      return;
+    }
+
+    const content = buildCalendarIcs(events);
+    const blob = new Blob([content], { type: "text/calendar;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `ordys-eventos-${dateKey(new Date())}.ics`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast.success("Arquivo .ics gerado para importar em outro calendário.");
+  }
 
   function openDay(index: number) {
     setSelectedDay(index);
@@ -1461,29 +1576,72 @@ function Agenda() {
           ) : null}
           {active === "Eventos" ? (
             <Panel className="mt-4">
-              <PanelHeader title="Eventos" hint="importados ou criados manualmente" />
+              <PanelHeader title="Eventos" hint="compromissos pessoais e eventos da agenda" />
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-5 py-3">
+                <p className="text-[11.5px] text-muted-foreground">
+                  Cadastre compromissos ou exporte seus eventos para outro calendário.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {!isNativeAndroid() ? (
+                    <Button variant="ghost" onClick={exportCalendarIcs} disabled={!events.length}>
+                      Exportar .ics
+                    </Button>
+                  ) : null}
+                  <Button
+                    onClick={() => {
+                      setEditingEventId(null);
+                      setEventForm(createDefaultEventForm());
+                      setEventModalOpen(true);
+                    }}
+                  >
+                    Novo evento
+                  </Button>
+                </div>
+              </div>
               <div className="border-t border-border">
                 {events.length ? (
                   events.map((e) => (
-                    <button
+                    <div
                       key={e.id}
-                      type="button"
-                      onClick={() =>
-                        e.subject_id ? openSubject(e.subject_id) : openAgendaDate(e.starts_at)
-                      }
-                      className="ordys-pressable flex w-full items-center gap-3 px-5 py-2.5 text-left hover:bg-surface"
+                      className="flex min-w-0 items-center gap-2 border-b border-border px-3 py-1.5 last:border-0 sm:px-5"
                     >
-                      <Dot color={color(e.subject_id, "var(--muted-foreground)")} />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-[12.5px] font-medium">{e.title}</p>
-                        <p className="truncate text-[11px] text-muted-foreground">
-                          {e.location ?? e.source}
-                        </p>
-                      </div>
-                      <span className="num shrink-0 text-[11px] text-muted-foreground">
-                        {formatDateTime(e.starts_at)}
-                      </span>
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          e.subject_id ? openSubject(e.subject_id) : openAgendaDate(e.starts_at)
+                        }
+                        className="ordys-pressable flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-surface"
+                      >
+                        <Dot color={color(e.subject_id, "var(--muted-foreground)")} />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-[12.5px] font-medium">{e.title}</p>
+                          <p className="truncate text-[11px] text-muted-foreground">
+                            {e.location ?? e.kind}
+                          </p>
+                        </div>
+                        <span className="num shrink-0 text-[11px] text-muted-foreground">
+                          {formatDateTime(e.starts_at)}
+                        </span>
+                      </button>
+                      {e.source === "ordys" ? (
+                        <div className="flex shrink-0 gap-1">
+                          <Button
+                            variant="ghost"
+                            onClick={() => editManualEvent(e)}
+                            aria-label={`Editar evento ${e.title}`}
+                          >
+                            Editar
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            onClick={() => setEventToDelete(e.id)}
+                            aria-label={`Excluir evento ${e.title}`}
+                          >
+                            Excluir
+                          </Button>
+                        </div>
+                      ) : null}
+                    </div>
                   ))
                 ) : (
                   <p className="px-5 py-6 text-[12px] text-muted-foreground">
@@ -1495,6 +1653,94 @@ function Agenda() {
           ) : null}
         </>
       )}
+      <ConfirmDialog
+        open={eventToDelete !== null}
+        title="Remover evento?"
+        description="Este evento será removido da sua agenda. Essa ação não pode ser desfeita."
+        onClose={() => setEventToDelete(null)}
+        onConfirm={() => void deleteManualEvent()}
+      />
+      <Modal
+        open={eventModalOpen}
+        onClose={() => {
+          if (!savingEvent) setEventModalOpen(false);
+        }}
+        title={editingEventId ? "Editar evento" : "Novo evento"}
+        subtitle="O evento ficará salvo na sua agenda e será exibido nas visões de dia, semana e mês."
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Título">
+            <TextInput
+              value={eventForm.title}
+              onChange={(event) => setEventForm({ ...eventForm, title: event.target.value })}
+              placeholder="Ex.: Consulta, reunião ou compromisso"
+              maxLength={120}
+              autoFocus
+            />
+          </Field>
+          <Field label="Tipo">
+            <Select
+              value={eventForm.kind}
+              onChange={(event) => setEventForm({ ...eventForm, kind: event.target.value })}
+            >
+              <option value="evento">Evento</option>
+              <option value="compromisso">Compromisso</option>
+              <option value="lembrete">Lembrete</option>
+            </Select>
+          </Field>
+          <Field label="Início">
+            <TextInput
+              type="datetime-local"
+              value={eventForm.startsAt}
+              onChange={(event) => setEventForm({ ...eventForm, startsAt: event.target.value })}
+              required
+            />
+          </Field>
+          <Field label="Término (opcional)">
+            <TextInput
+              type="datetime-local"
+              value={eventForm.endsAt}
+              onChange={(event) => setEventForm({ ...eventForm, endsAt: event.target.value })}
+            />
+          </Field>
+          <Field label="Local (opcional)">
+            <TextInput
+              value={eventForm.location}
+              onChange={(event) => setEventForm({ ...eventForm, location: event.target.value })}
+              placeholder="Endereço ou link"
+              maxLength={160}
+            />
+          </Field>
+          <Field label="Vincular disciplina (opcional)">
+            <Select
+              value={eventForm.subjectId}
+              onChange={(event) => setEventForm({ ...eventForm, subjectId: event.target.value })}
+            >
+              <option value="">Sem disciplina</option>
+              {subjects.map((subject) => (
+                <option key={subject.id} value={subject.id}>
+                  {subject.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </div>
+        <div className="mt-4 flex justify-end gap-2">
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setEventModalOpen(false);
+              setEditingEventId(null);
+            }}
+            disabled={savingEvent}
+          >
+            Cancelar
+          </Button>
+          <Button onClick={() => void saveManualEvent()} disabled={savingEvent}>
+            {savingEvent ? "Salvando…" : editingEventId ? "Salvar alterações" : "Salvar evento"}
+          </Button>
+        </div>
+      </Modal>
     </Shell>
   );
 }
