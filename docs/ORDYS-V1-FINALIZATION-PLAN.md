@@ -46,34 +46,61 @@ A configuração verificada em Git define `verify_jwt=false` apenas para recuper
 
 **Risco que permanece:** o gate de 18+ do Assistente usa data de nascimento editável pelo titular. O servidor repete a checagem, mas a fonte de idade não é verificação independente. Não declarar a questão de idade/consentimento resolvida.
 
-## Escopo da V1
+## Escopo funcional obrigatório da V1 — preservação integral
 
-### Entra na primeira entrega
+A V1 do Ordys não será reduzida a um organizador individual. O produto mantém as experiências de estudante e professor, a monetização, a IA conectada à OpenAI, os uploads e as notificações. **Nenhum desses blocos pode ser removido para contornar bloqueios de implantação, idade, billing ou distribuição.** Os bloqueios são itens de execução, não decisões de corte de produto.
 
+### Núcleo do estudante
 - Cadastro, confirmação de e-mail, login, recuperação de senha e logout.
-- Perfil e preferências do estudante.
-- Disciplinas, tópicos e progresso.
-- Tarefas e subtarefas.
-- Provas, notas e frequência.
-- Agenda, planejamento, sessões de foco e revisões.
-- Metas, check-in e desempenho.
+- Perfil, preferências, disciplinas, tópicos, tarefas, subtarefas, provas, notas e frequência.
+- Agenda, planejamento, sessões de foco, revisões, metas, check-in e desempenho.
 - Persistência após fechar/reabrir e isolamento entre contas.
-- **IA na V1:** Assistente acadêmico, geração de simulados, pesquisa assistida/profunda, configuração da rotina, mapas mentais, análise de anexos e transcrição de áudio/vídeo nas modalidades já previstas no produto, respeitando os entitlements definidos para cada plano.
-- Relato de conteúdo inseguro ou incorreto gerado pela IA, com canal de revisão e escalonamento.
-- Acesso individual à IA condicionado a estado server-side: adulto com sinal de idade apropriado ou adolescente com consentimento válido do responsável; nenhuma data editável no perfil ou flag enviada pelo cliente pode conceder acesso.
-- Proteções específicas para adolescentes: aviso em linguagem adequada, filtro de conteúdo, monitoramento/denúncia e minimização do contexto acadêmico enviado ao provedor.
-- Exclusão de conta sem perda parcial silenciosa ou repetição insegura.
 
-### Fica fora da liberação inicial
+### Experiência docente e colaboração professor–estudante
+- Espaço profissional do professor e estúdio individual de materiais.
+- Criação e organização de turmas, convites explícitos e adesão voluntária do estudante.
+- Criação/publicação de atividades, entregas, correções, notas e devolutivas.
+- Biblioteca privada de planos de aula, materiais, quizzes e rubricas, sem exigir turma para preparar conteúdo.
+- Uma conta pode atuar como professor nas turmas que administra e como estudante nas turmas às quais aderiu; entrar numa turma não dá ao professor acesso irrestrito ao restante da conta do estudante.
+- O histórico produzido por estudantes não pode ser apagado em cascata apenas porque o professor encerrou a conta. A política de transferência/arquivamento e o bloqueio seguro de exclusão precisam ser implementados e testados antes de ativar exclusão de workspace com histórico.
 
-- Ordys Plus, checkout, cobranças e ativação comercial Asaas.
-- Recursos avançados pagos e entitlement Plus.
-- Workspace docente, turmas, convites, submissões e devolutivas.
-- Upload de fotos/arquivos de estudantes.
-- Push/notificações Android até o perfil de distribuição e permissões estarem aceitos em aparelho.
-- Ativação comercial do Ordys Plus e cobrança Asaas continuam fora da primeira liberação até a homologação Sandbox; isso **não** retira as funcionalidades de IA do produto nem autoriza apagar seus fluxos ou telas.
+### Asaas, Ordys Plus e entitlement
+- Manter os fluxos existentes de checkout hospedado, assinatura recorrente, consulta de status, cancelamento, webhook, reconciliação e histórico financeiro do Asaas.
+- Manter Ordys Plus, seus recursos, limites e entitlements; a decisão de qual plano libera cada recurso continua no servidor e não pode ser simulada por flags de interface.
+- Distinguir conta gratuita, assinatura ativa, atraso/grace period, cancelamento, suspensão, estorno e contestação.
+- Não cobrar estudantes por aceitar convites, enviar atividades ou receber devolutivas. Qualquer plano profissional do professor deve ter entitlement próprio, associado ao proprietário do workspace, separado do Ordys Plus do estudante.
+- Checkout e billing podem permanecer fechados em ambiente público até a homologação completa do Asaas Sandbox, mas telas, contratos, migrations e funções devem ser preservados e concluídos — não removidos.
 
-A exclusão desses fluxos da V1 não autoriza apagar tabelas, colunas, relações ou dados docentes que já existem.
+### IA integrada à OpenAI — parte do produto
+- Assistente acadêmico, geração de simulados, pesquisa assistida e profunda, configuração da rotina, mapas mentais, análise multimodal de anexos e transcrição de áudio/vídeo, respeitando os entitlements atuais.
+- O backend continua enviando à OpenAI apenas o texto, contexto e anexos necessários à ação solicitada, depois das verificações server-side de autorização, entitlement, limites e política de dados.
+- O usuário precisa saber quando conteúdo/anexos serão enviados ao provedor e controlar o contexto opcional; não substituir a integração real por respostas locais ou por uma interface sem backend.
+- Preservar moderação, denúncia, proteção por faixa etária e revogação; uma falha de autorização bloqueia apenas chamadas à OpenAI daquela conta, não o restante do Ordys.
+
+### Uploads e biblioteca de arquivos
+- Manter anexos de estudantes e professores nos fluxos em que fazem sentido: materiais, atividades, entregas, anotações e contexto de IA.
+- Implementar armazenamento privado, metadados, limites de tamanho/tipo, validação de conteúdo, URLs temporárias, exclusão e isolamento por proprietário/turma.
+- Um arquivo só pode ser encaminhado à OpenAI quando estiver vinculado a uma solicitação explícita do usuário e autorizado pela política de IA.
+- Upload não pode depender de URL pública permanente nem de um campo de texto que apenas simule anexo.
+
+### Notificações e push
+- Manter notificações do produto e implementar push remoto real nos canais de distribuição suportados, além de lembretes locais quando forem úteis.
+- Prever opt-in, preferências por categoria, revogação, rotação/invalidação de tokens, entrega idempotente e links profundos para a tela correta.
+- Eventos incluem prazos, atividades, devolutivas e avisos relevantes da conta, sem conteúdo acadêmico sensível exposto na tela bloqueada.
+- Notificação local agendada não é push remoto. O APK direto não pode ser descrito como compatível com push se a integração de entrega remota não estiver configurada e testada.
+
+### Estado técnico observado e critério de liberação
+
+| Bloco | Evidência atual | O que falta antes de considerar concluído |
+|---|---|---|
+| Estudante | Núcleo e isolamento têm testes aprovados no espelho público | Aceite ponta a ponta com Auth e banco do ambiente real |
+| Docente | Fundação de workspace/turma/convites/atividades/devolutivas existe em branch dedicada; biblioteca individual segue como trabalho separado | Integrar com revisão, completar estúdio individual e proteger histórico do estudante na exclusão do professor |
+| Asaas/Plus | Edge Functions de checkout, status, cancelamento e webhook existem no repositório privado; flags/configuração mantêm billing e Plus fechados | Corrigir processamento durável do webhook, configurar Sandbox, testar recorrência/reentrega/cancelamento/estorno e validar entitlement |
+| IA/OpenAI | Assistente e transcrição possuem chamadas server-side ao provedor; o gate individual de IA está em implementação e ainda não foi implantado | Integrar verificação confiável de idade/consentimento, secrets, funções implantadas e testes reais por conta/plano |
+| Uploads | Há suporte de anexos no fluxo de IA; não há evidência suficiente de um ciclo completo de Storage para os fluxos docente/estudante | Storage privado com RLS, quotas, upload/download/exclusão e testes de isolamento |
+| Push | O código inclui notificações locais e política de opt-in; isso, isoladamente, não comprova push remoto | Integrar provedor de push, tokens, entrega no backend e aceite em aparelho real |
+
+**Regra de release:** nenhum bloco acima é removido ou rebaixado para “fora de escopo”. Um recurso que ainda depende de integração, segredo, homologação ou aceite de dispositivo fica marcado como pendente e bloqueia a declaração de V1 completa; não pode ser apresentado como concluído nem apagado para encurtar artificialmente o lançamento.
 
 ## Evidências técnicas obtidas em 20/11/2026
 

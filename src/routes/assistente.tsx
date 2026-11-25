@@ -36,13 +36,13 @@ import {
 import { cn } from "@/lib/utils";
 import { AiContentReportButton } from "@/components/ordys/ai-content-report-button";
 import { useAuth } from "@/hooks/use-auth";
-import { useProfile } from "@/lib/ordys-db";
-import { canUseOrdysAi } from "@/lib/ai-eligibility";
 import {
+  getOrdysAiAccessStatus,
   ORDYS_AI_ACCESS_POLICY_READY,
   ORDYS_AI_ACCESS_POLICY_LOCK_MESSAGE,
   ORDYS_PLUS_AI_ENABLED,
   ORDYS_PLUS_LOCK_SHORT_MESSAGE,
+  type OrdysAiAccessStatus,
 } from "@/lib/ordys-ai-access";
 import {
   ORDYS_CONTEXT_SCOPE_OPTIONS,
@@ -204,12 +204,16 @@ function AssistantPage() {
   const [preparingFiles, setPreparingFiles] = useState(false);
   const [applyingConfig, setApplyingConfig] = useState(false);
   const [status, setStatus] = useState("");
-  const { isDemo } = useAuth();
-  const { data: profile, isLoading: profileLoading, error: profileError } = useProfile();
-  const aiEligibility = canUseOrdysAi(profile?.birth_date, profile?.timezone);
-  const profileFailed = Boolean(profileError) && !profile;
+  const { isDemo, userId, loading: authLoading } = useAuth();
+  const [aiAccess, setAiAccess] = useState<OrdysAiAccessStatus | null>(null);
+  const [aiAccessLoading, setAiAccessLoading] = useState(false);
+  const [aiAccessError, setAiAccessError] = useState(false);
   const aiUnavailable =
-    !ORDYS_AI_ACCESS_POLICY_READY || profileLoading || profileFailed || !aiEligibility.allowed;
+    !ORDYS_AI_ACCESS_POLICY_READY ||
+    authLoading ||
+    aiAccessLoading ||
+    aiAccessError ||
+    aiAccess?.allowed !== true;
   const pollTimer = useRef<number | null>(null);
   const fileInput = useRef<HTMLInputElement | null>(null);
 
@@ -219,6 +223,38 @@ function AssistantPage() {
     },
     [],
   );
+
+  useEffect(() => {
+    let active = true;
+    if (isDemo || !userId || !ORDYS_AI_ACCESS_POLICY_READY) {
+      setAiAccess(null);
+      setAiAccessLoading(false);
+      setAiAccessError(false);
+      return () => {
+        active = false;
+      };
+    }
+
+    setAiAccessLoading(true);
+    setAiAccessError(false);
+    void getOrdysAiAccessStatus()
+      .then((decision) => {
+        if (active) setAiAccess(decision);
+      })
+      .catch(() => {
+        if (active) {
+          setAiAccess(null);
+          setAiAccessError(true);
+        }
+      })
+      .finally(() => {
+        if (active) setAiAccessLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isDemo, userId]);
 
   async function selectFiles(fileList: FileList | null) {
     if (!fileList?.length || preparingFiles) return;
@@ -251,16 +287,18 @@ function AssistantPage() {
       );
       return;
     }
-    if (profileLoading) {
-      setStatus("Validando sua conta e carregando seu perfil. Tente novamente em instantes.");
+    if (authLoading || aiAccessLoading) {
+      setStatus("Validando a autorização da sua conta. Tente novamente em instantes.");
       return;
     }
-    if (profileFailed) {
-      setStatus("Não foi possível carregar seu perfil. Verifique a conexão e tente novamente.");
+    if (aiAccessError) {
+      setStatus("Não foi possível validar a autorização de IA desta conta. Tente novamente.");
       return;
     }
-    if (!aiEligibility.allowed) {
-      setStatus(aiEligibility.reason);
+    if (!aiAccess?.allowed) {
+      setStatus(
+        aiAccess?.message || "Esta conta ainda não está autorizada a usar os recursos de IA.",
+      );
       return;
     }
     const message = (messageOverride ?? input).trim();
@@ -394,15 +432,7 @@ function AssistantPage() {
   }
 
   async function applyConfiguration() {
-    if (
-      !configuration ||
-      applyingConfig ||
-      configuration.questions.length ||
-      profileLoading ||
-      profileFailed ||
-      !aiEligibility.allowed
-    )
-      return;
+    if (!configuration || applyingConfig || configuration.questions.length || aiUnavailable) return;
     setApplyingConfig(true);
     setStatus("Aplicando a configuração no seu ORDYS…");
     try {
@@ -485,41 +515,34 @@ function AssistantPage() {
           </p>
         </header>
 
-        {!isDemo && ORDYS_AI_ACCESS_POLICY_READY && profileLoading ? (
+        {!isDemo && ORDYS_AI_ACCESS_POLICY_READY && (authLoading || aiAccessLoading) ? (
           <section className="mt-6 rounded-xl border border-border bg-surface px-4 py-3 text-[12px]">
-            <p className="font-medium">Validando seu perfil</p>
+            <p className="font-medium">Validando a autorização de IA</p>
             <p className="mt-1 leading-5 text-muted-foreground">
-              Aguarde enquanto o ORDYS carrega sua data de nascimento e verifica a disponibilidade
-              dos recursos de IA.
+              O servidor está verificando a permissão desta conta para usar os recursos de IA.
             </p>
           </section>
         ) : null}
-        {!isDemo && ORDYS_AI_ACCESS_POLICY_READY && profileFailed ? (
+        {!isDemo && ORDYS_AI_ACCESS_POLICY_READY && aiAccessError ? (
           <section className="mt-6 rounded-xl border border-border bg-surface px-4 py-3 text-[12px]">
-            <p className="font-medium">Não foi possível carregar seu perfil</p>
+            <p className="font-medium">Não foi possível confirmar sua autorização</p>
             <p className="mt-1 leading-5 text-muted-foreground">
-              Verifique sua conexão e tente novamente antes de usar os recursos de IA.
+              Verifique sua conexão e tente novamente. Nenhum conteúdo será enviado à IA enquanto a
+              autorização não puder ser confirmada.
             </p>
-            <Link to="/perfil" className="mt-2 inline-block text-primary hover:underline">
-              Abrir Perfil
-            </Link>
           </section>
         ) : null}
         {!isDemo &&
         (!ORDYS_AI_ACCESS_POLICY_READY ||
-          (!profileLoading && !profileFailed && !aiEligibility.allowed)) ? (
+          (!authLoading && !aiAccessLoading && !aiAccessError && aiAccess?.allowed !== true)) ? (
           <section className="mt-6 rounded-xl border border-primary/20 bg-primary-soft px-4 py-3 text-[12px]">
-            <p className="font-medium">Recursos de IA temporariamente indisponíveis</p>
+            <p className="font-medium">Acesso aos recursos de IA</p>
             <p className="mt-1 leading-5 text-muted-foreground">
               {!ORDYS_AI_ACCESS_POLICY_READY
                 ? ORDYS_AI_ACCESS_POLICY_LOCK_MESSAGE
-                : aiEligibility.reason}
+                : aiAccess?.message ||
+                  "Esta conta ainda não possui uma autorização válida para usar IA."}
             </p>
-            {ORDYS_AI_ACCESS_POLICY_READY ? (
-              <Link to="/perfil" className="mt-2 inline-block text-primary hover:underline">
-                Abrir Perfil
-              </Link>
-            ) : null}
           </section>
         ) : null}
 

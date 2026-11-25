@@ -1,6 +1,6 @@
 begin;
 
-select plan(17);
+select plan(29);
 
 -- Deterministic synthetic identities. The whole test runs in one transaction
 -- and is rolled back at the end; no real user or remote project is touched.
@@ -54,6 +54,105 @@ values
     '10000000-0000-4000-8000-000000000002',
     'História do aluno B'
   );
+
+-- AI assurance is an account-level server record, not a student-editable profile.
+select ok(
+  to_regclass('public.ordys_ai_access_assurance') is not null,
+  'per-account AI assurance table exists'
+);
+
+select ok(
+  (select relrowsecurity from pg_class where oid = 'public.ordys_ai_access_assurance'::regclass),
+  'AI assurance table has row-level security enabled'
+);
+
+select ok(
+  not has_table_privilege('anon', 'public.ordys_ai_access_assurance', 'SELECT')
+  and not has_table_privilege('anon', 'public.ordys_ai_access_assurance', 'INSERT')
+  and not has_table_privilege('authenticated', 'public.ordys_ai_access_assurance', 'SELECT')
+  and not has_table_privilege('authenticated', 'public.ordys_ai_access_assurance', 'INSERT')
+  and not has_table_privilege('authenticated', 'public.ordys_ai_access_assurance', 'UPDATE')
+  and not has_table_privilege('authenticated', 'public.ordys_ai_access_assurance', 'DELETE'),
+  'client roles cannot read or change AI assurance evidence'
+);
+
+select ok(
+  has_table_privilege('service_role', 'public.ordys_ai_access_assurance', 'SELECT')
+  and has_table_privilege('service_role', 'public.ordys_ai_access_assurance', 'INSERT')
+  and has_table_privilege('service_role', 'public.ordys_ai_access_assurance', 'UPDATE'),
+  'only the trusted server role has the required AI assurance access'
+);
+
+select ok(
+  to_regclass('public.ordys_ai_access_audit') is not null,
+  'AI access audit table exists'
+);
+
+select ok(
+  (select relrowsecurity from pg_class where oid = 'public.ordys_ai_access_audit'::regclass),
+  'AI access audit table has row-level security enabled'
+);
+
+select ok(
+  not has_table_privilege('anon', 'public.ordys_ai_access_audit', 'SELECT')
+  and not has_table_privilege('anon', 'public.ordys_ai_access_audit', 'INSERT')
+  and not has_table_privilege('authenticated', 'public.ordys_ai_access_audit', 'SELECT')
+  and not has_table_privilege('authenticated', 'public.ordys_ai_access_audit', 'INSERT')
+  and not has_table_privilege('authenticated', 'public.ordys_ai_access_audit', 'UPDATE')
+  and not has_table_privilege('authenticated', 'public.ordys_ai_access_audit', 'DELETE'),
+  'client roles cannot read or change the AI access audit trail'
+);
+
+select ok(
+  has_table_privilege('service_role', 'public.ordys_ai_access_audit', 'SELECT')
+  and has_table_privilege('service_role', 'public.ordys_ai_access_audit', 'INSERT'),
+  'trusted server role can append AI access audit events'
+);
+
+select ok(
+  exists (
+    select 1 from pg_trigger
+    where tgrelid = 'public.ordys_ai_access_audit'::regclass
+      and tgname = 'ordys_ai_access_audit_append_only'
+      and not tgisinternal
+  ),
+  'AI access audit table has an append-only trigger'
+);
+
+select ok(
+  not has_function_privilege('anon', 'public.reject_ordys_ai_access_audit_mutation()', 'EXECUTE')
+  and not has_function_privilege('authenticated', 'public.reject_ordys_ai_access_audit_mutation()', 'EXECUTE')
+  and has_function_privilege('service_role', 'public.reject_ordys_ai_access_audit_mutation()', 'EXECUTE'),
+  'only the trusted server role can invoke the audit mutation trigger function directly'
+);
+
+insert into public.ordys_ai_access_audit (
+  user_ref, event_type, actor_type, age_band, age_assurance_source, age_evidence_reference
+) values (
+  repeat('a', 64),
+  'age_assurance_recorded',
+  'operator',
+  '18_plus',
+  'external_provider_verified',
+  'test-age-evidence-reference'
+);
+
+select throws_ok(
+  'update public.ordys_ai_access_audit
+    set actor_type = ''system''
+    where user_ref = repeat(''a'', 64)',
+  'P0001',
+  'ORDYS_AI_ACCESS_AUDIT_APPEND_ONLY',
+  'AI access audit events cannot be updated'
+);
+
+select throws_ok(
+  'delete from public.ordys_ai_access_audit
+    where user_ref = repeat(''a'', 64)',
+  'P0001',
+  'ORDYS_AI_ACCESS_AUDIT_APPEND_ONLY',
+  'AI access audit events cannot be deleted'
+);
 
 -- Every table that stores individual student data must have RLS and an
 -- authenticated ownership policy. The list is intentionally explicit.

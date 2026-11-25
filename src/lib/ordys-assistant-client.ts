@@ -5,7 +5,6 @@ import {
 } from "@/lib/edge-function-errors";
 import { dateKey } from "@/lib/ordys-engine";
 import type { OrdysAttachment } from "@/lib/ordys-assistant-media";
-import { canUseOrdysAi } from "@/lib/ai-eligibility";
 import { ORDYS_PLUS_AI_ENABLED, assertOrdysAiAccessPolicyReady } from "@/lib/ordys-ai-access";
 import { isOrdysVideoAudioTranscriptionSupported } from "@/lib/ordys-video-transcription";
 import {
@@ -92,7 +91,7 @@ export async function generateOrdysQuiz(input: {
   difficulty: "facil" | "media" | "dificil";
   questionCount: number;
 }): Promise<OrdysQuizQuestion[]> {
-  assertOrdysAiAccessPolicyReady();
+  await assertOrdysAiAccessPolicyReady();
   await getAccessContext();
 
   const { data, error } = await invokeAssistant({
@@ -649,7 +648,6 @@ async function prepareMessageWithContext(
 async function transcribeOrdysVideo(
   attachment: OrdysAttachment,
 ): Promise<{ transcript: string | null; note: string | null }> {
-  assertOrdysAiAccessPolicyReady();
   if (attachment.kind !== "video" || !attachment.dataUrl) return { transcript: null, note: null };
 
   if (!ORDYS_PLUS_AI_ENABLED) {
@@ -704,17 +702,8 @@ export async function askOrdysAssistant(input: {
   attachments?: OrdysAttachment[];
   academicContext?: readonly OrdysAcademicContextScope[];
 }): Promise<OrdysAssistantResult> {
-  assertOrdysAiAccessPolicyReady();
+  await assertOrdysAiAccessPolicyReady();
   const { userId } = await getAccessContext();
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("birth_date,timezone")
-    .eq("id", userId)
-    .maybeSingle();
-  if (profileError)
-    throw new Error("Não foi possível verificar a elegibilidade dos recursos de IA.");
-  const aiEligibility = canUseOrdysAi(profile?.birth_date, profile?.timezone);
-  if (!aiEligibility.allowed) throw new Error(aiEligibility.reason);
 
   const videoAttachments = (input.attachments ?? []).filter(
     (attachment) => attachment.kind === "video",
@@ -759,7 +748,7 @@ export async function askOrdysAssistant(input: {
 }
 
 export async function pollOrdysResearch(responseId: string): Promise<OrdysAssistantResult> {
-  assertOrdysAiAccessPolicyReady();
+  await assertOrdysAiAccessPolicyReady();
   await getAccessContext();
   const body = { action: "poll", responseId };
   const { data, error } = await invokeAssistant({ body });
@@ -778,7 +767,7 @@ export async function cancelOrdysResearch(responseId: string): Promise<OrdysAssi
 }
 
 export async function applyOrdysConfiguration(plan: OrdysConfigurationPlan) {
-  assertOrdysAiAccessPolicyReady();
+  await assertOrdysAiAccessPolicyReady();
   await getAccessContext();
   const body = { action: "apply-config", plan };
   const { data, error } = await invokeAssistant({ body });
